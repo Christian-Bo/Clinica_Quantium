@@ -1,0 +1,9 @@
+@import "tailwindcss";
+@source "../**/*.razor";
+@source "../**/*.html";
+
+@layer base {
+  body {
+    @apply antialiased;
+  }
+}
