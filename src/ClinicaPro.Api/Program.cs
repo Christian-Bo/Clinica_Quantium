@@ -7,6 +7,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddProblemDetails();
+
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -14,10 +15,13 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("Client", policy =>
     {
-        var origins = builder.Configuration.GetSection("AllowedClientOrigins").Get<string[]>()
+        var origins = builder.Configuration
+            .GetSection("AllowedClientOrigins")
+            .Get<string[]>()
             ?? ["https://localhost:7142", "http://localhost:5142"];
 
-        policy.WithOrigins(origins)
+        policy
+            .WithOrigins(origins)
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -25,17 +29,16 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-await app.Services.InitialiseDatabaseAsync();
-
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
 app.UseExceptionHandler();
+app.UseHttpsRedirection();
 app.UseCors("Client");
+
 app.MapControllers();
 
 app.Run();

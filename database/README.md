@@ -1,13 +1,6 @@
 # Base de datos
 
-La base objetivo es SQL Server. El backend usa EF Core y permite iniciar con una base en memoria en ambiente Development.
+- `ClinicaPro_BD_Somee.sql`: esquema inicial para la base compartida de Somee.
+- `ClinicaPro_Validacion_Somee.sql`: validaciones estructurales posteriores a la carga.
 
-El script `001_initial_schema.sql` contiene la estructura mínima equivalente para la funcionalidad inicial de solicitudes de cita.
-
-No deben guardarse en GitHub:
-
-- respaldos `.bak`;
-- archivos `.mdf` o `.ldf`;
-- contraseñas;
-- cadenas de producción;
-- datos reales de pacientes.
+La API no ejecuta automáticamente ninguno de estos scripts al iniciar.

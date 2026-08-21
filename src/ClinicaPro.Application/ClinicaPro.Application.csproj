@@ -6,7 +6,6 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\ClinicaPro.Contracts\ClinicaPro.Contracts.csproj" />
     <ProjectReference Include="..\ClinicaPro.Domain\ClinicaPro.Domain.csproj" />
   </ItemGroup>
 </Project>

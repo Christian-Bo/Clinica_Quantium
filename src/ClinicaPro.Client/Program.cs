@@ -1,19 +1,25 @@
-using ClinicaPro.Client;
-using ClinicaPro.Client.Services;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 
-var builder = WebAssemblyHostBuilder.CreateDefault(args);
-builder.RootComponents.Add<App>("#app");
-builder.RootComponents.Add<HeadOutlet>("head::after");
+namespace ClinicaPro.Client;
 
-var apiBaseUrl = builder.Configuration["ApiBaseUrl"]
-    ?? throw new InvalidOperationException("Falta ApiBaseUrl en wwwroot/appsettings.json.");
-
-builder.Services.AddScoped(_ => new HttpClient
+public static class Program
 {
-    BaseAddress = new Uri(apiBaseUrl)
-});
-builder.Services.AddScoped<ClinicaProApiClient>();
+    public static async Task Main(string[] args)
+    {
+        var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
-await builder.Build().RunAsync();
+        builder.RootComponents.Add<App>("#app");
+        builder.RootComponents.Add<HeadOutlet>("head::after");
+
+        var apiBaseUrl = builder.Configuration["ApiBaseUrl"]
+            ?? "https://localhost:7041/";
+
+        builder.Services.AddScoped(_ => new HttpClient
+        {
+            BaseAddress = new Uri(apiBaseUrl)
+        });
+
+        await builder.Build().RunAsync();
+    }
+}
