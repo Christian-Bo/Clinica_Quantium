@@ -1,4 +1,6 @@
+using ClinicaPro.Application.Especialidades;
 using ClinicaPro.Infrastructure.Persistence;
+using ClinicaPro.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,6 +25,8 @@ public static class DependencyInjection
                     maxRetryDelay: TimeSpan.FromSeconds(5),
                     errorNumbersToAdd: null);
             }));
+
+        services.AddScoped<IEspecialidadRepository, EspecialidadRepository>();
 
         return services;
     }
