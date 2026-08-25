@@ -134,7 +134,7 @@ public sealed class HistorialCitaRepository(ClinicaProDbContext dbContext) : IHi
     {
         return await dbContext.HistorialCitas.AsNoTracking()
             .Where(historial => historial.CitaId == citaId)
-            .OrderBy(historial => historial.FechaCambioUtc)
+            .OrderBy(historial => historial.Id)
             .ToListAsync(cancellationToken);
     }
 }
