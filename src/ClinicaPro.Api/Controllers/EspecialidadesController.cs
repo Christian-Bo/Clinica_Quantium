@@ -1,10 +1,12 @@
 using ClinicaPro.Application.Especialidades;
 using ClinicaPro.Contracts.Especialidades;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ClinicaPro.Api.Controllers;
 
 [ApiController]
+[AllowAnonymous]
 [Route("api/especialidades")]
 public sealed class EspecialidadesController(ListarEspecialidadesActivasService listarEspecialidades)
     : ControllerBase
