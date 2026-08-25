@@ -1,17 +1,51 @@
+using ClinicaPro.Domain.Entities;
+using ClinicaPro.Infrastructure.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace ClinicaPro.Infrastructure.Persistence;
 
-/// <summary>
-/// Contexto EF Core de Clínica Pro.
-/// Se mantiene sin DbSet hasta que las entidades del dominio sean implementadas y mapeadas.
-/// </summary>
-public sealed class ClinicaProDbContext(DbContextOptions<ClinicaProDbContext> options)
-    : DbContext(options)
+public sealed class ClinicaProDbContext
+    : IdentityDbContext<
+        ApplicationUser,
+        ApplicationRole,
+        Guid,
+        ApplicationUserClaim,
+        ApplicationUserRole,
+        ApplicationUserLogin,
+        ApplicationRoleClaim,
+        ApplicationUserToken>
 {
+    public ClinicaProDbContext(DbContextOptions<ClinicaProDbContext> options)
+        : base(options)
+    {
+    }
+
+    public DbSet<Especialidad> Especialidades => Set<Especialidad>();
+    public DbSet<Paciente> Pacientes => Set<Paciente>();
+    public DbSet<Medico> Medicos => Set<Medico>();
+    public DbSet<MedicoEspecialidad> MedicoEspecialidades => Set<MedicoEspecialidad>();
+    public DbSet<Horario> Horarios => Set<Horario>();
+    public DbSet<Cita> Citas => Set<Cita>();
+    public DbSet<HistorialCita> HistorialCitas => Set<HistorialCita>();
+    public DbSet<Parametro> Parametros => Set<Parametro>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ClinicaProDbContext).Assembly);
         base.OnModelCreating(modelBuilder);
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ClinicaProDbContext).Assembly);
+    }
+
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        foreach (var entry in ChangeTracker.Entries<ApplicationUserRole>())
+        {
+            if (entry.State == EntityState.Added && entry.Entity.AssignedAtUtc == default)
+            {
+                entry.Entity.AssignedAtUtc = DateTime.UtcNow;
+            }
+        }
+
+        return await base.SaveChangesAsync(cancellationToken);
     }
 }
