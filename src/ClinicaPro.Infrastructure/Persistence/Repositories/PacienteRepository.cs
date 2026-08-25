@@ -6,6 +6,12 @@ namespace ClinicaPro.Infrastructure.Persistence.Repositories;
 
 public sealed class PacienteRepository(ClinicaProDbContext dbContext) : IPacienteRepository
 {
+    public Task<Paciente?> ObtenerPorIdAsync(Guid pacienteId, CancellationToken cancellationToken = default)
+    {
+        return dbContext.Pacientes.AsNoTracking()
+            .SingleOrDefaultAsync(paciente => paciente.Id == pacienteId && paciente.IsActive, cancellationToken);
+    }
+
     public async Task<Paciente?> ObtenerPorUsuarioIdAsync(
         Guid usuarioId,
         CancellationToken cancellationToken = default)

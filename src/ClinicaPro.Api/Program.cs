@@ -17,7 +17,7 @@ builder.Services.AddSwaggerGen(options =>
         Title = "Clínica Pro API",
         Version = "v1",
         Description =
-            "Flujo: 1) POST /api/auth/login o register  2) Authorize (candado) con el accessToken  3) GET /api/auth/me y GET /api/pacientes/me."
+            "Septiembre: 1) POST /api/auth/login o register  2) Authorize con el accessToken  3) Admin: POST /api/demo/preparar-agenda  4) Paciente: POST /api/citas  5) Secretaria: GET /api/citas/pendientes y confirmar/rechazar. FechaHoraInicio es hora de Guatemala, sin Z."
     });
 
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -45,6 +45,7 @@ builder.Services.AddSwaggerGen(options =>
         }
     });
 });
+builder.Services.AddExceptionHandler<ClinicaPro.Api.DomainExceptionHandler>();
 builder.Services.AddProblemDetails();
 
 builder.Services.AddApplication();

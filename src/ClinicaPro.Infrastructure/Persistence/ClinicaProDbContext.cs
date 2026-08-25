@@ -23,6 +23,12 @@ public sealed class ClinicaProDbContext
 
     public DbSet<Especialidad> Especialidades => Set<Especialidad>();
     public DbSet<Paciente> Pacientes => Set<Paciente>();
+    public DbSet<Medico> Medicos => Set<Medico>();
+    public DbSet<MedicoEspecialidad> MedicoEspecialidades => Set<MedicoEspecialidad>();
+    public DbSet<Horario> Horarios => Set<Horario>();
+    public DbSet<Cita> Citas => Set<Cita>();
+    public DbSet<HistorialCita> HistorialCitas => Set<HistorialCita>();
+    public DbSet<Parametro> Parametros => Set<Parametro>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

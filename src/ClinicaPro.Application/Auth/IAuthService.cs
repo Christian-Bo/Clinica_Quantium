@@ -34,9 +34,12 @@ public sealed record AuthOperationResult(bool Succeeded, string? ErrorCode, Auth
     public static AuthOperationResult Fail(string errorCode) => new(false, errorCode, null);
 }
 
+public sealed record PacienteStaffResult(bool Succeeded, string? ErrorCode, Guid? PacienteId, Guid? UsuarioId);
+
 public interface IAuthService
 {
     Task<AuthOperationResult> LoginAsync(string email, string password, CancellationToken cancellationToken = default);
     Task<AuthOperationResult> RegisterPacienteAsync(RegisterPacienteInput input, CancellationToken cancellationToken = default);
+    Task<PacienteStaffResult> RegisterPacientePorStaffAsync(RegisterPacienteInput input, CancellationToken cancellationToken = default);
     Task<AuthUserInfo?> ObtenerUsuarioAsync(Guid usuarioId, CancellationToken cancellationToken = default);
 }

@@ -1,7 +1,10 @@
+using ClinicaPro.Application;
+using ClinicaPro.Application.Agenda;
 using ClinicaPro.Application.Auth;
 using ClinicaPro.Application.Especialidades;
 using ClinicaPro.Application.Pacientes;
 using ClinicaPro.Infrastructure.Auth;
+using ClinicaPro.Infrastructure.Demo;
 using ClinicaPro.Infrastructure.Identity;
 using ClinicaPro.Infrastructure.Persistence;
 using ClinicaPro.Infrastructure.Persistence.Repositories;
@@ -60,8 +63,15 @@ public static class DependencyInjection
 
         services.AddSingleton<JwtTokenGenerator>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddScoped<IEspecialidadRepository, EspecialidadRepository>();
         services.AddScoped<IPacienteRepository, PacienteRepository>();
+        services.AddScoped<IMedicoRepository, MedicoRepository>();
+        services.AddScoped<IHorarioRepository, HorarioRepository>();
+        services.AddScoped<ICitaRepository, CitaRepository>();
+        services.AddScoped<IHistorialCitaRepository, HistorialCitaRepository>();
+        services.AddScoped<IParametroRepository, ParametroRepository>();
+        services.AddScoped<IPrepararAgendaDemo, PrepararAgendaDemoService>();
 
         return services;
     }

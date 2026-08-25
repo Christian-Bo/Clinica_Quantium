@@ -142,6 +142,30 @@ public sealed class AuthService(
         });
     }
 
+    public async Task<PacienteStaffResult> RegisterPacientePorStaffAsync(
+        RegisterPacienteInput input,
+        CancellationToken cancellationToken = default)
+    {
+        var resultado = await RegisterPacienteAsync(input, cancellationToken);
+        if (!resultado.Succeeded || resultado.Session is null)
+        {
+            return new PacienteStaffResult(false, resultado.ErrorCode, null, null);
+        }
+
+        var user = await userManager.FindByIdAsync(resultado.Session.UsuarioId.ToString());
+        if (user is not null)
+        {
+            user.MustChangePassword = true;
+            await userManager.UpdateAsync(user);
+        }
+
+        return new PacienteStaffResult(
+            true,
+            null,
+            resultado.Session.PacienteId,
+            resultado.Session.UsuarioId);
+    }
+
     public async Task<AuthUserInfo?> ObtenerUsuarioAsync(
         Guid usuarioId,
         CancellationToken cancellationToken = default)
