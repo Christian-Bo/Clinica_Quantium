@@ -1,3 +1,5 @@
+using ClinicaPro.Domain.Exceptions;
+
 namespace ClinicaPro.Domain.Entities;
 
 public sealed class Parametro
@@ -10,5 +12,15 @@ public sealed class Parametro
 
     private Parametro()
     {
+    }
+
+    public void CambiarValor(string valor)
+    {
+        if (string.IsNullOrWhiteSpace(valor))
+        {
+            throw new DomainException("El valor del parámetro es obligatorio.");
+        }
+
+        Valor = valor.Trim();
     }
 }

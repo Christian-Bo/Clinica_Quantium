@@ -1,4 +1,6 @@
+using ClinicaPro.Application;
 using ClinicaPro.Application.Agenda;
+using ClinicaPro.Application.Notificaciones;
 using ClinicaPro.Application.Pacientes;
 using ClinicaPro.Domain;
 using ClinicaPro.Domain.Entities;
@@ -13,7 +15,8 @@ public sealed class SolicitarCitaService(
     IMedicoRepository medicos,
     ICitaRepository citas,
     IParametroRepository parametros,
-    IUnitOfWork unitOfWork)
+    IUnitOfWork unitOfWork,
+    EncolarNotificacionCitaService encolarNotificacion)
 {
     public async Task<Cita> ExecuteAsync(
         Guid usuarioId,
@@ -42,6 +45,39 @@ public sealed class SolicitarCitaService(
 
         await citas.AgregarAsync(cita, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+        await encolarNotificacion.ExecuteAsync(cita, cancellationToken);
+        return cita;
+    }
+
+    public async Task<Cita> ExecuteParaPacienteAsync(
+        Guid staffUsuarioId,
+        Guid pacienteId,
+        SolicitarCitaInput input,
+        CancellationToken cancellationToken = default)
+    {
+        var paciente = await pacientes.ObtenerPorIdAsync(pacienteId, cancellationToken)
+            ?? throw new DomainException("El paciente no existe.");
+
+        var medico = await medicos.ObtenerPrimarioPorEspecialidadAsync(input.EspecialidadId, cancellationToken)
+            ?? throw new DomainException("La especialidad no tiene un médico primario activo.");
+
+        var duracion = await parametros.ObtenerEnteroAsync(
+            "Citas.DuracionPredeterminadaMinutos",
+            Cita.DuracionPredeterminadaMinutos,
+            cancellationToken);
+
+        var cita = Cita.Solicitar(
+            paciente.Id,
+            medico.Id,
+            input.EspecialidadId,
+            staffUsuarioId,
+            input.FechaHoraInicio,
+            input.MotivoConsulta,
+            duracion);
+
+        await citas.AgregarAsync(cita, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        await encolarNotificacion.ExecuteAsync(cita, cancellationToken);
         return cita;
     }
 }
@@ -49,7 +85,8 @@ public sealed class SolicitarCitaService(
 public sealed class OperarCitaService(
     ICitaRepository citas,
     IPacienteRepository pacientes,
-    IUnitOfWork unitOfWork)
+    IUnitOfWork unitOfWork,
+    EncolarNotificacionCitaService encolarNotificacion)
 {
     public async Task<Cita> ExecuteAsync(
         Guid citaId,
@@ -63,6 +100,7 @@ public sealed class OperarCitaService(
 
         cambiar(cita);
         await unitOfWork.SaveChangesWithSqlSessionContextAsync(usuarioId, motivo, cancellationToken);
+        await encolarNotificacion.ExecuteAsync(cita, cancellationToken);
         return cita;
     }
 
@@ -86,6 +124,7 @@ public sealed class OperarCitaService(
 
         cambiar(cita);
         await unitOfWork.SaveChangesWithSqlSessionContextAsync(usuarioId, motivo, cancellationToken);
+        await encolarNotificacion.ExecuteAsync(cita, cancellationToken);
         return cita;
     }
 }

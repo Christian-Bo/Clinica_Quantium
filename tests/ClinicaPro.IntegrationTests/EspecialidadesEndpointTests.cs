@@ -39,11 +39,36 @@ public sealed class EspecialidadesEndpointTests : IClassFixture<WebApplicationFa
 
     private sealed class RepositorioEspecialidadesDePrueba : IEspecialidadRepository
     {
+        public Task<Especialidad?> ObtenerPorIdAsync(
+            Guid especialidadId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<Especialidad?>(null);
+        }
+
+        public Task<Especialidad?> ObtenerRastreadaAsync(
+            Guid especialidadId,
+            CancellationToken cancellationToken = default)
+        {
+            return ObtenerPorIdAsync(especialidadId, cancellationToken);
+        }
+
         public Task<IReadOnlyList<Especialidad>> ListarActivasAsync(
             CancellationToken cancellationToken = default)
         {
             IReadOnlyList<Especialidad> especialidades = [Especialidad.Create("Medicina General")];
             return Task.FromResult(especialidades);
+        }
+
+        public Task<IReadOnlyList<Especialidad>> ListarTodasAsync(
+            CancellationToken cancellationToken = default)
+        {
+            return ListarActivasAsync(cancellationToken);
+        }
+
+        public Task AgregarAsync(Especialidad especialidad, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
         }
     }
 }

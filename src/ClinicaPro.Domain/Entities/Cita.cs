@@ -7,6 +7,7 @@ public sealed class Cita
     public const int MotivoMinLength = 5;
     public const int MotivoMaxLength = 500;
     public const int DuracionPredeterminadaMinutos = 30;
+    public const int MaximoReprogramaciones = 3;
 
     public Guid Id { get; private set; }
     public Guid PacienteId { get; private set; }
@@ -101,12 +102,68 @@ public sealed class Cita
 
     public void Cancelar()
     {
+        Cancelar(HoraClinica.Ahora(), horasMinimasAnticipacion: 2);
+    }
+
+    public void Cancelar(DateTime ahoraClinica, int horasMinimasAnticipacion)
+    {
         if (Estado is not (CitaEstados.Programada or CitaEstados.Confirmada))
         {
             throw new DomainException("Solo una cita Programada o Confirmada puede cancelarse.");
         }
 
-        AplicarEstado(CitaEstados.Cancelada);
+        var horas = horasMinimasAnticipacion < 0 ? 0 : horasMinimasAnticipacion;
+        var conAnticipacion = ahoraClinica <= FechaHoraInicio.AddHours(-horas);
+        AplicarEstado(conAnticipacion ? CitaEstados.Cancelada : CitaEstados.NoPresentada);
+    }
+
+    public void Reprogramar(
+        DateTime nuevaFechaHoraInicio,
+        int duracionMinutos,
+        Guid? autorizacionAdministradorUsuarioId)
+    {
+        if (Estado is not (CitaEstados.Solicitada or CitaEstados.Programada or CitaEstados.Confirmada))
+        {
+            throw new DomainException("Solo una cita Solicitada, Programada o Confirmada puede reprogramarse.");
+        }
+
+        if (NumeroReprogramaciones >= MaximoReprogramaciones)
+        {
+            throw new DomainException("La cita ya alcanzó el máximo de reprogramaciones.");
+        }
+
+        if (duracionMinutos <= 0)
+        {
+            throw new DomainException("La duración de la cita debe ser mayor a cero.");
+        }
+
+        var inicio = ComoHoraClinica(nuevaFechaHoraInicio);
+        var fin = inicio.AddMinutes(duracionMinutos);
+        if (inicio.Date != fin.Date)
+        {
+            throw new DomainException("La cita debe iniciar y terminar el mismo día.");
+        }
+
+        if (inicio == FechaHoraInicio)
+        {
+            throw new DomainException("La nueva fecha debe ser distinta a la actual.");
+        }
+
+        var siguiente = (byte)(NumeroReprogramaciones + 1);
+        if (siguiente >= MaximoReprogramaciones)
+        {
+            if (autorizacionAdministradorUsuarioId is null || autorizacionAdministradorUsuarioId == Guid.Empty)
+            {
+                throw new DomainException("La tercera reprogramación requiere autorización de un Administrador.");
+            }
+
+            AutorizacionTerceraPorUsuarioId = autorizacionAdministradorUsuarioId;
+        }
+
+        FechaHoraInicio = inicio;
+        FechaHoraFin = fin;
+        NumeroReprogramaciones = siguiente;
+        UpdatedAtUtc = DateTime.UtcNow;
     }
 
     public void RegistrarLlegada()

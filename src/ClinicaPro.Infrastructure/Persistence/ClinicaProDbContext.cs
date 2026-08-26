@@ -29,6 +29,9 @@ public sealed class ClinicaProDbContext
     public DbSet<Cita> Citas => Set<Cita>();
     public DbSet<HistorialCita> HistorialCitas => Set<HistorialCita>();
     public DbSet<Parametro> Parametros => Set<Parametro>();
+    public DbSet<Notificacion> Notificaciones => Set<Notificacion>();
+    public DbSet<IntentoNotificacion> IntentosNotificacion => Set<IntentoNotificacion>();
+    public DbSet<RegistroAuditoria> Auditoria => Set<RegistroAuditoria>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

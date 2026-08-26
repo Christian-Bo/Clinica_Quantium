@@ -62,6 +62,83 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
         return Created("/api/auth/me", Map(result.Session));
     }
 
+    [AllowAnonymous]
+    [HttpPost("forgot-password")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ForgotPassword(
+        [FromBody] ForgotPasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email))
+        {
+            return BadRequest(new ErrorResponse("El correo es obligatorio."));
+        }
+
+        await authService.ForgotPasswordAsync(request.Email, cancellationToken);
+        return Ok();
+    }
+
+    [AllowAnonymous]
+    [HttpPost("reset-password")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ResetPassword(
+        [FromBody] ResetPasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email)
+            || string.IsNullOrWhiteSpace(request.Token)
+            || string.IsNullOrWhiteSpace(request.NewPassword))
+        {
+            return BadRequest(new ErrorResponse("Correo, token y nueva contraseña son obligatorios."));
+        }
+
+        var result = await authService.ResetPasswordAsync(
+            request.Email,
+            request.Token,
+            request.NewPassword,
+            cancellationToken);
+
+        if (result.Succeeded)
+        {
+            return Ok();
+        }
+
+        return result.ErrorCode is "PasswordTooShort" or "PasswordRequiresDigit"
+            or "PasswordRequiresUpper" or "PasswordRequiresLower" or "PasswordRequiresNonAlphanumeric"
+            ? BadRequest(new ErrorResponse("La nueva contraseña no cumple las reglas."))
+            : BadRequest(new ErrorResponse("No fue posible restablecer la contraseña. Pida un código nuevo."));
+    }
+
+    [Authorize]
+    [HttpPost("change-password")]
+    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<AuthResponse>> ChangePassword(
+        [FromBody] ChangePasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        var usuarioId = ObtenerUsuarioId();
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+
+        if (string.IsNullOrWhiteSpace(request.CurrentPassword) || string.IsNullOrWhiteSpace(request.NewPassword))
+        {
+            return BadRequest(new ErrorResponse("La contraseña actual y la nueva son obligatorias."));
+        }
+
+        var result = await authService.ChangePasswordAsync(
+            usuarioId.Value,
+            request.CurrentPassword,
+            request.NewPassword,
+            cancellationToken);
+
+        return ToActionResult(result);
+    }
+
     [Authorize]
     [HttpGet("me")]
     [ProducesResponseType(typeof(UsuarioActualDto), StatusCodes.Status200OK)]
@@ -100,6 +177,9 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
         {
             "locked_out" => StatusCode(StatusCodes.Status423Locked),
             "email_taken" => Conflict(new ErrorResponse("El correo ya está registrado.")),
+            "documento_taken" => Conflict(new ErrorResponse("Ya existe un paciente con ese documento.")),
+            "password_mismatch" => BadRequest(new ErrorResponse("La contraseña actual no es correcta.")),
+            "password_same" => BadRequest(new ErrorResponse("La nueva contraseña debe ser distinta a la actual.")),
             "invalid_patient" or "invalid_user" or "PasswordTooShort" or "PasswordRequiresDigit"
                 or "PasswordRequiresUpper" or "PasswordRequiresLower" or "PasswordRequiresNonAlphanumeric"
                 => BadRequest(new ErrorResponse("Los datos de registro no cumplen las reglas de usuario o contraseña.")),

@@ -19,6 +19,12 @@ internal static class SqlServerExceptionMapper
 
                 if (sql.Number is 2601 or 2627)
                 {
+                    if (sql.Message.Contains("Documento", StringComparison.OrdinalIgnoreCase)
+                        || sql.Message.Contains("UQ_Pacientes_Documento", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return new DomainException("Ya existe un paciente con ese documento.");
+                    }
+
                     return new DomainException("Ya existe una cita activa en ese horario.");
                 }
 

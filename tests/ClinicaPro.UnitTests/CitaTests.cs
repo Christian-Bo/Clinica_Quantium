@@ -63,14 +63,59 @@ public sealed class CitaTests
     }
 
     [Fact]
-    public void Cancelar_DesdeProgramada_PasaACancelada()
+    public void Cancelar_ConMasDeDosHoras_PasaACancelada()
     {
         var cita = CrearCita();
         cita.ConfirmarPorSecretaria(Guid.NewGuid());
 
-        cita.Cancelar();
+        cita.Cancelar(new DateTime(2026, 9, 7, 6, 0, 0), horasMinimasAnticipacion: 2);
 
         Assert.Equal(CitaEstados.Cancelada, cita.Estado);
+    }
+
+    [Fact]
+    public void Cancelar_ConMenosDeDosHoras_PasaANoPresentada()
+    {
+        var cita = CrearCita();
+        cita.ConfirmarPorSecretaria(Guid.NewGuid());
+
+        cita.Cancelar(new DateTime(2026, 9, 7, 8, 0, 0), horasMinimasAnticipacion: 2);
+
+        Assert.Equal(CitaEstados.NoPresentada, cita.Estado);
+    }
+
+    [Fact]
+    public void Reprogramar_CambiaHorarioYCuenta()
+    {
+        var cita = CrearCita();
+        cita.ConfirmarPorSecretaria(Guid.NewGuid());
+
+        cita.Reprogramar(new DateTime(2026, 9, 8, 10, 0, 0), 30, autorizacionAdministradorUsuarioId: null);
+
+        Assert.Equal(new DateTime(2026, 9, 8, 10, 0, 0), cita.FechaHoraInicio);
+        Assert.Equal(1, cita.NumeroReprogramaciones);
+        Assert.Equal(CitaEstados.Programada, cita.Estado);
+    }
+
+    [Fact]
+    public void Reprogramar_TerceraSinAdmin_LanzaExcepcion()
+    {
+        var cita = CrearCita();
+        cita.ConfirmarPorSecretaria(Guid.NewGuid());
+        cita.Reprogramar(new DateTime(2026, 9, 8, 10, 0, 0), 30, null);
+        cita.Reprogramar(new DateTime(2026, 9, 9, 10, 0, 0), 30, null);
+
+        var exception = Assert.Throws<DomainException>(() =>
+            cita.Reprogramar(new DateTime(2026, 9, 10, 10, 0, 0), 30, null));
+
+        Assert.Contains("Administrador", exception.Message);
+    }
+
+    [Fact]
+    public void DiaSemana_LunesEsUnoYDomingoEsSiete()
+    {
+        Assert.Equal(1, HoraClinica.DiaSemana(new DateTime(2026, 9, 7)));
+        Assert.Equal(7, HoraClinica.DiaSemana(new DateTime(2026, 9, 13)));
     }
 
     private static Cita CrearCita()

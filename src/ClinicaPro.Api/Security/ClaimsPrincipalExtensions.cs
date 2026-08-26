@@ -11,4 +11,9 @@ public static class ClaimsPrincipalExtensions
 
         return Guid.TryParse(value, out var usuarioId) ? usuarioId : null;
     }
+
+    public static IReadOnlyList<string> ObtenerRoles(this ClaimsPrincipal user)
+    {
+        return user.FindAll(ClaimTypes.Role).Select(claim => claim.Value).ToList();
+    }
 }

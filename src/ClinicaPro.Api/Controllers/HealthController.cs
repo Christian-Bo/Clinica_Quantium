@@ -37,10 +37,13 @@ public sealed class HealthController(
                     title: "Base de datos no disponible");
             }
 
+            var conexion = dbContext.Database.GetDbConnection();
+
             return Ok(new
             {
                 status = "ok",
-                database = "ClinicaPro",
+                database = conexion.Database,
+                server = conexion.DataSource,
                 provider = dbContext.Database.ProviderName,
                 timestampUtc = DateTimeOffset.UtcNow
             });

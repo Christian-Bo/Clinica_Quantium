@@ -11,4 +11,7 @@ public static class CitaEstados
     public const string Cancelada = "Cancelada";
     public const string NoPresentada = "No presentada";
     public const string Rechazada = "Rechazada";
+
+    public static bool BloqueaHorario(string estado) =>
+        estado is Solicitada or Programada or Confirmada or EnEspera or EnAtencion;
 }

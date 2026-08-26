@@ -54,4 +54,19 @@ public sealed class Medico
             CreatedAtUtc = DateTime.UtcNow
         };
     }
+
+    public void Actualizar(string nombres, string apellidos, string? numeroColegiado, string? telefono)
+    {
+        if (string.IsNullOrWhiteSpace(nombres) || string.IsNullOrWhiteSpace(apellidos))
+        {
+            throw new DomainException("El médico requiere nombres y apellidos.");
+        }
+
+        Nombres = nombres.Trim();
+        Apellidos = apellidos.Trim();
+        NumeroColegiado = string.IsNullOrWhiteSpace(numeroColegiado) ? null : numeroColegiado.Trim();
+        Telefono = string.IsNullOrWhiteSpace(telefono) ? null : telefono.Trim();
+    }
+
+    public void CambiarActivo(bool activo) => IsActive = activo;
 }

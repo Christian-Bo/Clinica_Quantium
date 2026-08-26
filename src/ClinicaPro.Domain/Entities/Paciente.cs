@@ -78,6 +78,22 @@ public sealed class Paciente
 
     public string NombreCompleto => $"{Nombres} {Apellidos}";
 
+    public void Actualizar(
+        string nombres,
+        string apellidos,
+        string? documento,
+        DateOnly? fechaNacimiento,
+        string? telefono,
+        string? direccion)
+    {
+        Nombres = Obligatorio(nombres, "nombres", NombresMaxLength);
+        Apellidos = Obligatorio(apellidos, "apellidos", ApellidosMaxLength);
+        Documento = Opcional(documento, DocumentoMaxLength, "documento");
+        FechaNacimiento = fechaNacimiento;
+        Telefono = Opcional(telefono, TelefonoMaxLength, "teléfono");
+        Direccion = Opcional(direccion, DireccionMaxLength, "dirección");
+    }
+
     private static string Obligatorio(string valor, string campo, int maxLength)
     {
         if (string.IsNullOrWhiteSpace(valor))

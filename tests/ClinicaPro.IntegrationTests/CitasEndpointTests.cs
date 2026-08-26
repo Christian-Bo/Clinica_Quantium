@@ -43,11 +43,52 @@ public sealed class CitasEndpointTests : IClassFixture<WebApplicationFactory<Pro
     }
 
     [Fact]
-    public async Task DemoAgenda_WithoutToken_ReturnsUnauthorized()
+    public async Task Disponibilidad_WithoutToken_ReturnsUnauthorized()
     {
         using var client = _factory.CreateClient();
 
-        var response = await client.PostAsync("/api/demo/preparar-agenda", content: null);
+        var response = await client.GetAsync(
+            "/api/citas/disponibilidad?especialidadId=20000000-0000-0000-0000-000000000001&fecha=2026-09-11");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PacientesBuscar_WithoutToken_ReturnsUnauthorized()
+    {
+        using var client = _factory.CreateClient();
+
+        var response = await client.GetAsync("/api/pacientes?q=ana");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ReportesCitas_WithoutToken_ReturnsUnauthorized()
+    {
+        using var client = _factory.CreateClient();
+
+        var response = await client.GetAsync("/api/reportes/citas");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ParaPaciente_WithoutToken_ReturnsUnauthorized()
+    {
+        using var client = _factory.CreateClient();
+
+        var response = await client.PostAsync("/api/citas/para-paciente", content: null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AdminAuditoria_WithoutToken_ReturnsUnauthorized()
+    {
+        using var client = _factory.CreateClient();
+
+        var response = await client.GetAsync("/api/admin/auditoria");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }

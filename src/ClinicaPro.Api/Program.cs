@@ -17,7 +17,7 @@ builder.Services.AddSwaggerGen(options =>
         Title = "Clínica Pro API",
         Version = "v1",
         Description =
-            "Septiembre: 1) POST /api/auth/login o register  2) Authorize con el accessToken  3) Admin: POST /api/demo/preparar-agenda  4) Paciente: POST /api/citas  5) Secretaria: GET /api/citas/pendientes y confirmar/rechazar. FechaHoraInicio es hora de Guatemala, sin Z."
+            "Septiembre: login/register, citas, agenda. Correos: al solicitar/programar/confirmar/rechazar/cancelar se encola Email en Notificaciones; sin Smtp:Host el worker escribe archivos en App_Data/mail. FechaHoraInicio es hora de Guatemala, sin Z."
     });
 
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme

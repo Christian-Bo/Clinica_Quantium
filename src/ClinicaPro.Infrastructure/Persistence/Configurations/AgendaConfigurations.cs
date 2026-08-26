@@ -75,6 +75,11 @@ public sealed class HistorialCitaConfiguration : IEntityTypeConfiguration<Histor
         builder.Property(historial => historial.EstadoAnterior).HasMaxLength(20);
         builder.Property(historial => historial.EstadoNuevo).HasMaxLength(20);
         builder.Property(historial => historial.Motivo).HasMaxLength(500).IsRequired();
+        builder.Property(historial => historial.FechaHoraInicioAnterior).HasColumnType("datetime2(0)");
+        builder.Property(historial => historial.FechaHoraInicioNueva).HasColumnType("datetime2(0)");
+        builder.Property(historial => historial.FechaHoraFinAnterior).HasColumnType("datetime2(0)");
+        builder.Property(historial => historial.FechaHoraFinNueva).HasColumnType("datetime2(0)");
+        builder.Property(historial => historial.FechaCambioUtc).HasColumnType("datetime2(0)");
     }
 }
 

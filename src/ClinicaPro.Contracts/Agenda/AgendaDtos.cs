@@ -22,6 +22,12 @@ public sealed record SolicitarCitaRequest(
     DateTime FechaHoraInicio,
     string MotivoConsulta);
 
+public sealed record SolicitarCitaParaPacienteRequest(
+    Guid PacienteId,
+    Guid EspecialidadId,
+    DateTime FechaHoraInicio,
+    string MotivoConsulta);
+
 public sealed record CitaDto(
     Guid CitaId,
     Guid PacienteId,
@@ -30,19 +36,36 @@ public sealed record CitaDto(
     DateTime FechaHoraInicio,
     DateTime FechaHoraFin,
     string MotivoConsulta,
-    string Estado);
+    string Estado,
+    byte NumeroReprogramaciones);
 
 public sealed record MotivoCitaRequest(string Motivo);
+
+public sealed record ReprogramarCitaRequest(DateTime FechaHoraInicio, string? Motivo);
+
+public sealed record SlotDisponibleDto(
+    DateTime FechaHoraInicio,
+    DateTime FechaHoraFin,
+    Guid MedicoId,
+    string MedicoNombre);
 
 public sealed record HistorialCitaDto(
     long HistorialCitaId,
     Guid CitaId,
     Guid UsuarioId,
+    string ActorNombre,
+    string ActorRol,
     string TipoCambio,
     string? EstadoAnterior,
     string? EstadoNuevo,
+    DateTime? FechaHoraInicioAnterior,
+    DateTime? FechaHoraInicioNueva,
+    DateTime? FechaHoraFinAnterior,
+    DateTime? FechaHoraFinNueva,
     string Motivo,
-    DateTime FechaCambioUtc);
+    DateTime FechaCambioUtc,
+    DateTime FechaCambioLocal,
+    string Descripcion);
 
 public sealed record ParametroDto(
     string Clave,

@@ -14,7 +14,9 @@ namespace ClinicaPro.Api.Controllers;
 [Route("api/pacientes")]
 public sealed class PacientesController(
     IPacienteRepository pacienteRepository,
-    IAuthService authService) : ControllerBase
+    IAuthService authService,
+    BuscarPacientesService buscarPacientes,
+    ActualizarPerfilPacienteService actualizarPerfil) : ControllerBase
 {
     [HttpGet("me")]
     [ProducesResponseType(typeof(PacienteDto), StatusCodes.Status200OK)]
@@ -33,6 +35,43 @@ public sealed class PacientesController(
         {
             return NotFound();
         }
+
+        return Ok(Map(paciente));
+    }
+
+    [Authorize(Roles = RolNombres.Secretaria + "," + RolNombres.Administrador)]
+    [HttpGet]
+    [ProducesResponseType(typeof(IReadOnlyList<PacienteDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<PacienteDto>>> Buscar(
+        [FromQuery] string? q,
+        CancellationToken cancellationToken)
+    {
+        var lista = await buscarPacientes.ExecuteAsync(q, cancellationToken);
+        return Ok(lista.Select(Map).ToList());
+    }
+
+    [Authorize(Roles = RolNombres.Paciente)]
+    [HttpPut("me")]
+    [ProducesResponseType(typeof(PacienteDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PacienteDto>> ActualizarMe(
+        [FromBody] ActualizarPerfilRequest request,
+        CancellationToken cancellationToken)
+    {
+        var usuarioId = User.ObtenerUsuarioId();
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+
+        var paciente = await actualizarPerfil.ExecuteAsync(
+            usuarioId.Value,
+            request.Nombres,
+            request.Apellidos,
+            request.Documento,
+            request.FechaNacimiento,
+            request.Telefono,
+            request.Direccion,
+            cancellationToken);
 
         return Ok(Map(paciente));
     }
@@ -68,6 +107,7 @@ public sealed class PacientesController(
             return resultado.ErrorCode switch
             {
                 "email_taken" => Conflict(new ErrorResponse("El correo ya está registrado.")),
+                "documento_taken" => Conflict(new ErrorResponse("Ya existe un paciente con ese documento.")),
                 _ => BadRequest(new ErrorResponse("No fue posible registrar al paciente. Revise nombres, apellidos y contraseña."))
             };
         }

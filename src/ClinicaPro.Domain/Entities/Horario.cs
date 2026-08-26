@@ -45,4 +45,6 @@ public sealed class Horario
             CreatedAtUtc = DateTime.UtcNow
         };
     }
+
+    public void Desactivar() => IsActive = false;
 }

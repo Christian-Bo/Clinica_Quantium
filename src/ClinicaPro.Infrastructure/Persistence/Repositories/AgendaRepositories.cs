@@ -1,4 +1,5 @@
 using ClinicaPro.Application.Agenda;
+using ClinicaPro.Domain;
 using ClinicaPro.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,6 +11,11 @@ public sealed class MedicoRepository(ClinicaProDbContext dbContext) : IMedicoRep
     {
         return dbContext.Medicos.AsNoTracking()
             .FirstOrDefaultAsync(medico => medico.Id == medicoId && medico.IsActive, cancellationToken);
+    }
+
+    public Task<Medico?> ObtenerRastreadoAsync(Guid medicoId, CancellationToken cancellationToken = default)
+    {
+        return dbContext.Medicos.FirstOrDefaultAsync(medico => medico.Id == medicoId, cancellationToken);
     }
 
     public Task<Medico?> ObtenerPorUsuarioIdAsync(Guid usuarioId, CancellationToken cancellationToken = default)
@@ -48,6 +54,24 @@ public sealed class MedicoRepository(ClinicaProDbContext dbContext) : IMedicoRep
             .Where(relacion => relacion.IsActive)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<Medico>> ListarTodosAsync(CancellationToken cancellationToken = default)
+    {
+        return await dbContext.Medicos.AsNoTracking()
+            .OrderBy(medico => medico.Apellidos)
+            .ThenBy(medico => medico.Nombres)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task AgregarAsync(Medico medico, CancellationToken cancellationToken = default)
+    {
+        await dbContext.Medicos.AddAsync(medico, cancellationToken);
+    }
+
+    public async Task AgregarEspecialidadAsync(MedicoEspecialidad relacion, CancellationToken cancellationToken = default)
+    {
+        await dbContext.MedicoEspecialidades.AddAsync(relacion, cancellationToken);
+    }
 }
 
 public sealed class HorarioRepository(ClinicaProDbContext dbContext) : IHorarioRepository
@@ -61,6 +85,16 @@ public sealed class HorarioRepository(ClinicaProDbContext dbContext) : IHorarioR
             .OrderBy(horario => horario.DiaSemana)
             .ThenBy(horario => horario.HoraInicio)
             .ToListAsync(cancellationToken);
+    }
+
+    public Task<Horario?> ObtenerRastreadoAsync(Guid horarioId, CancellationToken cancellationToken = default)
+    {
+        return dbContext.Horarios.FirstOrDefaultAsync(horario => horario.Id == horarioId, cancellationToken);
+    }
+
+    public async Task AgregarAsync(Horario horario, CancellationToken cancellationToken = default)
+    {
+        await dbContext.Horarios.AddAsync(horario, cancellationToken);
     }
 }
 
@@ -120,6 +154,47 @@ public sealed class CitaRepository(ClinicaProDbContext dbContext) : ICitaReposit
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Cita>> ListarQueBloqueanEnRangoAsync(
+        Guid medicoId,
+        DateTime desde,
+        DateTime hasta,
+        CancellationToken cancellationToken = default)
+    {
+        var estados = new[]
+        {
+            CitaEstados.Solicitada,
+            CitaEstados.Programada,
+            CitaEstados.Confirmada,
+            CitaEstados.EnEspera,
+            CitaEstados.EnAtencion
+        };
+
+        return await dbContext.Citas.AsNoTracking()
+            .Where(cita =>
+                cita.MedicoId == medicoId
+                && estados.Contains(cita.Estado)
+                && cita.FechaHoraInicio < hasta
+                && desde < cita.FechaHoraFin)
+            .OrderBy(cita => cita.FechaHoraInicio)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Cita>> ListarParaRecordatorioAsync(
+        DateTime desdeInicio,
+        DateTime hastaInicio,
+        CancellationToken cancellationToken = default)
+    {
+        var estados = new[] { CitaEstados.Programada, CitaEstados.Confirmada };
+
+        return await dbContext.Citas.AsNoTracking()
+            .Where(cita =>
+                estados.Contains(cita.Estado)
+                && cita.FechaHoraInicio >= desdeInicio
+                && cita.FechaHoraInicio < hastaInicio)
+            .OrderBy(cita => cita.FechaHoraInicio)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task AgregarAsync(Cita cita, CancellationToken cancellationToken = default)
     {
         await dbContext.Citas.AddAsync(cita, cancellationToken);
@@ -160,5 +235,10 @@ public sealed class ParametroRepository(ClinicaProDbContext dbContext) : IParame
         return parametro is not null && int.TryParse(parametro.Valor, out var valor)
             ? valor
             : valorPredeterminado;
+    }
+
+    public Task<Parametro?> ObtenerRastreadoAsync(string clave, CancellationToken cancellationToken = default)
+    {
+        return dbContext.Parametros.FirstOrDefaultAsync(item => item.Clave == clave, cancellationToken);
     }
 }

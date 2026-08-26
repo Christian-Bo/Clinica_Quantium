@@ -77,4 +77,12 @@ public sealed class Especialidad
 
         return valor;
     }
+
+    public void Actualizar(string nombre, string? descripcion)
+    {
+        Nombre = NormalizarNombre(nombre);
+        Descripcion = NormalizarDescripcion(descripcion);
+    }
+
+    public void CambiarActivo(bool activo) => IsActive = activo;
 }

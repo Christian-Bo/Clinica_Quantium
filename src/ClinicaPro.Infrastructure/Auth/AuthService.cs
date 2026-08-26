@@ -1,4 +1,6 @@
+using ClinicaPro.Application;
 using ClinicaPro.Application.Auth;
+using ClinicaPro.Application.Notificaciones;
 using ClinicaPro.Application.Pacientes;
 using ClinicaPro.Domain;
 using ClinicaPro.Domain.Entities;
@@ -15,7 +17,9 @@ public sealed class AuthService(
     RoleManager<ApplicationRole> roleManager,
     IPacienteRepository pacienteRepository,
     ClinicaProDbContext dbContext,
-    JwtTokenGenerator jwtTokenGenerator) : IAuthService
+    JwtTokenGenerator jwtTokenGenerator,
+    IEmailSender emailSender,
+    IAuditoriaWriter auditoria) : IAuthService
 {
     public async Task<AuthOperationResult> LoginAsync(
         string email,
@@ -46,6 +50,8 @@ public sealed class AuthService(
         var paciente = await pacienteRepository.ObtenerPorUsuarioIdAsync(user.Id, cancellationToken);
         var (token, expiresAt) = jwtTokenGenerator.Create(user, roles);
 
+        await auditoria.RegistrarAsync(user.Id, "Login", "Usuario", user.Id.ToString(), user.Email, cancellationToken);
+
         return AuthOperationResult.Ok(new AuthSession(
             token,
             expiresAt,
@@ -53,6 +59,51 @@ public sealed class AuthService(
             user.Email ?? email,
             roles,
             user.MustChangePassword,
+            paciente?.Id));
+    }
+
+    public async Task<AuthOperationResult> ChangePasswordAsync(
+        Guid usuarioId,
+        string currentPassword,
+        string newPassword,
+        CancellationToken cancellationToken = default)
+    {
+        var user = await userManager.FindByIdAsync(usuarioId.ToString());
+        if (user is null || !user.IsActive)
+        {
+            return AuthOperationResult.Fail("invalid_credentials");
+        }
+
+        if (string.Equals(currentPassword, newPassword, StringComparison.Ordinal))
+        {
+            return AuthOperationResult.Fail("password_same");
+        }
+
+        var changed = await userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+        if (!changed.Succeeded)
+        {
+            var code = changed.Errors.FirstOrDefault()?.Code ?? "invalid_user";
+            return AuthOperationResult.Fail(code == "PasswordMismatch" ? "password_mismatch" : code);
+        }
+
+        if (user.MustChangePassword)
+        {
+            user.MustChangePassword = false;
+            user.UpdatedAtUtc = DateTime.UtcNow;
+            await userManager.UpdateAsync(user);
+        }
+
+        var roles = await ObtenerRolesActivosAsync(user, cancellationToken);
+        var paciente = await pacienteRepository.ObtenerPorUsuarioIdAsync(user.Id, cancellationToken);
+        var (token, expiresAt) = jwtTokenGenerator.Create(user, roles);
+
+        return AuthOperationResult.Ok(new AuthSession(
+            token,
+            expiresAt,
+            user.Id,
+            user.Email ?? string.Empty,
+            roles,
+            false,
             paciente?.Id));
     }
 
@@ -65,6 +116,12 @@ public sealed class AuthService(
         if (await userManager.FindByEmailAsync(email) is not null)
         {
             return AuthOperationResult.Fail("email_taken");
+        }
+
+        if (!string.IsNullOrWhiteSpace(input.Documento)
+            && await pacienteRepository.ExisteDocumentoAsync(input.Documento, null, cancellationToken))
+        {
+            return AuthOperationResult.Fail("documento_taken");
         }
 
         var rolPaciente = await roleManager.FindByNameAsync(RolNombres.Paciente);
@@ -127,6 +184,8 @@ public sealed class AuthService(
             await pacienteRepository.AgregarAsync(paciente, cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
+
+            await auditoria.RegistrarAsync(user.Id, "RegistroPaciente", "Paciente", paciente.Id.ToString(), email, cancellationToken);
 
             var roles = new[] { RolNombres.Paciente };
             var (token, expiresAt) = jwtTokenGenerator.Create(user, roles);
@@ -205,5 +264,53 @@ public sealed class AuthService(
             .Where(rol => rol.IsActive && rol.NormalizedName != null && normalized.Contains(rol.NormalizedName))
             .Select(rol => rol.Name!)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task ForgotPasswordAsync(string email, CancellationToken cancellationToken = default)
+    {
+        var user = await userManager.FindByEmailAsync(email.Trim());
+        if (user is null || !user.IsActive)
+        {
+            return;
+        }
+
+        var token = await userManager.GeneratePasswordResetTokenAsync(user);
+        await emailSender.SendAsync(
+            user.Email ?? email,
+            "Clínica Pro — restablecer contraseña",
+            $"Hola,\n\nPara restablecer su contraseña use este código en la aplicación:\n\n{token}\n\nSi usted no lo pidió, ignore este correo.",
+            cancellationToken);
+    }
+
+    public async Task<AuthOperationResult> ResetPasswordAsync(
+        string email,
+        string token,
+        string newPassword,
+        CancellationToken cancellationToken = default)
+    {
+        var user = await userManager.FindByEmailAsync(email.Trim());
+        if (user is null || !user.IsActive)
+        {
+            return AuthOperationResult.Fail("invalid_token");
+        }
+
+        var resultado = await userManager.ResetPasswordAsync(user, token.Trim(), newPassword);
+        if (!resultado.Succeeded)
+        {
+            return AuthOperationResult.Fail(resultado.Errors.FirstOrDefault()?.Code ?? "invalid_token");
+        }
+
+        user.MustChangePassword = false;
+        user.UpdatedAtUtc = DateTime.UtcNow;
+        await userManager.UpdateAsync(user);
+        await auditoria.RegistrarAsync(user.Id, "ResetPassword", "Usuario", user.Id.ToString(), user.Email, cancellationToken);
+        return AuthOperationResult.Ok(new AuthSession(
+            string.Empty,
+            DateTimeOffset.UtcNow,
+            user.Id,
+            user.Email ?? email,
+            [],
+            false,
+            null));
     }
 }

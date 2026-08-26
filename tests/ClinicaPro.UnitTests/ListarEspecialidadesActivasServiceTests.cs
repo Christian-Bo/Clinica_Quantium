@@ -24,10 +24,35 @@ public sealed class ListarEspecialidadesActivasServiceTests
 
     private sealed class RepositorioFalso(IReadOnlyList<Especialidad> especialidades) : IEspecialidadRepository
     {
+        public Task<Especialidad?> ObtenerPorIdAsync(
+            Guid especialidadId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(especialidades.FirstOrDefault(item => item.Id == especialidadId));
+        }
+
+        public Task<Especialidad?> ObtenerRastreadaAsync(
+            Guid especialidadId,
+            CancellationToken cancellationToken = default)
+        {
+            return ObtenerPorIdAsync(especialidadId, cancellationToken);
+        }
+
         public Task<IReadOnlyList<Especialidad>> ListarActivasAsync(
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult(especialidades);
+        }
+
+        public Task<IReadOnlyList<Especialidad>> ListarTodasAsync(
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(especialidades);
+        }
+
+        public Task AgregarAsync(Especialidad especialidad, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
         }
     }
 }

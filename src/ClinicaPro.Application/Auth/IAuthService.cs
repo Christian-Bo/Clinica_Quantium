@@ -39,7 +39,18 @@ public sealed record PacienteStaffResult(bool Succeeded, string? ErrorCode, Guid
 public interface IAuthService
 {
     Task<AuthOperationResult> LoginAsync(string email, string password, CancellationToken cancellationToken = default);
+    Task<AuthOperationResult> ChangePasswordAsync(
+        Guid usuarioId,
+        string currentPassword,
+        string newPassword,
+        CancellationToken cancellationToken = default);
     Task<AuthOperationResult> RegisterPacienteAsync(RegisterPacienteInput input, CancellationToken cancellationToken = default);
     Task<PacienteStaffResult> RegisterPacientePorStaffAsync(RegisterPacienteInput input, CancellationToken cancellationToken = default);
     Task<AuthUserInfo?> ObtenerUsuarioAsync(Guid usuarioId, CancellationToken cancellationToken = default);
+    Task ForgotPasswordAsync(string email, CancellationToken cancellationToken = default);
+    Task<AuthOperationResult> ResetPasswordAsync(
+        string email,
+        string token,
+        string newPassword,
+        CancellationToken cancellationToken = default);
 }

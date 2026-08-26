@@ -2,6 +2,8 @@ namespace ClinicaPro.Contracts.Auth;
 
 public sealed record LoginRequest(string Email, string Password);
 
+public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+
 public sealed record RegisterPacienteRequest(
     string Email,
     string Password,
@@ -11,6 +13,18 @@ public sealed record RegisterPacienteRequest(
     string? Telefono,
     string? Direccion,
     DateOnly? FechaNacimiento);
+
+public sealed record ActualizarPerfilRequest(
+    string Nombres,
+    string Apellidos,
+    string? Documento,
+    string? Telefono,
+    string? Direccion,
+    DateOnly? FechaNacimiento);
+
+public sealed record ForgotPasswordRequest(string Email);
+
+public sealed record ResetPasswordRequest(string Email, string Token, string NewPassword);
 
 public sealed record AuthResponse(
     string AccessToken,

@@ -23,4 +23,8 @@ public sealed class MedicoEspecialidad
             CreatedAtUtc = DateTime.UtcNow
         };
     }
+
+    public void CambiarActivo(bool activo) => IsActive = activo;
+
+    public void MarcarPrimario(bool esPrimario) => EsPrimario = esPrimario;
 }

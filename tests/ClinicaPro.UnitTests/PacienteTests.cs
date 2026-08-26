@@ -37,4 +37,16 @@ public sealed class PacienteTests
 
         Assert.Contains("usuario", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void Actualizar_CambiaDocumentoYTelefono()
+    {
+        var paciente = Paciente.Create(Guid.NewGuid(), "Ana", "López", "111");
+
+        paciente.Actualizar("Ana", "López Prueba", "222", null, "55500000", "Zona 1");
+
+        Assert.Equal("López Prueba", paciente.Apellidos);
+        Assert.Equal("222", paciente.Documento);
+        Assert.Equal("55500000", paciente.Telefono);
+    }
 }

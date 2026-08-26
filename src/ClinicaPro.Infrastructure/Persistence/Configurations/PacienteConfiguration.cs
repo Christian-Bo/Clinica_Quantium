@@ -21,6 +21,10 @@ public sealed class PacienteConfiguration : IEntityTypeConfiguration<Paciente>
         builder.HasIndex(paciente => paciente.UsuarioId)
             .IsUnique();
 
+        builder.HasIndex(paciente => paciente.Documento)
+            .IsUnique()
+            .HasFilter("[Documento] IS NOT NULL AND LTRIM(RTRIM([Documento])) <> N''");
+
         builder.Property(paciente => paciente.Nombres)
             .HasMaxLength(Paciente.NombresMaxLength)
             .IsRequired();

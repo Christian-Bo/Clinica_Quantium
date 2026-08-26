@@ -31,4 +31,14 @@ public sealed class AuthEndpointTests : IClassFixture<WebApplicationFactory<Prog
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
+
+    [Fact]
+    public async Task ChangePassword_WithoutToken_ReturnsUnauthorized()
+    {
+        using var client = _factory.CreateClient();
+
+        var response = await client.PostAsync("/api/auth/change-password", content: null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
 }
