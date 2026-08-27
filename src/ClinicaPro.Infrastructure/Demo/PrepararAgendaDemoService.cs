@@ -17,6 +17,8 @@ public sealed class PrepararAgendaDemoService(
     public static readonly Guid SecretariaUsuarioId = Guid.Parse("30000000-0000-0000-0000-000000000002");
     public static readonly Guid MedicoUsuarioId = Guid.Parse("30000000-0000-0000-0000-000000000003");
     public static readonly Guid MedicoId = Guid.Parse("40000000-0000-0000-0000-000000000001");
+    public static readonly Guid Medico2UsuarioId = Guid.Parse("30000000-0000-0000-0000-000000000004");
+    public static readonly Guid Medico2Id = Guid.Parse("40000000-0000-0000-0000-000000000002");
 
     public async Task<string> ExecuteAsync(CancellationToken cancellationToken = default)
     {
@@ -34,34 +36,34 @@ public sealed class PrepararAgendaDemoService(
             RolNombres.Medico,
             cancellationToken);
 
+        var medico2Usuario = await AsegurarUsuarioConRolAsync(
+            Medico2UsuarioId,
+            "medico2@clinica.com",
+            "Medico123!",
+            RolNombres.Medico,
+            cancellationToken);
+
         try
         {
-            if (!await dbContext.Medicos.AnyAsync(medico => medico.Id == MedicoId, cancellationToken))
-            {
-                await dbContext.Medicos.AddAsync(
-                    Medico.Create(MedicoId, medicoUsuario.Id, "Carlos", "Hernandez", "COL-1001", "55500011"),
-                    cancellationToken);
-                await dbContext.SaveChangesAsync(cancellationToken);
-            }
+            await AsegurarMedicoAsync(
+                MedicoId,
+                medicoUsuario.Id,
+                "Carlos",
+                "Hernandez",
+                "COL-1001",
+                "55500011",
+                esPrimario: true,
+                cancellationToken);
 
-            if (!await dbContext.MedicoEspecialidades.AnyAsync(
-                    relacion => relacion.MedicoId == MedicoId && relacion.EspecialidadId == MedicinaGeneralId,
-                    cancellationToken))
-            {
-                await dbContext.MedicoEspecialidades.AddAsync(
-                    MedicoEspecialidad.Create(MedicoId, MedicinaGeneralId, esPrimario: true),
-                    cancellationToken);
-            }
-
-            if (!await dbContext.Horarios.AnyAsync(horario => horario.MedicoId == MedicoId, cancellationToken))
-            {
-                for (byte dia = 1; dia <= 5; dia++)
-                {
-                    await dbContext.Horarios.AddAsync(
-                        Horario.Create(MedicoId, dia, new TimeOnly(8, 0), new TimeOnly(16, 0)),
-                        cancellationToken);
-                }
-            }
+            await AsegurarMedicoAsync(
+                Medico2Id,
+                medico2Usuario.Id,
+                "Ana",
+                "Morales",
+                "COL-1002",
+                "55500012",
+                esPrimario: false,
+                cancellationToken);
 
             await dbContext.SaveChangesAsync(cancellationToken);
         }
@@ -70,7 +72,45 @@ public sealed class PrepararAgendaDemoService(
             throw SqlServerExceptionMapper.Map(exception);
         }
 
-        return "Agenda de demostración lista: secretaria@clinica.com / Secretaria123! y medico@clinica.com / Medico123!. Medicina General, lunes a viernes 08:00-16:00 (hora de Guatemala).";
+        return "Agenda lista: secretaria@clinica.com / Secretaria123!, medico@clinica.com y medico2@clinica.com / Medico123!. Medicina General, lunes a viernes 08:00-16:00 (hora de Guatemala).";
+    }
+
+    private async Task AsegurarMedicoAsync(
+        Guid medicoId,
+        Guid usuarioId,
+        string nombres,
+        string apellidos,
+        string colegiado,
+        string telefono,
+        bool esPrimario,
+        CancellationToken cancellationToken)
+    {
+        if (!await dbContext.Medicos.AnyAsync(medico => medico.Id == medicoId, cancellationToken))
+        {
+            await dbContext.Medicos.AddAsync(
+                Medico.Create(medicoId, usuarioId, nombres, apellidos, colegiado, telefono),
+                cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        if (!await dbContext.MedicoEspecialidades.AnyAsync(
+                relacion => relacion.MedicoId == medicoId && relacion.EspecialidadId == MedicinaGeneralId,
+                cancellationToken))
+        {
+            await dbContext.MedicoEspecialidades.AddAsync(
+                MedicoEspecialidad.Create(medicoId, MedicinaGeneralId, esPrimario),
+                cancellationToken);
+        }
+
+        if (!await dbContext.Horarios.AnyAsync(horario => horario.MedicoId == medicoId, cancellationToken))
+        {
+            for (byte dia = 1; dia <= 5; dia++)
+            {
+                await dbContext.Horarios.AddAsync(
+                    Horario.Create(medicoId, dia, new TimeOnly(8, 0), new TimeOnly(16, 0)),
+                    cancellationToken);
+            }
+        }
     }
 
     private async Task<ApplicationUser> AsegurarUsuarioConRolAsync(

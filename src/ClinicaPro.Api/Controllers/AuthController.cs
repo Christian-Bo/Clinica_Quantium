@@ -51,7 +51,11 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
                 request.Documento,
                 request.Telefono,
                 request.Direccion,
-                request.FechaNacimiento),
+                request.FechaNacimiento,
+                request.Sexo,
+                request.Alergias,
+                request.ContactoEmergenciaNombre,
+                request.ContactoEmergenciaTelefono),
             cancellationToken);
 
         if (!result.Succeeded || result.Session is null)

@@ -168,7 +168,11 @@ public sealed class Cita
 
     public void RegistrarLlegada()
     {
-        ExigirEstado(CitaEstados.Confirmada, "Solo una cita Confirmada puede pasar a espera.");
+        if (Estado is not (CitaEstados.Programada or CitaEstados.Confirmada))
+        {
+            throw new DomainException("Solo una cita Programada o Confirmada puede pasar a espera.");
+        }
+
         AplicarEstado(CitaEstados.EnEspera);
     }
 

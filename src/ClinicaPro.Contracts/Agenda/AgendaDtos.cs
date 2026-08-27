@@ -31,8 +31,11 @@ public sealed record SolicitarCitaParaPacienteRequest(
 public sealed record CitaDto(
     Guid CitaId,
     Guid PacienteId,
+    string PacienteNombre,
     Guid MedicoId,
+    string MedicoNombre,
     Guid EspecialidadId,
+    string EspecialidadNombre,
     DateTime FechaHoraInicio,
     DateTime FechaHoraFin,
     string MotivoConsulta,

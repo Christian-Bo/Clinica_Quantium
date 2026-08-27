@@ -12,7 +12,11 @@ public sealed record RegisterPacienteRequest(
     string? Documento,
     string? Telefono,
     string? Direccion,
-    DateOnly? FechaNacimiento);
+    DateOnly? FechaNacimiento,
+    string? Sexo,
+    string? Alergias,
+    string? ContactoEmergenciaNombre,
+    string? ContactoEmergenciaTelefono);
 
 public sealed record ActualizarPerfilRequest(
     string Nombres,
@@ -20,7 +24,11 @@ public sealed record ActualizarPerfilRequest(
     string? Documento,
     string? Telefono,
     string? Direccion,
-    DateOnly? FechaNacimiento);
+    DateOnly? FechaNacimiento,
+    string? Sexo,
+    string? Alergias,
+    string? ContactoEmergenciaNombre,
+    string? ContactoEmergenciaTelefono);
 
 public sealed record ForgotPasswordRequest(string Email);
 

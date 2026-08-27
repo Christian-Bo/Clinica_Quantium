@@ -50,6 +50,17 @@ public sealed class CitaTests
     }
 
     [Fact]
+    public void RegistrarLlegada_DesdeProgramada_PasaAEnEspera()
+    {
+        var cita = CrearCita();
+        cita.ConfirmarPorSecretaria(Guid.NewGuid());
+
+        cita.RegistrarLlegada();
+
+        Assert.Equal(CitaEstados.EnEspera, cita.Estado);
+    }
+
+    [Fact]
     public void FlujoRecepcion_HastaAtendida_RespetaLaMaquinaDeEstados()
     {
         var cita = CrearCita();

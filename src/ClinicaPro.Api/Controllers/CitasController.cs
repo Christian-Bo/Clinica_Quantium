@@ -20,8 +20,10 @@ public sealed class CitasController(
     ListarCitasMedicoService listarCitasMedico,
     ListarCitasPendientesService listarPendientes,
     ListarAgendaService listarAgenda,
+    ListarCitasPorPacienteStaffService listarCitasPacienteStaff,
     ListarDisponibilidadService listarDisponibilidad,
-    ListarHistorialCitaService listarHistorial) : ControllerBase
+    ListarHistorialCitaService listarHistorial,
+    ResolverNombresCitaService resolverNombres) : ControllerBase
 {
     [Authorize(Roles = RolNombres.Paciente)]
     [HttpPost]
@@ -42,7 +44,7 @@ public sealed class CitasController(
             new SolicitarCitaInput(request.EspecialidadId, request.FechaHoraInicio, request.MotivoConsulta),
             cancellationToken);
 
-        return Created($"/api/citas/{cita.Id}", Map(cita));
+        return Created($"/api/citas/{cita.Id}", await MapAsync(cita, cancellationToken));
     }
 
     [Authorize(Roles = RolNombres.Secretaria + "," + RolNombres.Administrador)]
@@ -64,7 +66,7 @@ public sealed class CitasController(
             new SolicitarCitaInput(request.EspecialidadId, request.FechaHoraInicio, request.MotivoConsulta),
             cancellationToken);
 
-        return Created($"/api/citas/{cita.Id}", Map(cita));
+        return Created($"/api/citas/{cita.Id}", await MapAsync(cita, cancellationToken));
     }
 
     [Authorize(Roles = RolNombres.Paciente)]
@@ -79,7 +81,7 @@ public sealed class CitasController(
         }
 
         var citas = await listarCitasPaciente.ExecuteAsync(usuarioId.Value, cancellationToken);
-        return Ok(citas.Select(Map).ToList());
+        return Ok(await MapManyAsync(citas, cancellationToken));
     }
 
     [Authorize(Roles = RolNombres.Medico)]
@@ -94,7 +96,7 @@ public sealed class CitasController(
         }
 
         var citas = await listarCitasMedico.ExecuteAsync(usuarioId.Value, cancellationToken);
-        return Ok(citas.Select(Map).ToList());
+        return Ok(await MapManyAsync(citas, cancellationToken));
     }
 
     [Authorize(Roles = RolNombres.Secretaria + "," + RolNombres.Administrador)]
@@ -103,7 +105,7 @@ public sealed class CitasController(
     public async Task<ActionResult<IReadOnlyList<CitaDto>>> Pendientes(CancellationToken cancellationToken)
     {
         var citas = await listarPendientes.ExecuteAsync(cancellationToken);
-        return Ok(citas.Select(Map).ToList());
+        return Ok(await MapManyAsync(citas, cancellationToken));
     }
 
     [Authorize(Roles = RolNombres.Secretaria + "," + RolNombres.Administrador + "," + RolNombres.Medico)]
@@ -116,7 +118,23 @@ public sealed class CitasController(
         CancellationToken cancellationToken)
     {
         var citas = await listarAgenda.ExecuteAsync(desde, hasta, medicoId, cancellationToken);
-        return Ok(citas.Select(Map).ToList());
+        return Ok(await MapManyAsync(citas, cancellationToken));
+    }
+
+    [Authorize(Roles = RolNombres.Secretaria + "," + RolNombres.Administrador)]
+    [HttpGet]
+    [ProducesResponseType(typeof(IReadOnlyList<CitaDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<CitaDto>>> PorPaciente(
+        [FromQuery] Guid pacienteId,
+        CancellationToken cancellationToken)
+    {
+        if (pacienteId == Guid.Empty)
+        {
+            return BadRequest();
+        }
+
+        var citas = await listarCitasPacienteStaff.ExecuteAsync(pacienteId, cancellationToken);
+        return Ok(await MapManyAsync(citas, cancellationToken));
     }
 
     [HttpGet("disponibilidad")]
@@ -214,7 +232,7 @@ public sealed class CitasController(
             request.Motivo ?? string.Empty,
             cancellationToken);
 
-        return Ok(Map(cita));
+        return Ok(await MapAsync(cita, cancellationToken));
     }
 
     [Authorize(Roles = RolNombres.Paciente)]
@@ -242,7 +260,7 @@ public sealed class CitasController(
 
         var motivo = string.IsNullOrWhiteSpace(request?.Motivo) ? "Cancelación del paciente" : request.Motivo.Trim();
         var cita = await cancelarCita.ExecuteComoPacienteAsync(citaId, usuarioId.Value, motivo, cancellationToken);
-        return Ok(Map(cita));
+        return Ok(await MapAsync(cita, cancellationToken));
     }
 
     [Authorize(Roles = RolNombres.Secretaria + "," + RolNombres.Administrador)]
@@ -262,7 +280,7 @@ public sealed class CitasController(
             ? "Cancelación administrativa"
             : request.Motivo.Trim();
         var cita = await cancelarCita.ExecuteComoStaffAsync(citaId, usuarioId.Value, motivo, cancellationToken);
-        return Ok(Map(cita));
+        return Ok(await MapAsync(cita, cancellationToken));
     }
 
     [Authorize(Roles = RolNombres.Secretaria + "," + RolNombres.Administrador)]
@@ -298,7 +316,7 @@ public sealed class CitasController(
         }
 
         var cita = await operarCita.ExecuteAsync(citaId, usuarioId.Value, motivo, cambiar, cancellationToken);
-        return Ok(Map(cita));
+        return Ok(await MapAsync(cita, cancellationToken));
     }
 
     private async Task<ActionResult<CitaDto>> CambiarComoPaciente(
@@ -314,17 +332,34 @@ public sealed class CitasController(
         }
 
         var cita = await operarCita.ExecuteComoPacienteAsync(citaId, usuarioId.Value, motivo, cambiar, cancellationToken);
-        return Ok(Map(cita));
+        return Ok(await MapAsync(cita, cancellationToken));
     }
 
-    private static CitaDto Map(Cita cita) => new(
-        cita.Id,
-        cita.PacienteId,
-        cita.MedicoId,
-        cita.EspecialidadId,
-        cita.FechaHoraInicio,
-        cita.FechaHoraFin,
-        cita.MotivoConsulta,
-        cita.Estado,
-        cita.NumeroReprogramaciones);
+    private async Task<CitaDto> MapAsync(Cita cita, CancellationToken cancellationToken)
+    {
+        var lista = await MapManyAsync([cita], cancellationToken);
+        return lista[0];
+    }
+
+    private async Task<List<CitaDto>> MapManyAsync(IReadOnlyList<Cita> citas, CancellationToken cancellationToken)
+    {
+        var nombres = await resolverNombres.ExecuteAsync(citas, cancellationToken);
+        return citas.Select(cita =>
+        {
+            var extra = nombres.GetValueOrDefault(cita.Id, new NombresCita(string.Empty, string.Empty, string.Empty));
+            return new CitaDto(
+                cita.Id,
+                cita.PacienteId,
+                extra.PacienteNombre,
+                cita.MedicoId,
+                extra.MedicoNombre,
+                cita.EspecialidadId,
+                extra.EspecialidadNombre,
+                cita.FechaHoraInicio,
+                cita.FechaHoraFin,
+                cita.MotivoConsulta,
+                cita.Estado,
+                cita.NumeroReprogramaciones);
+        }).ToList();
+    }
 }

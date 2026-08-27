@@ -71,6 +71,42 @@ public sealed class PacientesController(
             request.FechaNacimiento,
             request.Telefono,
             request.Direccion,
+            request.Sexo,
+            request.Alergias,
+            request.ContactoEmergenciaNombre,
+            request.ContactoEmergenciaTelefono,
+            cancellationToken);
+
+        return Ok(Map(paciente));
+    }
+
+    [Authorize(Roles = RolNombres.Secretaria + "," + RolNombres.Administrador)]
+    [HttpPut("{pacienteId:guid}")]
+    [ProducesResponseType(typeof(PacienteDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PacienteDto>> Actualizar(
+        Guid pacienteId,
+        [FromBody] ActualizarPerfilRequest request,
+        CancellationToken cancellationToken)
+    {
+        var usuarioId = User.ObtenerUsuarioId();
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+
+        var paciente = await actualizarPerfil.ExecutePorPacienteIdAsync(
+            usuarioId.Value,
+            pacienteId,
+            request.Nombres,
+            request.Apellidos,
+            request.Documento,
+            request.FechaNacimiento,
+            request.Telefono,
+            request.Direccion,
+            request.Sexo,
+            request.Alergias,
+            request.ContactoEmergenciaNombre,
+            request.ContactoEmergenciaTelefono,
             cancellationToken);
 
         return Ok(Map(paciente));
@@ -99,7 +135,11 @@ public sealed class PacientesController(
                 request.Documento,
                 request.Telefono,
                 request.Direccion,
-                request.FechaNacimiento),
+                request.FechaNacimiento,
+                request.Sexo,
+                request.Alergias,
+                request.ContactoEmergenciaNombre,
+                request.ContactoEmergenciaTelefono),
             cancellationToken);
 
         if (!resultado.Succeeded || resultado.PacienteId is null)
@@ -130,5 +170,9 @@ public sealed class PacientesController(
         paciente.Documento,
         paciente.FechaNacimiento,
         paciente.Telefono,
-        paciente.Direccion);
+        paciente.Direccion,
+        paciente.Sexo,
+        paciente.Alergias,
+        paciente.ContactoEmergenciaNombre,
+        paciente.ContactoEmergenciaTelefono);
 }

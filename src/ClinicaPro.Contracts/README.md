@@ -19,11 +19,12 @@ Header: `Authorization: Bearer {accessToken}`. En Swagger pegar solo el token.
 | POST | `/api/auth/change-password` | sí |
 | GET | `/api/auth/me` | sí |
 | GET | `/api/pacientes/me` | sí |
-| PUT | `/api/pacientes/me` | Paciente. Perfil: nombres, apellidos, documento, teléfono, dirección, fechaNacimiento |
+| PUT | `/api/pacientes/me` | Paciente. Perfil + sexo, alergias, contactoEmergenciaNombre, contactoEmergenciaTelefono |
+| PUT | `/api/pacientes/{pacienteId}` | Secretaria / Admin. Mismo body |
 | GET | `/api/pacientes?q=` | Secretaria / Admin |
 | POST | `/api/pacientes` | Secretaria / Admin |
 
-Password: 8+, mayúscula, minúscula, dígito y símbolo.
+Password: 8+, mayúscula, minúscula, dígito y símbolo. `sexo`: `M`, `F`, `X` o null.
 
 ## Citas
 
@@ -31,9 +32,15 @@ El paciente pide con `especialidadId` + `fechaHoraInicio` (Guatemala, **sin Z**)
 
 Secretaria/Admin también: `POST /api/citas/para-paciente` con `pacienteId` extra.
 
+`GET /api/citas?pacienteId=` (Secretaria/Admin): citas de ese paciente.
+
+`CitaDto` incluye `pacienteNombre`, `medicoNombre`, `especialidadNombre`.
+
 `GET /api/citas/disponibilidad?especialidadId=&fecha=2026-09-11`
 
 Estados: Solicitada → Programada → Confirmada → En Espera → En Atencion → Atendida. Alternativas: Rechazada, Cancelada, No presentada.
+
+`POST /api/citas/{id}/llegada` acepta **Programada o Confirmada**.
 
 `POST /api/citas/{id}/reprogramar`. La tercera la hace un Administrador. Cancelar con menos de 2 h → `No presentada`.
 
@@ -57,6 +64,7 @@ Tras `POST /api/demo/preparar-agenda`:
 
 - `admin@clinica.com` / `Admin123!`
 - `secretaria@clinica.com` / `Secretaria123!`
-- `medico@clinica.com` / `Medico123!`
+- `medico@clinica.com` / `Medico123!` (Carlos Hernandez)
+- `medico2@clinica.com` / `Medico123!` (Ana Morales)
 
-Medicina General: `20000000-0000-0000-0000-000000000001`. Horario lun–vie 08:00–16:00.
+Medicina General: `20000000-0000-0000-0000-000000000001`. Horario lun–vie 08:00–16:00. Agenda por médico: `GET /api/citas/agenda?medicoId=`.

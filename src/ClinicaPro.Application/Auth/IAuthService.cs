@@ -8,7 +8,11 @@ public sealed record RegisterPacienteInput(
     string? Documento,
     string? Telefono,
     string? Direccion,
-    DateOnly? FechaNacimiento);
+    DateOnly? FechaNacimiento,
+    string? Sexo = null,
+    string? Alergias = null,
+    string? ContactoEmergenciaNombre = null,
+    string? ContactoEmergenciaTelefono = null);
 
 public sealed record AuthSession(
     string AccessToken,

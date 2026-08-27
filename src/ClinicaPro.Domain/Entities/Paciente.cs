@@ -9,6 +9,8 @@ public sealed class Paciente
     public const int DocumentoMaxLength = 30;
     public const int TelefonoMaxLength = 30;
     public const int DireccionMaxLength = 250;
+    public const int AlergiasMaxLength = 500;
+    public const int ContactoNombreMaxLength = 150;
 
     public Guid Id { get; private set; }
     public Guid UsuarioId { get; private set; }
@@ -18,6 +20,10 @@ public sealed class Paciente
     public DateOnly? FechaNacimiento { get; private set; }
     public string? Telefono { get; private set; }
     public string? Direccion { get; private set; }
+    public string? Sexo { get; private set; }
+    public string? Alergias { get; private set; }
+    public string? ContactoEmergenciaNombre { get; private set; }
+    public string? ContactoEmergenciaTelefono { get; private set; }
     public bool IsActive { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
 
@@ -34,6 +40,10 @@ public sealed class Paciente
         DateOnly? fechaNacimiento,
         string? telefono,
         string? direccion,
+        string? sexo,
+        string? alergias,
+        string? contactoEmergenciaNombre,
+        string? contactoEmergenciaTelefono,
         bool isActive,
         DateTime createdAtUtc)
     {
@@ -45,6 +55,10 @@ public sealed class Paciente
         FechaNacimiento = fechaNacimiento;
         Telefono = telefono;
         Direccion = direccion;
+        Sexo = sexo;
+        Alergias = alergias;
+        ContactoEmergenciaNombre = contactoEmergenciaNombre;
+        ContactoEmergenciaTelefono = contactoEmergenciaTelefono;
         IsActive = isActive;
         CreatedAtUtc = createdAtUtc;
     }
@@ -56,7 +70,11 @@ public sealed class Paciente
         string? documento = null,
         DateOnly? fechaNacimiento = null,
         string? telefono = null,
-        string? direccion = null)
+        string? direccion = null,
+        string? sexo = null,
+        string? alergias = null,
+        string? contactoEmergenciaNombre = null,
+        string? contactoEmergenciaTelefono = null)
     {
         if (usuarioId == Guid.Empty)
         {
@@ -72,6 +90,10 @@ public sealed class Paciente
             fechaNacimiento,
             Opcional(telefono, TelefonoMaxLength, "teléfono"),
             Opcional(direccion, DireccionMaxLength, "dirección"),
+            NormalizarSexo(sexo),
+            Opcional(alergias, AlergiasMaxLength, "alergias"),
+            Opcional(contactoEmergenciaNombre, ContactoNombreMaxLength, "contacto de emergencia"),
+            Opcional(contactoEmergenciaTelefono, TelefonoMaxLength, "teléfono de emergencia"),
             isActive: true,
             createdAtUtc: DateTime.UtcNow);
     }
@@ -84,7 +106,11 @@ public sealed class Paciente
         string? documento,
         DateOnly? fechaNacimiento,
         string? telefono,
-        string? direccion)
+        string? direccion,
+        string? sexo = null,
+        string? alergias = null,
+        string? contactoEmergenciaNombre = null,
+        string? contactoEmergenciaTelefono = null)
     {
         Nombres = Obligatorio(nombres, "nombres", NombresMaxLength);
         Apellidos = Obligatorio(apellidos, "apellidos", ApellidosMaxLength);
@@ -92,6 +118,26 @@ public sealed class Paciente
         FechaNacimiento = fechaNacimiento;
         Telefono = Opcional(telefono, TelefonoMaxLength, "teléfono");
         Direccion = Opcional(direccion, DireccionMaxLength, "dirección");
+        Sexo = NormalizarSexo(sexo);
+        Alergias = Opcional(alergias, AlergiasMaxLength, "alergias");
+        ContactoEmergenciaNombre = Opcional(contactoEmergenciaNombre, ContactoNombreMaxLength, "contacto de emergencia");
+        ContactoEmergenciaTelefono = Opcional(contactoEmergenciaTelefono, TelefonoMaxLength, "teléfono de emergencia");
+    }
+
+    private static string? NormalizarSexo(string? valor)
+    {
+        if (string.IsNullOrWhiteSpace(valor))
+        {
+            return null;
+        }
+
+        var sexo = valor.Trim().ToUpperInvariant();
+        if (sexo is not ("M" or "F" or "X"))
+        {
+            throw new DomainException("El sexo debe ser M, F o X.");
+        }
+
+        return sexo;
     }
 
     private static string Obligatorio(string valor, string campo, int maxLength)
