@@ -124,6 +124,7 @@ public sealed class CitasController(
     [Authorize(Roles = RolNombres.Secretaria + "," + RolNombres.Administrador)]
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<CitaDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<IReadOnlyList<CitaDto>>> PorPaciente(
         [FromQuery] Guid pacienteId,
         CancellationToken cancellationToken)
@@ -134,6 +135,11 @@ public sealed class CitasController(
         }
 
         var citas = await listarCitasPacienteStaff.ExecuteAsync(pacienteId, cancellationToken);
+        if (citas is null)
+        {
+            return NotFound();
+        }
+
         return Ok(await MapManyAsync(citas, cancellationToken));
     }
 

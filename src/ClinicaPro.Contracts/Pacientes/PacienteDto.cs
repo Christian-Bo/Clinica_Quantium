@@ -14,3 +14,9 @@ public sealed record PacienteDto(
     string? Alergias,
     string? ContactoEmergenciaNombre,
     string? ContactoEmergenciaTelefono);
+
+public sealed record PaginaPacientesDto(
+    IReadOnlyList<PacienteDto> Items,
+    int Total,
+    int Page,
+    int PageSize);

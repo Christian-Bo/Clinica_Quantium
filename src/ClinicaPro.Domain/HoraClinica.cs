@@ -18,6 +18,18 @@ public static class HoraClinica
         return DateTime.SpecifyKind(local, DateTimeKind.Unspecified);
     }
 
+    public static DateTime AUtc(DateTime valor)
+    {
+        if (valor.Kind == DateTimeKind.Utc)
+        {
+            return valor;
+        }
+
+        return TimeZoneInfo.ConvertTimeToUtc(
+            DateTime.SpecifyKind(valor, DateTimeKind.Unspecified),
+            ZonaGuatemala());
+    }
+
     public static byte DiaSemana(DateTime fecha)
     {
         return fecha.DayOfWeek == DayOfWeek.Sunday
