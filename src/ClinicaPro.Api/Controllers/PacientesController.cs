@@ -41,13 +41,19 @@ public sealed class PacientesController(
 
     [Authorize(Roles = RolNombres.Secretaria + "," + RolNombres.Administrador)]
     [HttpGet]
-    [ProducesResponseType(typeof(IReadOnlyList<PacienteDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<PacienteDto>>> Buscar(
+    [ProducesResponseType(typeof(PaginaPacientesDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PaginaPacientesDto>> Buscar(
         [FromQuery] string? q,
-        CancellationToken cancellationToken)
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = BuscarPacientesService.PageSizePorDefecto,
+        CancellationToken cancellationToken = default)
     {
-        var lista = await buscarPacientes.ExecuteAsync(q, cancellationToken);
-        return Ok(lista.Select(Map).ToList());
+        var resultado = await buscarPacientes.ExecuteAsync(q, page, pageSize, cancellationToken);
+        return Ok(new PaginaPacientesDto(
+            resultado.Items.Select(Map).ToList(),
+            resultado.Total,
+            resultado.Page,
+            resultado.PageSize));
     }
 
     [Authorize(Roles = RolNombres.Paciente)]

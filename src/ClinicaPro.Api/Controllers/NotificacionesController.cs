@@ -35,9 +35,13 @@ public sealed class NotificacionesController(
     [Authorize(Roles = RolNombres.Secretaria + "," + RolNombres.Administrador)]
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<NotificacionDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<NotificacionDto>>> Get(CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<NotificacionDto>>> Get(
+        [FromQuery] string? estado,
+        [FromQuery] DateTime? desde,
+        [FromQuery] DateTime? hasta,
+        CancellationToken cancellationToken)
     {
-        var lista = await listarStaff.ExecuteAsync(cancellationToken);
+        var lista = await listarStaff.ExecuteAsync(estado, desde, hasta, cancellationToken);
         return Ok(await MapManyAsync(lista, cancellationToken));
     }
 

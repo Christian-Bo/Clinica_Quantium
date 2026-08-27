@@ -593,7 +593,7 @@ BEGIN
           AND NOT
           (
               (d.Estado = N''Solicitada''  AND i.Estado IN (N''Programada'', N''Rechazada'')) OR
-              (d.Estado = N''Programada''  AND i.Estado IN (N''Confirmada'', N''Cancelada'', N''No presentada'')) OR
+              (d.Estado = N''Programada''  AND i.Estado IN (N''Confirmada'', N''En Espera'', N''Cancelada'', N''No presentada'')) OR
               (d.Estado = N''Confirmada''  AND i.Estado IN (N''En Espera'', N''Cancelada'', N''No presentada'')) OR
               (d.Estado = N''En Espera''   AND i.Estado IN (N''En Atencion'', N''Atendida'', N''No presentada'')) OR
               (d.Estado = N''En Atencion'' AND i.Estado IN (N''Atendida''))

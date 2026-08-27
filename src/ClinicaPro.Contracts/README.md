@@ -21,7 +21,7 @@ Header: `Authorization: Bearer {accessToken}`. En Swagger pegar solo el token.
 | GET | `/api/pacientes/me` | sí |
 | PUT | `/api/pacientes/me` | Paciente. Perfil + sexo, alergias, contactoEmergenciaNombre, contactoEmergenciaTelefono |
 | PUT | `/api/pacientes/{pacienteId}` | Secretaria / Admin. Mismo body |
-| GET | `/api/pacientes?q=` | Secretaria / Admin |
+| GET | `/api/pacientes?q=&page=1&pageSize=20` | Secretaria / Admin. `{ items, total, page, pageSize }`. pageSize máx. 50 |
 | POST | `/api/pacientes` | Secretaria / Admin |
 
 Password: 8+, mayúscula, minúscula, dígito y símbolo. `sexo`: `M`, `F`, `X` o null.
@@ -54,7 +54,7 @@ Especialidades crear/editar. Médicos crear/editar. Horarios crear/desactivar. U
 
 `GET /api/reportes/citas?desde=&hasta=&medicoId=`
 
-`GET /api/notificaciones/mias` (Paciente) y `GET /api/notificaciones` (staff). Correo SMTP; no hay WhatsApp.
+`GET /api/notificaciones/mias` (Paciente) y `GET /api/notificaciones?estado=&desde=&hasta=` (staff). `estado`: Pendiente, Procesando, Enviada, Fallida. Fechas en hora de Guatemala, sin Z; tope 100. Correo SMTP; no hay WhatsApp.
 
 En el VPS: variables `Smtp__UserName` y `Smtp__Password`. Ver `src/ClinicaPro.Api/README.md`.
 

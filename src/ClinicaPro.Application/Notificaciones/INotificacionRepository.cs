@@ -16,7 +16,10 @@ public interface INotificacionRepository
         Guid pacienteId,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<Notificacion>> ListarRecientesAsync(
+    Task<IReadOnlyList<Notificacion>> ListarStaffAsync(
+        string? estado,
+        DateTime? desdeUtc,
+        DateTime? hastaUtcExclusivo,
         int cantidadMaxima,
         CancellationToken cancellationToken = default);
 

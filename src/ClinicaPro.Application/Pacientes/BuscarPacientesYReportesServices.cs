@@ -6,13 +6,36 @@ namespace ClinicaPro.Application.Pacientes;
 
 public sealed class BuscarPacientesService(IPacienteRepository pacientes)
 {
-    public Task<IReadOnlyList<Paciente>> ExecuteAsync(
+    public const int PageSizePorDefecto = 20;
+    public const int PageSizeMaxima = 50;
+
+    public async Task<ResultadoBusquedaPacientes> ExecuteAsync(
         string? texto,
+        int page = 1,
+        int pageSize = PageSizePorDefecto,
         CancellationToken cancellationToken = default)
     {
-        return pacientes.BuscarAsync(texto, cantidadMaxima: 20, cancellationToken);
+        if (page < 1)
+        {
+            throw new DomainException("La página debe ser mayor o igual a 1.");
+        }
+
+        if (pageSize < 1 || pageSize > PageSizeMaxima)
+        {
+            throw new DomainException($"El tamaño de página debe estar entre 1 y {PageSizeMaxima}.");
+        }
+
+        var omitir = (page - 1) * pageSize;
+        var (items, total) = await pacientes.BuscarAsync(texto, omitir, pageSize, cancellationToken);
+        return new ResultadoBusquedaPacientes(items, total, page, pageSize);
     }
 }
+
+public sealed record ResultadoBusquedaPacientes(
+    IReadOnlyList<Paciente> Items,
+    int Total,
+    int Page,
+    int PageSize);
 
 public sealed class ListarReporteCitasService(ICitaRepository citas)
 {

@@ -42,11 +42,31 @@ public sealed class NotificacionRepository(ClinicaProDbContext dbContext) : INot
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Notificacion>> ListarRecientesAsync(
+    public async Task<IReadOnlyList<Notificacion>> ListarStaffAsync(
+        string? estado,
+        DateTime? desdeUtc,
+        DateTime? hastaUtcExclusivo,
         int cantidadMaxima,
         CancellationToken cancellationToken = default)
     {
-        return await dbContext.Notificaciones.AsNoTracking()
+        var consulta = dbContext.Notificaciones.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(estado))
+        {
+            consulta = consulta.Where(notificacion => notificacion.Estado == estado);
+        }
+
+        if (desdeUtc is not null)
+        {
+            consulta = consulta.Where(notificacion => notificacion.CreatedAtUtc >= desdeUtc.Value);
+        }
+
+        if (hastaUtcExclusivo is not null)
+        {
+            consulta = consulta.Where(notificacion => notificacion.CreatedAtUtc < hastaUtcExclusivo.Value);
+        }
+
+        return await consulta
             .OrderByDescending(notificacion => notificacion.CreatedAtUtc)
             .Take(cantidadMaxima)
             .ToListAsync(cancellationToken);

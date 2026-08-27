@@ -68,9 +68,10 @@ public sealed class PacienteRepository(ClinicaProDbContext dbContext) : IPacient
             select usuario.Email)            .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Paciente>> BuscarAsync(
+    public async Task<(IReadOnlyList<Paciente> Items, int Total)> BuscarAsync(
         string? texto,
-        int cantidadMaxima,
+        int omitir,
+        int tomar,
         CancellationToken cancellationToken = default)
     {
         var consulta = dbContext.Pacientes.AsNoTracking()
@@ -86,11 +87,15 @@ public sealed class PacienteRepository(ClinicaProDbContext dbContext) : IPacient
                 || (paciente.Telefono != null && paciente.Telefono.Contains(termino)));
         }
 
-        return await consulta
+        var total = await consulta.CountAsync(cancellationToken);
+        var items = await consulta
             .OrderBy(paciente => paciente.Apellidos)
             .ThenBy(paciente => paciente.Nombres)
-            .Take(cantidadMaxima)
+            .Skip(omitir)
+            .Take(tomar)
             .ToListAsync(cancellationToken);
+
+        return (items, total);
     }
 
     public Task<bool> ExisteDocumentoAsync(
