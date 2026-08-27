@@ -155,6 +155,19 @@ public sealed class ListarCitasMedicoService(IMedicoRepository medicos, ICitaRep
     }
 }
 
+public sealed class ListarCitasPorPacienteStaffService(IPacienteRepository pacientes, ICitaRepository citas)
+{
+    public async Task<IReadOnlyList<Cita>> ExecuteAsync(
+        Guid pacienteId,
+        CancellationToken cancellationToken = default)
+    {
+        var paciente = await pacientes.ObtenerPorIdAsync(pacienteId, cancellationToken)
+            ?? throw new DomainException("El paciente no existe.");
+
+        return await citas.ListarPorPacienteAsync(paciente.Id, cancellationToken);
+    }
+}
+
 public sealed class ListarCitasPendientesService(ICitaRepository citas)
 {
     public Task<IReadOnlyList<Cita>> ExecuteAsync(CancellationToken cancellationToken = default)

@@ -141,7 +141,11 @@ public sealed class AuthService(
                 input.Documento,
                 input.FechaNacimiento,
                 input.Telefono,
-                input.Direccion);
+                input.Direccion,
+                input.Sexo,
+                input.Alergias,
+                input.ContactoEmergenciaNombre,
+                input.ContactoEmergenciaTelefono);
         }
         catch (DomainException)
         {

@@ -42,6 +42,18 @@ public sealed class PacienteConfiguration : IEntityTypeConfiguration<Paciente>
         builder.Property(paciente => paciente.Direccion)
             .HasMaxLength(Paciente.DireccionMaxLength);
 
+        builder.Property(paciente => paciente.Sexo)
+            .HasMaxLength(1);
+
+        builder.Property(paciente => paciente.Alergias)
+            .HasMaxLength(Paciente.AlergiasMaxLength);
+
+        builder.Property(paciente => paciente.ContactoEmergenciaNombre)
+            .HasMaxLength(Paciente.ContactoNombreMaxLength);
+
+        builder.Property(paciente => paciente.ContactoEmergenciaTelefono)
+            .HasMaxLength(Paciente.TelefonoMaxLength);
+
         builder.Property(paciente => paciente.IsActive)
             .IsRequired();
 

@@ -1,5 +1,6 @@
 using ClinicaPro.Api.Security;
 using ClinicaPro.Application.Notificaciones;
+using ClinicaPro.Application.Pacientes;
 using ClinicaPro.Contracts.Notificaciones;
 using ClinicaPro.Domain;
 using ClinicaPro.Domain.Entities;
@@ -13,7 +14,8 @@ namespace ClinicaPro.Api.Controllers;
 [Route("api/notificaciones")]
 public sealed class NotificacionesController(
     ListarNotificacionesPacienteService listarMias,
-    ListarNotificacionesStaffService listarStaff) : ControllerBase
+    ListarNotificacionesStaffService listarStaff,
+    IPacienteRepository pacientes) : ControllerBase
 {
     [Authorize(Roles = RolNombres.Paciente)]
     [HttpGet("mias")]
@@ -27,7 +29,7 @@ public sealed class NotificacionesController(
         }
 
         var lista = await listarMias.ExecuteAsync(usuarioId.Value, cancellationToken);
-        return Ok(lista.Select(Map).ToList());
+        return Ok(await MapManyAsync(lista, cancellationToken));
     }
 
     [Authorize(Roles = RolNombres.Secretaria + "," + RolNombres.Administrador)]
@@ -36,20 +38,30 @@ public sealed class NotificacionesController(
     public async Task<ActionResult<IReadOnlyList<NotificacionDto>>> Get(CancellationToken cancellationToken)
     {
         var lista = await listarStaff.ExecuteAsync(cancellationToken);
-        return Ok(lista.Select(Map).ToList());
+        return Ok(await MapManyAsync(lista, cancellationToken));
     }
 
-    private static NotificacionDto Map(Notificacion notificacion) => new(
-        notificacion.Id,
-        notificacion.CitaId,
-        notificacion.PacienteId,
-        notificacion.Canal,
-        notificacion.Tipo,
-        notificacion.Destinatario,
-        notificacion.Asunto,
-        notificacion.Contenido,
-        notificacion.Estado,
-        notificacion.NumeroIntentos,
-        notificacion.EnviadaAtUtc,
-        notificacion.CreatedAtUtc);
+    private async Task<List<NotificacionDto>> MapManyAsync(
+        IReadOnlyList<Notificacion> lista,
+        CancellationToken cancellationToken)
+    {
+        var ids = lista.Select(item => item.PacienteId).Distinct().ToList();
+        var nombres = (await pacientes.ListarPorIdsAsync(ids, cancellationToken))
+            .ToDictionary(item => item.Id, item => item.NombreCompleto);
+
+        return lista.Select(notificacion => new NotificacionDto(
+            notificacion.Id,
+            notificacion.CitaId,
+            notificacion.PacienteId,
+            nombres.GetValueOrDefault(notificacion.PacienteId, string.Empty),
+            notificacion.Canal,
+            notificacion.Tipo,
+            notificacion.Destinatario,
+            notificacion.Asunto,
+            notificacion.Contenido,
+            notificacion.Estado,
+            notificacion.NumeroIntentos,
+            notificacion.EnviadaAtUtc,
+            notificacion.CreatedAtUtc)).ToList();
+    }
 }

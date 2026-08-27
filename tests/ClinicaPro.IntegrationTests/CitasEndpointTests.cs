@@ -84,6 +84,17 @@ public sealed class CitasEndpointTests : IClassFixture<WebApplicationFactory<Pro
     }
 
     [Fact]
+    public async Task CitasPorPaciente_WithoutToken_ReturnsUnauthorized()
+    {
+        using var client = _factory.CreateClient();
+
+        var response = await client.GetAsync(
+            "/api/citas?pacienteId=62079587-271f-4e88-aee3-2c9006f3d813");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
     public async Task AdminAuditoria_WithoutToken_ReturnsUnauthorized()
     {
         using var client = _factory.CreateClient();

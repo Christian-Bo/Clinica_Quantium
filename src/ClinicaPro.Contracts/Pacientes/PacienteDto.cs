@@ -9,4 +9,8 @@ public sealed record PacienteDto(
     string? Documento,
     DateOnly? FechaNacimiento,
     string? Telefono,
-    string? Direccion);
+    string? Direccion,
+    string? Sexo,
+    string? Alergias,
+    string? ContactoEmergenciaNombre,
+    string? ContactoEmergenciaTelefono);

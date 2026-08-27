@@ -33,6 +33,30 @@ public sealed class PacienteRepository(ClinicaProDbContext dbContext) : IPacient
                 cancellationToken);
     }
 
+    public Task<Paciente?> ObtenerRastreadoPorIdAsync(
+        Guid pacienteId,
+        CancellationToken cancellationToken = default)
+    {
+        return dbContext.Pacientes
+            .SingleOrDefaultAsync(
+                paciente => paciente.Id == pacienteId && paciente.IsActive,
+                cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Paciente>> ListarPorIdsAsync(
+        IReadOnlyCollection<Guid> ids,
+        CancellationToken cancellationToken = default)
+    {
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        return await dbContext.Pacientes.AsNoTracking()
+            .Where(paciente => ids.Contains(paciente.Id))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<string?> ObtenerEmailPorPacienteIdAsync(
         Guid pacienteId,
         CancellationToken cancellationToken = default)
