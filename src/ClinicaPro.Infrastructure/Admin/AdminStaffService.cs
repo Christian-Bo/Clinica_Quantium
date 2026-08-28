@@ -117,6 +117,31 @@ public sealed class AdminStaffService(
         return resultado;
     }
 
+    public async Task<IReadOnlyList<AdminMedicoInfo>> ListarMedicosAsync(CancellationToken cancellationToken)
+    {
+        var medicosLista = await medicos.ListarTodosAsync(cancellationToken);
+        var especialidades = await medicos.ListarEspecialidadesActivasAsync(cancellationToken);
+        var usuarios = await dbContext.Users.AsNoTracking().ToListAsync(cancellationToken);
+        var emailPorUsuario = usuarios.ToDictionary(item => item.Id, item => item.Email ?? string.Empty);
+
+        return medicosLista.Select(medico =>
+        {
+            var delMedico = especialidades.Where(relacion => relacion.MedicoId == medico.Id).ToList();
+            return new AdminMedicoInfo(
+                medico.Id,
+                medico.UsuarioId,
+                emailPorUsuario.GetValueOrDefault(medico.UsuarioId, string.Empty),
+                medico.Nombres,
+                medico.Apellidos,
+                medico.NombreCompleto,
+                medico.NumeroColegiado,
+                medico.Telefono,
+                delMedico.Select(relacion => relacion.EspecialidadId).ToList(),
+                delMedico.FirstOrDefault(relacion => relacion.EsPrimario)?.EspecialidadId,
+                medico.IsActive);
+        }).ToList();
+    }
+
     public async Task CambiarActivoUsuarioAsync(Guid usuarioId, bool isActive, Guid adminId, CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(usuarioId.ToString())
