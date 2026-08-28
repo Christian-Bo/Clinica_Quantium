@@ -19,6 +19,19 @@ public sealed record CrearMedicoInput(
 
 public sealed record UsuarioStaffInfo(Guid UsuarioId, string Email, bool IsActive, IReadOnlyList<string> Roles);
 
+public sealed record AdminMedicoInfo(
+    Guid MedicoId,
+    Guid UsuarioId,
+    string Email,
+    string Nombres,
+    string Apellidos,
+    string NombreCompleto,
+    string? NumeroColegiado,
+    string? Telefono,
+    IReadOnlyList<Guid> EspecialidadIds,
+    Guid? EspecialidadPrimariaId,
+    bool IsActive);
+
 public interface IAdminStaffService
 {
     Task<Medico> CrearMedicoAsync(CrearMedicoInput input, Guid adminId, CancellationToken cancellationToken);
@@ -32,6 +45,7 @@ public interface IAdminStaffService
         Guid adminId,
         CancellationToken cancellationToken);
     Task<IReadOnlyList<UsuarioStaffInfo>> ListarUsuariosAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<AdminMedicoInfo>> ListarMedicosAsync(CancellationToken cancellationToken);
     Task CambiarActivoUsuarioAsync(Guid usuarioId, bool isActive, Guid adminId, CancellationToken cancellationToken);
 }
 

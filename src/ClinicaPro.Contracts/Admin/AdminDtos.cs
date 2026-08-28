@@ -33,6 +33,19 @@ public sealed record UsuarioAdminDto(
     bool IsActive,
     IReadOnlyList<string> Roles);
 
+public sealed record AdminMedicoDto(
+    Guid MedicoId,
+    Guid UsuarioId,
+    string Email,
+    string Nombres,
+    string Apellidos,
+    string NombreCompleto,
+    string? NumeroColegiado,
+    string? Telefono,
+    IReadOnlyList<Guid> EspecialidadIds,
+    Guid? EspecialidadPrimariaId,
+    bool IsActive);
+
 public sealed record AuditoriaDto(
     long AuditoriaId,
     Guid? UsuarioId,

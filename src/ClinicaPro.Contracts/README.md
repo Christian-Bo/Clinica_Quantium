@@ -48,7 +48,7 @@ Estados: Solicitada → Programada → Confirmada → En Espera → En Atencion 
 
 ## Admin (`/api/admin`, solo Administrador)
 
-Especialidades crear/editar. Médicos crear/editar. Horarios crear/desactivar. Usuarios listar y activar/desactivar (no se desactiva un admin). Parámetros PUT valor. `GET /api/admin/auditoria`.
+Especialidades crear/editar. `GET /api/admin/medicos` lista todos (activos e inactivos) con `usuarioId`, `email` e `isActive`. Médicos crear/editar (`PUT` con `isActive` reactiva médico y usuario). Horarios crear/desactivar. Usuarios listar y activar/desactivar (no se desactiva un admin; eso no reactiva la entidad Médico). Parámetros PUT valor. `GET /api/admin/auditoria`.
 
 ## Reportes y notificaciones
 
