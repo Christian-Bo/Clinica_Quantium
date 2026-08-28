@@ -15,5 +15,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\ClinicaPro.Api\ClinicaPro.Api.csproj" />
+    <ProjectReference Include="..\..\src\ClinicaPro.Application\ClinicaPro.Application.csproj" />
+    <ProjectReference Include="..\..\src\ClinicaPro.Contracts\ClinicaPro.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\ClinicaPro.Domain\ClinicaPro.Domain.csproj" />
   </ItemGroup>
 </Project>

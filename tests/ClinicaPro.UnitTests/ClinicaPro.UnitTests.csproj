@@ -13,6 +13,7 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\src\ClinicaPro.Application\ClinicaPro.Application.csproj" />
     <ProjectReference Include="..\..\src\ClinicaPro.Domain\ClinicaPro.Domain.csproj" />
   </ItemGroup>
 </Project>

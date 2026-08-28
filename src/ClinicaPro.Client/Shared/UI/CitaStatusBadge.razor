@@ -1,0 +1,36 @@
+<span class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-pill px-2.5 py-1 text-xs font-medium @Clases">
+    <span class="h-1.5 w-1.5 rounded-full @Punto"></span>
+    @Estado
+</span>
+
+@code {
+    [Parameter, EditorRequired] public string Estado { get; set; } = string.Empty;
+
+    private string Clases => Estado switch
+    {
+        CitaEstados.Solicitada => "bg-state-solicitada/10 text-state-solicitada",
+        CitaEstados.Programada => "bg-state-programada/10 text-state-programada",
+        CitaEstados.Confirmada => "bg-state-confirmada/10 text-state-confirmada",
+        CitaEstados.EnEspera => "bg-state-en-espera/10 text-state-en-espera",
+        CitaEstados.EnAtencion => "bg-state-en-atencion/10 text-state-en-atencion",
+        CitaEstados.Atendida => "bg-state-atendida/10 text-state-atendida",
+        CitaEstados.Cancelada => "bg-state-cancelada/10 text-state-cancelada",
+        CitaEstados.NoPresentada => "bg-state-no-presentada/10 text-state-no-presentada",
+        CitaEstados.Rechazada => "bg-state-rechazada/10 text-state-rechazada",
+        _ => "bg-surface-muted text-ink-muted"
+    };
+
+    private string Punto => Estado switch
+    {
+        CitaEstados.Solicitada => "bg-state-solicitada",
+        CitaEstados.Programada => "bg-state-programada",
+        CitaEstados.Confirmada => "bg-state-confirmada",
+        CitaEstados.EnEspera => "bg-state-en-espera",
+        CitaEstados.EnAtencion => "bg-state-en-atencion",
+        CitaEstados.Atendida => "bg-state-atendida",
+        CitaEstados.Cancelada => "bg-state-cancelada",
+        CitaEstados.NoPresentada => "bg-state-no-presentada",
+        CitaEstados.Rechazada => "bg-state-rechazada",
+        _ => "bg-ink-muted"
+    };
+}

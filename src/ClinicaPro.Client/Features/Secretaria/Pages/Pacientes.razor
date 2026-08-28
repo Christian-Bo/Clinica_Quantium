@@ -1,0 +1,222 @@
+@page "/pacientes"
+@attribute [Authorize]
+@inject PacientesApiService PacientesApi
+@inject ToastService Toasts
+
+<PageTitle>Pacientes · Clínica Pro</PageTitle>
+
+<div class="space-y-6">
+    <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+        <div>
+            <h1 class="text-xl font-semibold text-ink">Pacientes</h1>
+            <p class="text-sm text-ink-muted">Busca, registra y consulta pacientes de la clínica.</p>
+        </div>
+        <Button Variant="ButtonVariant.Primary" IconName="user-plus" OnClick="AbrirNuevo">Nuevo paciente</Button>
+    </div>
+
+    <Card BodyPadding="p-0">
+        <div class="flex items-center gap-2 border-b border-border px-4 py-3">
+            <Icon Name="search" Size="18" CssClass="text-ink-muted" />
+            <input type="search" placeholder="Buscar por nombre, documento o teléfono..."
+                   class="w-full border-none bg-transparent text-sm text-ink outline-none placeholder:text-ink-muted focus:ring-0"
+                   value="@texto" @oninput="ManejarBusqueda" />
+        </div>
+
+        @if (cargando)
+        {
+            <div class="p-4"><Skeleton Filas="5" HeightClass="h-12" /></div>
+        }
+        else if (errorCarga is not null)
+        {
+            <EmptyState IconName="alert-triangle" Title="No se pudo cargar la lista" Description="@errorCarga" />
+        }
+        else if (pagina.Items.Count == 0)
+        {
+            <EmptyState IconName="users" Title="No se encontraron pacientes"
+                        Description="Intenta con otro término de búsqueda o registra un paciente nuevo." />
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead>
+                        <tr class="border-b border-border text-xs uppercase tracking-wide text-ink-muted">
+                            <th class="px-4 py-2 font-medium">Paciente</th>
+                            <th class="px-4 py-2 font-medium">Documento</th>
+                            <th class="px-4 py-2 font-medium">F. nacimiento</th>
+                            <th class="px-4 py-2 font-medium">Teléfono</th>
+                            <th class="px-4 py-2 font-medium text-right">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border">
+                        @foreach (var paciente in pagina.Items)
+                        {
+                            <tr class="hover:bg-surface-muted">
+                                <td class="px-4 py-3">
+                                    <div class="flex items-center gap-2">
+                                        <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
+                                            @Iniciales(paciente)
+                                        </div>
+                                        <span class="font-medium text-ink">@paciente.NombreCompleto</span>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3 text-ink-muted">@(paciente.Documento ?? "—")</td>
+                                <td class="px-4 py-3 text-ink-muted">@(paciente.FechaNacimiento?.ToString("dd/MM/yyyy") ?? "—")</td>
+                                <td class="px-4 py-3 text-ink-muted">@(paciente.Telefono ?? "—")</td>
+                                <td class="px-4 py-3">
+                                    <div class="flex justify-end gap-1">
+                                        <button type="button" class="rounded-control p-1.5 text-ink-muted hover:bg-surface-muted hover:text-brand-600"
+                                                title="Ver historial de citas" @onclick="() => AbrirHistorial(paciente)">
+                                            <Icon Name="history" Size="16" />
+                                        </button>
+                                        <button type="button" class="rounded-control p-1.5 text-ink-muted hover:bg-surface-muted hover:text-brand-600"
+                                                title="Editar paciente" @onclick="() => AbrirEditar(paciente)">
+                                            <Icon Name="edit" Size="16" />
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (TotalPaginas > 1)
+            {
+                <div class="flex items-center justify-between border-t border-border px-4 py-3">
+                    <p class="text-xs text-ink-muted">
+                        Página @pagina.Page de @TotalPaginas · @pagina.Total paciente@(pagina.Total == 1 ? "" : "s") en total
+                    </p>
+                    <div class="flex gap-2">
+                        <Button Variant="ButtonVariant.Secondary" Size="sm" IconName="chevron-left"
+                                Disabled="pagina.Page <= 1" OnClick="PaginaAnterior" />
+                        <Button Variant="ButtonVariant.Secondary" Size="sm" IconName="chevron-right"
+                                Disabled="pagina.Page >= TotalPaginas" OnClick="PaginaSiguiente" />
+                    </div>
+                </div>
+            }
+        }
+    </Card>
+</div>
+
+<PacienteFormModal IsOpen="modalAbierto" IsOpenChanged="@((bool v) => modalAbierto = v)"
+                    Paciente="pacienteEnEdicion" OnGuardado="ManejarGuardado" />
+
+<HistorialPacienteDrawer IsOpen="historialAbierto" IsOpenChanged="@((bool v) => historialAbierto = v)"
+                          Paciente="pacienteHistorial" />
+
+@code {
+    private const int TamanoPagina = 15;
+
+    private PaginaPacientesDto pagina = new([], 0, 1, TamanoPagina);
+    private bool cargando = true;
+    private string? errorCarga;
+    private string texto = string.Empty;
+    private int paginaActual = 1;
+
+    private bool modalAbierto;
+    private PacienteDto? pacienteEnEdicion;
+
+    private bool historialAbierto;
+    private PacienteDto? pacienteHistorial;
+
+    private CancellationTokenSource? debounceCts;
+
+    private int TotalPaginas => pagina.PageSize <= 0 ? 1 : Math.Max(1, (int)Math.Ceiling(pagina.Total / (double)pagina.PageSize));
+
+    protected override async Task OnInitializedAsync() => await CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        cargando = true;
+        errorCarga = null;
+        try
+        {
+            pagina = await PacientesApi.BuscarAsync(texto, paginaActual, TamanoPagina);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            errorCarga = "No se pudo contactar a la API.";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task ManejarBusqueda(ChangeEventArgs e)
+    {
+        texto = e.Value?.ToString() ?? string.Empty;
+        paginaActual = 1;
+
+        debounceCts?.Cancel();
+        var cts = new CancellationTokenSource();
+        debounceCts = cts;
+
+        try
+        {
+            await Task.Delay(350, cts.Token);
+            await CargarAsync();
+        }
+        catch (TaskCanceledException)
+        {
+            // El usuario siguió escribiendo antes de que venciera el debounce; se ignora.
+        }
+    }
+
+    private async Task PaginaAnterior()
+    {
+        if (paginaActual <= 1)
+        {
+            return;
+        }
+
+        paginaActual--;
+        await CargarAsync();
+    }
+
+    private async Task PaginaSiguiente()
+    {
+        if (paginaActual >= TotalPaginas)
+        {
+            return;
+        }
+
+        paginaActual++;
+        await CargarAsync();
+    }
+
+    private void AbrirNuevo()
+    {
+        pacienteEnEdicion = null;
+        modalAbierto = true;
+    }
+
+    private void AbrirEditar(PacienteDto paciente)
+    {
+        pacienteEnEdicion = paciente;
+        modalAbierto = true;
+    }
+
+    private void AbrirHistorial(PacienteDto paciente)
+    {
+        pacienteHistorial = paciente;
+        historialAbierto = true;
+    }
+
+    private async Task ManejarGuardado(PacienteDto paciente)
+    {
+        Toasts.Exito(
+            pacienteEnEdicion is null
+                ? $"Paciente {paciente.NombreCompleto} registrado."
+                : $"Datos de {paciente.NombreCompleto} actualizados.");
+        await CargarAsync();
+    }
+
+    private static string Iniciales(PacienteDto paciente)
+    {
+        var n = paciente.Nombres.Length > 0 ? paciente.Nombres[0] : '?';
+        var a = paciente.Apellidos.Length > 0 ? paciente.Apellidos[0] : '?';
+        return $"{n}{a}".ToUpperInvariant();
+    }
+}

@@ -1,0 +1,30 @@
+<div class="rounded-card border border-border bg-surface shadow-card @CssClass">
+    @if (!string.IsNullOrEmpty(Title))
+    {
+        <div class="flex items-center justify-between border-b border-border px-5 py-3.5">
+            <div class="flex items-center gap-2">
+                @if (!string.IsNullOrEmpty(IconName))
+                {
+                    <Icon Name="@IconName" Size="18" CssClass="text-brand-600" />
+                }
+                <h2 class="text-sm font-semibold text-ink">@Title</h2>
+            </div>
+            @if (HeaderActions is not null)
+            {
+                <div>@HeaderActions</div>
+            }
+        </div>
+    }
+    <div class="@BodyPadding">
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public string? IconName { get; set; }
+    [Parameter] public RenderFragment? HeaderActions { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string CssClass { get; set; } = string.Empty;
+    [Parameter] public string BodyPadding { get; set; } = "p-5";
+}

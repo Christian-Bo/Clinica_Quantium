@@ -1,0 +1,9 @@
+@for (var i = 0; i < Filas; i++)
+{
+    <div class="animate-pulse rounded-control bg-surface-muted @HeightClass @(i > 0 ? "mt-2" : string.Empty)"></div>
+}
+
+@code {
+    [Parameter] public int Filas { get; set; } = 3;
+    [Parameter] public string HeightClass { get; set; } = "h-12";
+}

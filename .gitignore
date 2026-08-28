@@ -29,3 +29,4 @@ Thumbs.db
 *.tmp
 TestResults/
 coverage/
+src/ClinicaPro.Api/App_Data/

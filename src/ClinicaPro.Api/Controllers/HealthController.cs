@@ -1,10 +1,12 @@
 using ClinicaPro.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace ClinicaPro.Api.Controllers;
 
 [ApiController]
+[AllowAnonymous]
 [Route("api/health")]
 public sealed class HealthController(
     ClinicaProDbContext dbContext,
@@ -35,10 +37,13 @@ public sealed class HealthController(
                     title: "Base de datos no disponible");
             }
 
+            var conexion = dbContext.Database.GetDbConnection();
+
             return Ok(new
             {
                 status = "ok",
-                database = "ClinicaPro",
+                database = conexion.Database,
+                server = conexion.DataSource,
                 provider = dbContext.Database.ProviderName,
                 timestampUtc = DateTimeOffset.UtcNow
             });

@@ -1,0 +1,284 @@
+@inject PacientesApiService PacientesApi
+@inject EspecialidadesApiService EspecialidadesApi
+@inject CitasApiService CitasApi
+
+<Modal IsOpen="IsOpen" IsOpenChanged="IsOpenChanged" Title="Nueva cita" IconName="calendar" MaxWidthClass="max-w-lg">
+    <Body>
+        <div class="space-y-4">
+            <div>
+                <label class="text-sm font-medium text-ink">Paciente *</label>
+                @if (pacienteSeleccionado is not null)
+                {
+                    <div class="mt-1 flex items-center justify-between rounded-control border border-border bg-surface-muted px-3 py-2">
+                        <span class="text-sm text-ink">@pacienteSeleccionado.NombreCompleto</span>
+                        <button type="button" class="text-xs font-medium text-brand-600 hover:underline" @onclick="QuitarPaciente">
+                            Cambiar
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <div class="relative mt-1">
+                        <input type="text" placeholder="Buscar por nombre o documento..."
+                               class="w-full rounded-control border border-border px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                               value="@busquedaPaciente" @oninput="BuscarPaciente" />
+                        @if (resultadosPaciente.Count > 0)
+                        {
+                            <div class="absolute z-10 mt-1 w-full rounded-control border border-border bg-surface shadow-card">
+                                @foreach (var paciente in resultadosPaciente)
+                                {
+                                    <button type="button" class="block w-full px-3 py-2 text-left text-sm hover:bg-surface-muted"
+                                            @onclick="() => SeleccionarPaciente(paciente)">
+                                        @paciente.NombreCompleto
+                                        <span class="text-xs text-ink-muted"> · @(paciente.Documento ?? "sin documento")</span>
+                                    </button>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div>
+                <label class="text-sm font-medium text-ink">Especialidad *</label>
+                <select class="mt-1 w-full rounded-control border border-border px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                        @bind="especialidadIdTexto" @bind:after="CargarDisponibilidadAsync">
+                    <option value="">Selecciona una especialidad</option>
+                    @foreach (var especialidad in especialidades)
+                    {
+                        <option value="@especialidad.EspecialidadId">@especialidad.Nombre</option>
+                    }
+                </select>
+            </div>
+
+            <div>
+                <label class="text-sm font-medium text-ink">Fecha *</label>
+                <input type="date" min="@HoyTexto"
+                       class="mt-1 w-full rounded-control border border-border px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                       @bind="fecha" @bind:after="CargarDisponibilidadAsync" />
+            </div>
+
+            @if (!string.IsNullOrEmpty(especialidadIdTexto) && fecha is not null)
+            {
+                <div>
+                    <label class="text-sm font-medium text-ink">Hora disponible *</label>
+                    @if (cargandoSlots)
+                    {
+                        <p class="mt-1 text-xs text-ink-muted">Buscando horarios disponibles...</p>
+                    }
+                    else if (slots.Count == 0)
+                    {
+                        <p class="mt-1 text-xs text-state-rechazada">
+                            No hay horarios disponibles para esa especialidad en esta fecha.
+                        </p>
+                    }
+                    else
+                    {
+                        <div class="mt-1 flex flex-wrap gap-2">
+                            @foreach (var slot in slots)
+                            {
+                                <button type="button" class="@ClaseChipHora(slot)" @onclick="() => horaSeleccionada = slot">
+                                    @slot.FechaHoraInicio.ToString("HH:mm")
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+
+            <div>
+                <label class="text-sm font-medium text-ink">Motivo de consulta *</label>
+                <textarea rows="2"
+                          class="mt-1 w-full rounded-control border border-border px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                          placeholder="Describe brevemente el motivo (mínimo 5 caracteres)"
+                          @bind="motivo" @bind:event="oninput"></textarea>
+            </div>
+
+            @if (!string.IsNullOrEmpty(error))
+            {
+                <p class="rounded-control bg-state-rechazada/10 px-3 py-2 text-sm text-state-rechazada">@error</p>
+            }
+        </div>
+    </Body>
+    <Footer>
+        <Button Variant="ButtonVariant.Secondary" OnClick="Cerrar">Cancelar</Button>
+        <Button Variant="ButtonVariant.Primary" Loading="guardando" OnClick="Guardar">Agendar cita</Button>
+    </Footer>
+</Modal>
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public EventCallback<CitaDto> OnCreada { get; set; }
+    [Parameter] public DateOnly? FechaSugerida { get; set; }
+
+    private string busquedaPaciente = string.Empty;
+    private List<PacienteDto> resultadosPaciente = [];
+    private PacienteDto? pacienteSeleccionado;
+
+    private List<EspecialidadDto> especialidades = [];
+    private string? especialidadIdTexto;
+
+    private DateOnly? fecha;
+    private List<SlotDisponibleDto> slots = [];
+    private SlotDisponibleDto? horaSeleccionada;
+    private bool cargandoSlots;
+
+    private string motivo = string.Empty;
+    private string? error;
+    private bool guardando;
+    private bool isOpenAnterior;
+    private CancellationTokenSource? debouncePaciente;
+
+    private static string HoyTexto => DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd");
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsOpen && !isOpenAnterior)
+        {
+            Reiniciar();
+            fecha = FechaSugerida ?? DateOnly.FromDateTime(DateTime.Today);
+
+            if (especialidades.Count == 0)
+            {
+                especialidades = (await EspecialidadesApi.ListarAsync()).ToList();
+            }
+        }
+
+        isOpenAnterior = IsOpen;
+    }
+
+    private void Reiniciar()
+    {
+        busquedaPaciente = string.Empty;
+        resultadosPaciente = [];
+        pacienteSeleccionado = null;
+        especialidadIdTexto = null;
+        fecha = null;
+        slots = [];
+        horaSeleccionada = null;
+        motivo = string.Empty;
+        error = null;
+    }
+
+    private async Task BuscarPaciente(ChangeEventArgs e)
+    {
+        busquedaPaciente = e.Value?.ToString() ?? string.Empty;
+
+        debouncePaciente?.Cancel();
+        var cts = new CancellationTokenSource();
+        debouncePaciente = cts;
+
+        if (busquedaPaciente.Trim().Length < 2)
+        {
+            resultadosPaciente = [];
+            return;
+        }
+
+        try
+        {
+            await Task.Delay(300, cts.Token);
+            var pagina = await PacientesApi.BuscarAsync(busquedaPaciente, page: 1, pageSize: 6, cts.Token);
+            resultadosPaciente = pagina.Items.ToList();
+        }
+        catch (TaskCanceledException)
+        {
+            // Se canceló porque el usuario siguió escribiendo; no hacer nada.
+        }
+    }
+
+    private void SeleccionarPaciente(PacienteDto paciente)
+    {
+        pacienteSeleccionado = paciente;
+        resultadosPaciente = [];
+    }
+
+    private void QuitarPaciente()
+    {
+        pacienteSeleccionado = null;
+        busquedaPaciente = string.Empty;
+    }
+
+    private async Task CargarDisponibilidadAsync()
+    {
+        slots = [];
+        horaSeleccionada = null;
+
+        if (string.IsNullOrEmpty(especialidadIdTexto)
+            || fecha is null
+            || !Guid.TryParse(especialidadIdTexto, out var especialidadId))
+        {
+            return;
+        }
+
+        cargandoSlots = true;
+        try
+        {
+            slots = (await CitasApi.ListarDisponibilidadAsync(especialidadId, fecha.Value)).ToList();
+        }
+        finally
+        {
+            cargandoSlots = false;
+        }
+    }
+
+    private string ClaseChipHora(SlotDisponibleDto slot)
+    {
+        var seleccionado = horaSeleccionada is not null && horaSeleccionada.FechaHoraInicio == slot.FechaHoraInicio;
+        return seleccionado
+            ? "rounded-control bg-brand-500 px-3 py-1.5 text-xs font-medium text-white"
+            : "rounded-control border border-border bg-surface px-3 py-1.5 text-xs font-medium text-ink hover:border-brand-500";
+    }
+
+    private async Task Guardar()
+    {
+        error = null;
+
+        if (pacienteSeleccionado is null)
+        {
+            error = "Selecciona un paciente.";
+            return;
+        }
+
+        if (string.IsNullOrEmpty(especialidadIdTexto) || !Guid.TryParse(especialidadIdTexto, out var especialidadId))
+        {
+            error = "Selecciona una especialidad.";
+            return;
+        }
+
+        if (horaSeleccionada is null)
+        {
+            error = "Selecciona un horario disponible.";
+            return;
+        }
+
+        if (motivo.Trim().Length < 5)
+        {
+            error = "El motivo debe tener al menos 5 caracteres.";
+            return;
+        }
+
+        guardando = true;
+
+        var request = new SolicitarCitaParaPacienteRequest(
+            pacienteSeleccionado.PacienteId,
+            especialidadId,
+            horaSeleccionada.FechaHoraInicio,
+            motivo.Trim());
+
+        var resultado = await CitasApi.CrearParaPacienteAsync(request);
+        guardando = false;
+
+        if (resultado.Exito && resultado.Valor is not null)
+        {
+            await OnCreada.InvokeAsync(resultado.Valor);
+            await Cerrar();
+        }
+        else
+        {
+            error = resultado.Error ?? "No fue posible agendar la cita.";
+        }
+    }
+
+    private async Task Cerrar() => await IsOpenChanged.InvokeAsync(false);
+}

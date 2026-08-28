@@ -1,5 +1,7 @@
 @using System.Net.Http
 @using System.Net.Http.Json
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Components.Routing
 @using Microsoft.AspNetCore.Components.Web
@@ -8,3 +10,17 @@
 @using Microsoft.JSInterop
 @using ClinicaPro.Client
 @using ClinicaPro.Client.Layout
+@using ClinicaPro.Client.Shared
+@using ClinicaPro.Client.Shared.Auth
+@using ClinicaPro.Client.Shared.Constants
+@using ClinicaPro.Client.Shared.UI
+@using ClinicaPro.Client.Shared.UI.Toast
+@using ClinicaPro.Client.Shared.UI.ConfirmDialog
+@using ClinicaPro.Client.Features.Secretaria.Services
+@using ClinicaPro.Client.Features.Secretaria.Components
+@using ClinicaPro.Contracts.Agenda
+@using ClinicaPro.Contracts.Auth
+@using ClinicaPro.Contracts.Especialidades
+@using ClinicaPro.Contracts.Notificaciones
+@using ClinicaPro.Contracts.Pacientes
+@using ClinicaPro.Contracts.Reportes

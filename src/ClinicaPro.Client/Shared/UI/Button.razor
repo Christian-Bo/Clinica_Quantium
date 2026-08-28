@@ -1,0 +1,52 @@
+<button type="@Type" class="@Clases" disabled="@(Disabled || Loading)" @onclick="ManejarClick">
+    @if (Loading)
+    {
+        <Icon Name="loader" Size="16" CssClass="animate-spin" />
+    }
+    else if (!string.IsNullOrEmpty(IconName))
+    {
+        <Icon Name="@IconName" Size="16" />
+    }
+    @ChildContent
+</button>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public ButtonVariant Variant { get; set; } = ButtonVariant.Primary;
+    [Parameter] public string Type { get; set; } = "button";
+    [Parameter] public string? IconName { get; set; }
+    [Parameter] public bool Loading { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool FullWidth { get; set; }
+    [Parameter] public string Size { get; set; } = "md";
+    [Parameter] public EventCallback OnClick { get; set; }
+
+    private Task ManejarClick() => OnClick.HasDelegate ? OnClick.InvokeAsync() : Task.CompletedTask;
+
+    private string Clases
+    {
+        get
+        {
+            var variante = Variant switch
+            {
+                ButtonVariant.Primary =>
+                    "bg-brand-500 text-white hover:bg-brand-600 focus-visible:ring-brand-500",
+                ButtonVariant.Secondary =>
+                    "bg-surface text-ink border border-border hover:bg-surface-muted focus-visible:ring-brand-500",
+                ButtonVariant.Danger =>
+                    "bg-state-rechazada text-white hover:opacity-90 focus-visible:ring-state-rechazada",
+                ButtonVariant.Ghost =>
+                    "bg-transparent text-ink-muted hover:bg-surface-muted focus-visible:ring-brand-500",
+                _ => "bg-brand-500 text-white hover:bg-brand-600"
+            };
+
+            var tamano = Size == "sm" ? "px-3 py-1.5 text-xs" : "px-4 py-2 text-sm";
+            var ancho = FullWidth ? "w-full" : string.Empty;
+
+            return
+                $"inline-flex items-center justify-center gap-2 rounded-control font-medium transition-colors " +
+                $"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 " +
+                $"disabled:cursor-not-allowed disabled:opacity-60 {variante} {tamano} {ancho}";
+        }
+    }
+}

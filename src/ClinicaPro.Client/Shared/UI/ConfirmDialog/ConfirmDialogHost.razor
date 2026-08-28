@@ -1,0 +1,41 @@
+@implements IDisposable
+@inject ConfirmDialogService Dialogo
+
+@if (Dialogo.SolicitudActual is { } solicitud)
+{
+    <div class="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 p-4">
+        <div class="w-full max-w-sm rounded-card bg-surface p-5 shadow-modal">
+            <div class="flex items-start gap-3">
+                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full @(solicitud.EsPeligroso ? "bg-state-rechazada/10 text-state-rechazada" : "bg-brand-100 text-brand-600")">
+                    <Icon Name="alert-triangle" Size="18" />
+                </div>
+                <div>
+                    <h2 class="text-sm font-semibold text-ink">@solicitud.Titulo</h2>
+                    <p class="mt-1 text-sm text-ink-muted">@solicitud.Mensaje</p>
+                </div>
+            </div>
+
+            <div class="mt-5 flex justify-end gap-2">
+                <Button Variant="ButtonVariant.Secondary" OnClick="() => Dialogo.Resolver(false)">Cancelar</Button>
+                <Button Variant="@(solicitud.EsPeligroso ? ButtonVariant.Danger : ButtonVariant.Primary)"
+                        OnClick="() => Dialogo.Resolver(true)">
+                    @solicitud.TextoConfirmar
+                </Button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        Dialogo.Cambio += ManejarCambio;
+    }
+
+    private void ManejarCambio() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Dialogo.Cambio -= ManejarCambio;
+    }
+}
