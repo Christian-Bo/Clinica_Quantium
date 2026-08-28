@@ -1,0 +1,44 @@
+@if (IsOpen)
+{
+    <div class="fixed inset-0 z-50 flex justify-end bg-black/40" @onclick="ManejarBackdrop">
+        <div class="flex h-full w-full max-w-md flex-col bg-surface shadow-modal" @onclick:stopPropagation="true">
+            <div class="flex items-center justify-between border-b border-border px-5 py-4">
+                <h2 class="text-base font-semibold text-ink">@Title</h2>
+                <button type="button" class="rounded-control p-1 text-ink-muted hover:bg-surface-muted hover:text-ink"
+                        @onclick="Cerrar" aria-label="Cerrar">
+                    <Icon Name="x" Size="20" />
+                </button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto px-5 py-4">
+                @Body
+            </div>
+
+            @if (Footer is not null)
+            {
+                <div class="flex flex-wrap justify-end gap-2 border-t border-border px-5 py-3.5">
+                    @Footer
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public bool CloseOnBackdrop { get; set; } = true;
+    [Parameter] public RenderFragment? Body { get; set; }
+    [Parameter] public RenderFragment? Footer { get; set; }
+
+    private async Task Cerrar() => await IsOpenChanged.InvokeAsync(false);
+
+    private async Task ManejarBackdrop()
+    {
+        if (CloseOnBackdrop)
+        {
+            await Cerrar();
+        }
+    }
+}

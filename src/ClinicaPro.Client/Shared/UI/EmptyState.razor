@@ -1,0 +1,21 @@
+<div class="flex flex-col items-center justify-center gap-2 px-4 py-10 text-center">
+    <div class="flex h-11 w-11 items-center justify-center rounded-full bg-surface-muted text-ink-muted">
+        <Icon Name="@IconName" Size="22" />
+    </div>
+    <p class="text-sm font-medium text-ink">@Title</p>
+    @if (!string.IsNullOrEmpty(Description))
+    {
+        <p class="max-w-sm text-sm text-ink-muted">@Description</p>
+    }
+    @if (Action is not null)
+    {
+        <div class="mt-2">@Action</div>
+    }
+</div>
+
+@code {
+    [Parameter] public string IconName { get; set; } = "inbox";
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? Description { get; set; }
+    [Parameter] public RenderFragment? Action { get; set; }
+}

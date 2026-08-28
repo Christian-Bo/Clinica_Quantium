@@ -1,0 +1,216 @@
+@inject PacientesApiService PacientesApi
+
+<Modal IsOpen="IsOpen" IsOpenChanged="IsOpenChanged" Title="@TituloModal" IconName="user-plus" MaxWidthClass="max-w-lg">
+    <Body>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            @if (!EsEdicion)
+            {
+                <div class="sm:col-span-2">
+                    <label class="text-sm font-medium text-ink" for="pf-email">Correo electrónico *</label>
+                    <input id="pf-email" type="email" class="@ClaseInput" @bind="modelo.Email" @bind:event="oninput" />
+                    <p class="mt-1 text-xs text-ink-muted">Se usará como usuario de acceso del paciente al portal.</p>
+                </div>
+            }
+            <div>
+                <label class="text-sm font-medium text-ink" for="pf-nombres">Nombres *</label>
+                <input id="pf-nombres" class="@ClaseInput" @bind="modelo.Nombres" @bind:event="oninput" />
+            </div>
+            <div>
+                <label class="text-sm font-medium text-ink" for="pf-apellidos">Apellidos *</label>
+                <input id="pf-apellidos" class="@ClaseInput" @bind="modelo.Apellidos" @bind:event="oninput" />
+            </div>
+            <div>
+                <label class="text-sm font-medium text-ink" for="pf-documento">Documento</label>
+                <input id="pf-documento" class="@ClaseInput" @bind="modelo.Documento" @bind:event="oninput" />
+            </div>
+            <div>
+                <label class="text-sm font-medium text-ink" for="pf-nacimiento">Fecha de nacimiento</label>
+                <input id="pf-nacimiento" type="date" class="@ClaseInput" @bind="modelo.FechaNacimiento" />
+            </div>
+            <div>
+                <label class="text-sm font-medium text-ink" for="pf-sexo">Sexo</label>
+                <select id="pf-sexo" class="@ClaseInput" @bind="modelo.Sexo">
+                    <option value="">Sin especificar</option>
+                    <option value="Femenino">Femenino</option>
+                    <option value="Masculino">Masculino</option>
+                    <option value="Otro">Otro</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-sm font-medium text-ink" for="pf-telefono">Teléfono</label>
+                <input id="pf-telefono" class="@ClaseInput" @bind="modelo.Telefono" @bind:event="oninput" />
+            </div>
+            <div class="sm:col-span-2">
+                <label class="text-sm font-medium text-ink" for="pf-direccion">Dirección</label>
+                <input id="pf-direccion" class="@ClaseInput" @bind="modelo.Direccion" @bind:event="oninput" />
+            </div>
+
+            <div class="sm:col-span-2">
+                <label class="text-sm font-medium text-ink" for="pf-alergias">Alergias conocidas</label>
+                <textarea id="pf-alergias" rows="2" class="@ClaseInput" placeholder="Ej. penicilina, ninguna conocida..."
+                          @bind="modelo.Alergias" @bind:event="oninput"></textarea>
+            </div>
+
+            <div>
+                <label class="text-sm font-medium text-ink" for="pf-contacto-nombre">Contacto de emergencia</label>
+                <input id="pf-contacto-nombre" class="@ClaseInput" @bind="modelo.ContactoEmergenciaNombre" @bind:event="oninput" />
+            </div>
+            <div>
+                <label class="text-sm font-medium text-ink" for="pf-contacto-telefono">Teléfono de emergencia</label>
+                <input id="pf-contacto-telefono" class="@ClaseInput" @bind="modelo.ContactoEmergenciaTelefono" @bind:event="oninput" />
+            </div>
+
+            @if (!EsEdicion)
+            {
+                <div class="sm:col-span-2">
+                    <label class="text-sm font-medium text-ink" for="pf-password">Contraseña temporal *</label>
+                    <input id="pf-password" class="@ClaseInput" @bind="modelo.Password" @bind:event="oninput" />
+                    <p class="mt-1 text-xs text-ink-muted">El paciente podrá cambiarla la primera vez que ingrese al portal.</p>
+                </div>
+            }
+        </div>
+
+        @if (!string.IsNullOrEmpty(error))
+        {
+            <p class="mt-4 rounded-control bg-state-rechazada/10 px-3 py-2 text-sm text-state-rechazada">@error</p>
+        }
+    </Body>
+    <Footer>
+        <Button Variant="ButtonVariant.Secondary" OnClick="Cerrar">Cancelar</Button>
+        <Button Variant="ButtonVariant.Primary" Loading="guardando" OnClick="Guardar">
+            @(EsEdicion ? "Guardar cambios" : "Guardar paciente")
+        </Button>
+    </Footer>
+</Modal>
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public PacienteDto? Paciente { get; set; }
+    [Parameter] public EventCallback<PacienteDto> OnGuardado { get; set; }
+
+    private const string ClaseInput =
+        "mt-1 w-full rounded-control border border-border px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100";
+
+    private ModeloPaciente modelo = new();
+    private string? error;
+    private bool guardando;
+    private bool isOpenAnterior;
+    private Guid? pacienteIdAnterior;
+
+    private bool EsEdicion => Paciente is not null;
+    private string TituloModal => EsEdicion ? "Editar paciente" : "Nuevo paciente";
+
+    protected override void OnParametersSet()
+    {
+        var cambioDePaciente = Paciente?.PacienteId != pacienteIdAnterior;
+
+        if (IsOpen && (!isOpenAnterior || cambioDePaciente))
+        {
+            modelo = Paciente is null ? new ModeloPaciente() : ModeloPaciente.DesdeExistente(Paciente);
+            error = null;
+            pacienteIdAnterior = Paciente?.PacienteId;
+        }
+
+        isOpenAnterior = IsOpen;
+    }
+
+    private async Task Guardar()
+    {
+        error = null;
+
+        if (string.IsNullOrWhiteSpace(modelo.Nombres) || string.IsNullOrWhiteSpace(modelo.Apellidos))
+        {
+            error = "Nombres y apellidos son obligatorios.";
+            return;
+        }
+
+        if (!EsEdicion && (string.IsNullOrWhiteSpace(modelo.Email) || string.IsNullOrWhiteSpace(modelo.Password)))
+        {
+            error = "Correo y contraseña son obligatorios para registrar un paciente nuevo.";
+            return;
+        }
+
+        guardando = true;
+
+        var resultado = EsEdicion
+            ? await PacientesApi.ActualizarAsync(Paciente!.PacienteId, ConstruirActualizarRequest())
+            : await PacientesApi.CrearAsync(ConstruirCrearRequest());
+
+        guardando = false;
+
+        if (resultado.Exito && resultado.Valor is not null)
+        {
+            await OnGuardado.InvokeAsync(resultado.Valor);
+            await Cerrar();
+        }
+        else
+        {
+            error = resultado.Error ?? "No fue posible guardar al paciente.";
+        }
+    }
+
+    private RegisterPacienteRequest ConstruirCrearRequest() => new(
+        modelo.Email.Trim(),
+        modelo.Password,
+        modelo.Nombres.Trim(),
+        modelo.Apellidos.Trim(),
+        Limpio(modelo.Documento),
+        Limpio(modelo.Telefono),
+        Limpio(modelo.Direccion),
+        modelo.FechaNacimiento is null ? null : DateOnly.FromDateTime(modelo.FechaNacimiento.Value),
+        Limpio(modelo.Sexo),
+        Limpio(modelo.Alergias),
+        Limpio(modelo.ContactoEmergenciaNombre),
+        Limpio(modelo.ContactoEmergenciaTelefono));
+
+    private ActualizarPerfilRequest ConstruirActualizarRequest() => new(
+        modelo.Nombres.Trim(),
+        modelo.Apellidos.Trim(),
+        Limpio(modelo.Documento),
+        Limpio(modelo.Telefono),
+        Limpio(modelo.Direccion),
+        modelo.FechaNacimiento is null ? null : DateOnly.FromDateTime(modelo.FechaNacimiento.Value),
+        Limpio(modelo.Sexo),
+        Limpio(modelo.Alergias),
+        Limpio(modelo.ContactoEmergenciaNombre),
+        Limpio(modelo.ContactoEmergenciaTelefono));
+
+    private static string? Limpio(string? texto) => string.IsNullOrWhiteSpace(texto) ? null : texto.Trim();
+
+    private async Task Cerrar()
+    {
+        error = null;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+
+    private sealed class ModeloPaciente
+    {
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public string Nombres { get; set; } = string.Empty;
+        public string Apellidos { get; set; } = string.Empty;
+        public string Documento { get; set; } = string.Empty;
+        public DateTime? FechaNacimiento { get; set; }
+        public string Sexo { get; set; } = string.Empty;
+        public string Telefono { get; set; } = string.Empty;
+        public string Direccion { get; set; } = string.Empty;
+        public string Alergias { get; set; } = string.Empty;
+        public string ContactoEmergenciaNombre { get; set; } = string.Empty;
+        public string ContactoEmergenciaTelefono { get; set; } = string.Empty;
+
+        public static ModeloPaciente DesdeExistente(PacienteDto paciente) => new()
+        {
+            Nombres = paciente.Nombres,
+            Apellidos = paciente.Apellidos,
+            Documento = paciente.Documento ?? string.Empty,
+            FechaNacimiento = paciente.FechaNacimiento?.ToDateTime(TimeOnly.MinValue),
+            Sexo = paciente.Sexo ?? string.Empty,
+            Telefono = paciente.Telefono ?? string.Empty,
+            Direccion = paciente.Direccion ?? string.Empty,
+            Alergias = paciente.Alergias ?? string.Empty,
+            ContactoEmergenciaNombre = paciente.ContactoEmergenciaNombre ?? string.Empty,
+            ContactoEmergenciaTelefono = paciente.ContactoEmergenciaTelefono ?? string.Empty
+        };
+    }
+}

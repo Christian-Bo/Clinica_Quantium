@@ -1,0 +1,35 @@
+<span class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-pill px-2.5 py-1 text-xs font-medium @Clases">
+    <span class="h-1.5 w-1.5 rounded-full @Punto"></span>
+    @Etiqueta
+</span>
+
+@code {
+    [Parameter, EditorRequired] public string Estado { get; set; } = string.Empty;
+
+    private string Etiqueta => Estado switch
+    {
+        NotificacionEstados.Pendiente => "Pendiente",
+        NotificacionEstados.Procesando => "Procesando",
+        NotificacionEstados.Enviada => "Enviada",
+        NotificacionEstados.Fallida => "Fallida",
+        _ => Estado
+    };
+
+    private string Clases => Estado switch
+    {
+        NotificacionEstados.Pendiente => "bg-state-solicitada/10 text-state-solicitada",
+        NotificacionEstados.Procesando => "bg-state-programada/10 text-state-programada",
+        NotificacionEstados.Enviada => "bg-state-atendida/10 text-state-atendida",
+        NotificacionEstados.Fallida => "bg-state-rechazada/10 text-state-rechazada",
+        _ => "bg-surface-muted text-ink-muted"
+    };
+
+    private string Punto => Estado switch
+    {
+        NotificacionEstados.Pendiente => "bg-state-solicitada",
+        NotificacionEstados.Procesando => "bg-state-programada",
+        NotificacionEstados.Enviada => "bg-state-atendida",
+        NotificacionEstados.Fallida => "bg-state-rechazada",
+        _ => "bg-ink-muted"
+    };
+}

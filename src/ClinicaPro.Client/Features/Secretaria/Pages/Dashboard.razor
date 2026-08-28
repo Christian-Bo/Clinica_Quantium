@@ -1,0 +1,122 @@
+@page "/dashboard"
+@attribute [Authorize]
+@inject ReportesApiService ReportesApi
+@inject CitasApiService CitasApi
+@inject NavigationManager Navigation
+
+<PageTitle>Dashboard · Clínica Pro</PageTitle>
+
+<div class="space-y-6">
+    <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+        <div>
+            <h1 class="text-xl font-semibold text-ink">Dashboard de Secretaría</h1>
+            <p class="text-sm text-ink-muted">Resumen operativo de hoy.</p>
+        </div>
+        <div class="flex gap-2">
+            <Button Variant="ButtonVariant.Primary" IconName="plus" OnClick="IrACitas">Nueva cita</Button>
+            <Button Variant="ButtonVariant.Secondary" IconName="users" OnClick="IrAPacientes">Pacientes</Button>
+        </div>
+    </div>
+
+    @if (cargando)
+    {
+        <Skeleton Filas="1" HeightClass="h-24" />
+    }
+    else if (errorCarga is not null)
+    {
+        <Card>
+            <EmptyState IconName="alert-triangle" Title="No se pudo cargar el dashboard" Description="@errorCarga" />
+        </Card>
+    }
+    else
+    {
+        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <TarjetaKpi Titulo="Citas hoy" Valor="totalHoy" IconName="calendar" />
+            <TarjetaKpi Titulo="Pendientes de confirmar" Valor="pendientesHoy" IconName="clock" />
+            <TarjetaKpi Titulo="Pacientes en sala" Valor="enSalaHoy" IconName="users" />
+            <TarjetaKpi Titulo="No se presentaron" Valor="noPresentadosHoy" IconName="alert-triangle" />
+        </div>
+
+        <Card Title="Agenda del día" IconName="calendar">
+            <HeaderActions>
+                <Button Variant="ButtonVariant.Ghost" Size="sm" OnClick="IrACitas">Ver completa</Button>
+            </HeaderActions>
+            <ChildContent>
+                @if (citasHoy.Count == 0)
+                {
+                    <EmptyState IconName="calendar" Title="Sin citas hoy"
+                                Description="Cuando se programen citas para hoy aparecerán aquí." />
+                }
+                else
+                {
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead>
+                                <tr class="text-xs uppercase tracking-wide text-ink-muted">
+                                    <th class="pb-2 pr-3 font-medium">Hora</th>
+                                    <th class="pb-2 pr-3 font-medium">Paciente</th>
+                                    <th class="pb-2 pr-3 font-medium">Médico</th>
+                                    <th class="pb-2 pr-3 font-medium">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-border">
+                                @foreach (var cita in citasHoy.OrderBy(c => c.FechaHoraInicio))
+                                {
+                                    <tr>
+                                        <td class="py-2 pr-3 font-medium text-ink">@cita.FechaHoraInicio.ToString("HH:mm")</td>
+                                        <td class="py-2 pr-3 text-ink">@cita.PacienteNombre</td>
+                                        <td class="py-2 pr-3 text-ink-muted">@cita.MedicoNombre</td>
+                                        <td class="py-2 pr-3"><CitaStatusBadge Estado="@cita.Estado" /></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </ChildContent>
+        </Card>
+    }
+</div>
+
+@code {
+    private bool cargando = true;
+    private string? errorCarga;
+    private int totalHoy;
+    private int pendientesHoy;
+    private int enSalaHoy;
+    private int noPresentadosHoy;
+    private List<CitaDto> citasHoy = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var hoy = DateTime.Today;
+        var manana = hoy.AddDays(1);
+
+        try
+        {
+            var reporte = await ReportesApi.ObtenerReporteCitasAsync(hoy, manana);
+            var agenda = await CitasApi.ListarAgendaAsync(hoy, manana);
+
+            citasHoy = agenda.ToList();
+            totalHoy = reporte?.Total ?? citasHoy.Count;
+            pendientesHoy = ContarPorEstado(reporte, CitaEstados.Solicitada);
+            enSalaHoy = ContarPorEstado(reporte, CitaEstados.EnEspera) + ContarPorEstado(reporte, CitaEstados.EnAtencion);
+            noPresentadosHoy = reporte?.NoPresentadas ?? 0;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            errorCarga = "No se pudo contactar a la API. Verifica que esté corriendo en https://localhost:7041.";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private static int ContarPorEstado(ReporteCitasDto? reporte, string estado)
+        => reporte?.PorEstado.FirstOrDefault(p => p.Estado == estado)?.Cantidad ?? 0;
+
+    private void IrACitas() => Navigation.NavigateTo("/citas");
+
+    private void IrAPacientes() => Navigation.NavigateTo("/pacientes");
+}

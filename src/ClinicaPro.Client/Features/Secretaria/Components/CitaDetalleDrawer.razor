@@ -1,0 +1,313 @@
+@inject CitasApiService CitasApi
+@inject ToastService Toasts
+
+<Drawer IsOpen="IsOpen" IsOpenChanged="IsOpenChanged" Title="Detalle de la cita">
+    <Body>
+        @if (citaActual is not null)
+        {
+            <div class="space-y-5">
+                <div class="flex items-center justify-between">
+                    <CitaStatusBadge Estado="@citaActual.Estado" />
+                    <span class="text-xs text-ink-muted">@citaActual.NumeroReprogramaciones reprogramación(es)</span>
+                </div>
+
+                <div class="space-y-1">
+                    <p class="text-lg font-semibold text-ink">@citaActual.PacienteNombre</p>
+                    <p class="text-sm text-ink-muted">@citaActual.EspecialidadNombre · @citaActual.MedicoNombre</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                        <p class="text-xs uppercase text-ink-muted">Fecha</p>
+                        <p class="font-medium text-ink">@citaActual.FechaHoraInicio.ToString("dd/MM/yyyy")</p>
+                    </div>
+                    <div>
+                        <p class="text-xs uppercase text-ink-muted">Hora</p>
+                        <p class="font-medium text-ink">
+                            @citaActual.FechaHoraInicio.ToString("HH:mm") – @citaActual.FechaHoraFin.ToString("HH:mm")
+                        </p>
+                    </div>
+                </div>
+
+                <div>
+                    <p class="text-xs uppercase text-ink-muted">Motivo de consulta</p>
+                    <p class="mt-1 text-sm text-ink">@citaActual.MotivoConsulta</p>
+                </div>
+
+                @if (reprogramando)
+                {
+                    <div class="rounded-control border border-border bg-surface-muted p-3">
+                        <p class="mb-2 text-sm font-medium text-ink">Reprogramar cita</p>
+
+                        <label class="text-xs font-medium text-ink-muted">Nueva fecha</label>
+                        <input type="date" min="@HoyTexto"
+                               class="mt-1 w-full rounded-control border border-border px-3 py-2 text-sm text-ink"
+                               @bind="nuevaFecha" @bind:after="CargarSlotsReprogramacionAsync" />
+
+                        @if (cargandoSlotsReprogramacion)
+                        {
+                            <p class="mt-2 text-xs text-ink-muted">Buscando horarios...</p>
+                        }
+                        else if (nuevaFecha is not null)
+                        {
+                            @if (slotsReprogramacion.Count == 0)
+                            {
+                                <p class="mt-2 text-xs text-state-rechazada">No hay horarios disponibles ese día.</p>
+                            }
+                            else
+                            {
+                                <div class="mt-2 flex flex-wrap gap-2">
+                                    @foreach (var slot in slotsReprogramacion)
+                                    {
+                                        <button type="button" class="@ClaseChip(slot)" @onclick="() => nuevaHora = slot">
+                                            @slot.FechaHoraInicio.ToString("HH:mm")
+                                        </button>
+                                    }
+                                </div>
+                            }
+                        }
+
+                        <label class="mt-3 block text-xs font-medium text-ink-muted">Motivo de la reprogramación</label>
+                        <textarea rows="2" class="mt-1 w-full rounded-control border border-border px-3 py-2 text-sm text-ink"
+                                  value="@motivoReprogramacion"
+                                  @oninput="e => motivoReprogramacion = e.Value?.ToString() ?? string.Empty"></textarea>
+
+                        <div class="mt-3 flex justify-end gap-2">
+                            <Button Variant="ButtonVariant.Ghost" Size="sm" OnClick="() => reprogramando = false">Cancelar</Button>
+                            <Button Variant="ButtonVariant.Primary" Size="sm" Loading="enviando" OnClick="ConfirmarReprogramacionAsync">
+                                Guardar nueva fecha
+                            </Button>
+                        </div>
+                    </div>
+                }
+
+                <div>
+                    <p class="mb-2 text-xs uppercase text-ink-muted">Historial</p>
+                    @if (cargandoHistorial)
+                    {
+                        <Skeleton Filas="2" HeightClass="h-10" />
+                    }
+                    else if (historial.Count == 0)
+                    {
+                        <p class="text-sm text-ink-muted">Sin movimientos registrados todavía.</p>
+                    }
+                    else
+                    {
+                        <ul class="space-y-2">
+                            @foreach (var item in historial.OrderByDescending(h => h.FechaCambioUtc))
+                            {
+                                <li class="rounded-control border border-border bg-surface p-2.5 text-sm">
+                                    <p class="text-ink">@item.Descripcion</p>
+                                    <p class="mt-0.5 text-xs text-ink-muted">@item.FechaCambioLocal.ToString("dd/MM/yyyy HH:mm")</p>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        }
+    </Body>
+    <Footer>
+        @if (citaActual is not null && !reprogramando)
+        {
+            @if (PuedeConfirmar)
+            {
+                <Button Variant="ButtonVariant.Primary" Size="sm" IconName="check" Loading="enviando" OnClick="ConfirmarAsync">
+                    Confirmar
+                </Button>
+            }
+            @if (PuedeRechazar)
+            {
+                <Button Variant="ButtonVariant.Danger" Size="sm" OnClick="() => modalRechazoAbierto = true">Rechazar</Button>
+            }
+            @if (PuedeRegistrarLlegada)
+            {
+                <Button Variant="ButtonVariant.Primary" Size="sm" IconName="check" Loading="enviando" OnClick="RegistrarLlegadaAsync">
+                    Registrar llegada
+                </Button>
+            }
+            @if (PuedeReprogramar)
+            {
+                <Button Variant="ButtonVariant.Secondary" Size="sm" IconName="calendar" OnClick="AbrirReprogramar">
+                    Reprogramar
+                </Button>
+            }
+            @if (PuedeMarcarNoPresentada)
+            {
+                <Button Variant="ButtonVariant.Secondary" Size="sm" OnClick="MarcarNoPresentadaAsync">No se presentó</Button>
+            }
+            @if (PuedeCancelar)
+            {
+                <Button Variant="ButtonVariant.Danger" Size="sm" OnClick="() => modalCancelacionAbierto = true">Cancelar cita</Button>
+            }
+        }
+    </Footer>
+</Drawer>
+
+<MotivoModal IsOpen="modalRechazoAbierto" IsOpenChanged="@((bool v) => modalRechazoAbierto = v)"
+             Titulo="Rechazar solicitud" Etiqueta="Motivo del rechazo"
+             Placeholder="Explica brevemente por qué se rechaza" TextoBoton="Confirmar rechazo"
+             OnConfirmar="RechazarAsync" />
+
+<MotivoModal IsOpen="modalCancelacionAbierto" IsOpenChanged="@((bool v) => modalCancelacionAbierto = v)"
+             Titulo="Cancelar cita" Etiqueta="Motivo de la cancelación"
+             Placeholder="Explica brevemente por qué se cancela" TextoBoton="Confirmar cancelación"
+             OnConfirmar="CancelarAsync" />
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public CitaDto? Cita { get; set; }
+    [Parameter] public EventCallback<CitaDto> OnActualizada { get; set; }
+
+    private CitaDto? citaActual;
+    private Guid? citaIdCargada;
+    private List<HistorialCitaDto> historial = [];
+    private bool cargandoHistorial;
+    private bool enviando;
+    private bool modalRechazoAbierto;
+    private bool modalCancelacionAbierto;
+
+    private bool reprogramando;
+    private DateOnly? nuevaFecha;
+    private List<SlotDisponibleDto> slotsReprogramacion = [];
+    private SlotDisponibleDto? nuevaHora;
+    private string motivoReprogramacion = string.Empty;
+    private bool cargandoSlotsReprogramacion;
+
+    private static string HoyTexto => DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd");
+
+    private bool PuedeConfirmar => citaActual?.Estado == CitaEstados.Solicitada;
+    private bool PuedeRechazar => citaActual?.Estado == CitaEstados.Solicitada;
+    private bool PuedeRegistrarLlegada => citaActual?.Estado is CitaEstados.Programada or CitaEstados.Confirmada;
+    private bool PuedeReprogramar =>
+        citaActual?.Estado is CitaEstados.Solicitada or CitaEstados.Programada or CitaEstados.Confirmada;
+    private bool PuedeCancelar => citaActual?.Estado is CitaEstados.Programada or CitaEstados.Confirmada;
+    private bool PuedeMarcarNoPresentada =>
+        citaActual?.Estado is CitaEstados.Programada or CitaEstados.Confirmada or CitaEstados.EnEspera;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Cita is not null && Cita.CitaId != citaIdCargada)
+        {
+            citaActual = Cita;
+            citaIdCargada = Cita.CitaId;
+            reprogramando = false;
+            await CargarHistorialAsync();
+        }
+        else if (Cita is null)
+        {
+            citaActual = null;
+            citaIdCargada = null;
+        }
+    }
+
+    private async Task CargarHistorialAsync()
+    {
+        if (citaActual is null)
+        {
+            return;
+        }
+
+        cargandoHistorial = true;
+        try
+        {
+            historial = (await CitasApi.ObtenerHistorialAsync(citaActual.CitaId)).ToList();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            historial = [];
+        }
+        finally
+        {
+            cargandoHistorial = false;
+        }
+    }
+
+    private async Task EjecutarAsync(Func<Task<ResultadoOperacion<CitaDto>>> accion, string mensajeExito)
+    {
+        enviando = true;
+        var resultado = await accion();
+        enviando = false;
+
+        if (resultado.Exito && resultado.Valor is not null)
+        {
+            Toasts.Exito(mensajeExito);
+            citaActual = resultado.Valor;
+            await OnActualizada.InvokeAsync(resultado.Valor);
+            await CargarHistorialAsync();
+        }
+        else
+        {
+            Toasts.Error(resultado.Error ?? "No fue posible completar la acción.");
+        }
+    }
+
+    private Task ConfirmarAsync() =>
+        EjecutarAsync(() => CitasApi.ConfirmarAsync(citaActual!.CitaId), "Solicitud confirmada.");
+
+    private Task RechazarAsync(string motivo) =>
+        EjecutarAsync(() => CitasApi.RechazarAsync(citaActual!.CitaId, motivo), "Solicitud rechazada.");
+
+    private Task RegistrarLlegadaAsync() =>
+        EjecutarAsync(() => CitasApi.RegistrarLlegadaAsync(citaActual!.CitaId), "Llegada registrada.");
+
+    private Task MarcarNoPresentadaAsync() =>
+        EjecutarAsync(() => CitasApi.MarcarNoPresentadaAsync(citaActual!.CitaId), "Cita marcada como no presentada.");
+
+    private Task CancelarAsync(string motivo) =>
+        EjecutarAsync(() => CitasApi.CancelarAdministrativaAsync(citaActual!.CitaId, motivo), "Cita cancelada.");
+
+    private void AbrirReprogramar()
+    {
+        reprogramando = true;
+        nuevaFecha = null;
+        slotsReprogramacion = [];
+        nuevaHora = null;
+        motivoReprogramacion = string.Empty;
+    }
+
+    private async Task CargarSlotsReprogramacionAsync()
+    {
+        slotsReprogramacion = [];
+        nuevaHora = null;
+
+        if (citaActual is null || nuevaFecha is null)
+        {
+            return;
+        }
+
+        cargandoSlotsReprogramacion = true;
+        try
+        {
+            slotsReprogramacion = (await CitasApi.ListarDisponibilidadAsync(citaActual.EspecialidadId, nuevaFecha.Value)).ToList();
+        }
+        finally
+        {
+            cargandoSlotsReprogramacion = false;
+        }
+    }
+
+    private string ClaseChip(SlotDisponibleDto slot)
+    {
+        var seleccionado = nuevaHora is not null && nuevaHora.FechaHoraInicio == slot.FechaHoraInicio;
+        return seleccionado
+            ? "rounded-control bg-brand-500 px-3 py-1.5 text-xs font-medium text-white"
+            : "rounded-control border border-border bg-surface px-3 py-1.5 text-xs font-medium text-ink hover:border-brand-500";
+    }
+
+    private async Task ConfirmarReprogramacionAsync()
+    {
+        if (citaActual is null || nuevaHora is null)
+        {
+            Toasts.Error("Selecciona un nuevo horario.");
+            return;
+        }
+
+        await EjecutarAsync(
+            () => CitasApi.ReprogramarAsync(citaActual.CitaId, nuevaHora.FechaHoraInicio, motivoReprogramacion),
+            "Cita reprogramada.");
+
+        reprogramando = false;
+    }
+}

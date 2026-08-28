@@ -1,0 +1,69 @@
+@inject CitasApiService CitasApi
+
+<Drawer IsOpen="IsOpen" IsOpenChanged="IsOpenChanged" Title="@Titulo">
+    <Body>
+        @if (cargando)
+        {
+            <Skeleton Filas="4" HeightClass="h-16" />
+        }
+        else if (citas.Count == 0)
+        {
+            <EmptyState IconName="calendar" Title="Sin citas registradas"
+                        Description="Este paciente todavía no tiene citas en el sistema." />
+        }
+        else
+        {
+            <div class="space-y-2">
+                @foreach (var cita in citas.OrderByDescending(c => c.FechaHoraInicio))
+                {
+                    <div class="rounded-control border border-border p-3">
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-sm font-medium text-ink">@cita.EspecialidadNombre</p>
+                            <CitaStatusBadge Estado="@cita.Estado" />
+                        </div>
+                        <p class="mt-1 text-xs text-ink-muted">
+                            @cita.FechaHoraInicio.ToString("dd/MM/yyyy HH:mm") · @cita.MedicoNombre
+                        </p>
+                        @if (!string.IsNullOrWhiteSpace(cita.MotivoConsulta))
+                        {
+                            <p class="mt-1 text-xs text-ink-muted">Motivo: @cita.MotivoConsulta</p>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </Body>
+</Drawer>
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public PacienteDto? Paciente { get; set; }
+
+    private List<CitaDto> citas = [];
+    private bool cargando;
+    private Guid? pacienteIdCargado;
+
+    private string Titulo => Paciente is null ? "Historial de citas" : $"Historial · {Paciente.NombreCompleto}";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsOpen && Paciente is not null && Paciente.PacienteId != pacienteIdCargado)
+        {
+            pacienteIdCargado = Paciente.PacienteId;
+            cargando = true;
+            try
+            {
+                citas = (await CitasApi.ListarPorPacienteAsync(Paciente.PacienteId)).ToList();
+            }
+            finally
+            {
+                cargando = false;
+            }
+        }
+        else if (!IsOpen)
+        {
+            pacienteIdCargado = null;
+        }
+    }
+}

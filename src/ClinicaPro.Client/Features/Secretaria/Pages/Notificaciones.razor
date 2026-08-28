@@ -1,0 +1,103 @@
+@page "/notificaciones"
+@attribute [Authorize]
+@inject NotificacionesApiService NotificacionesApi
+
+<PageTitle>Notificaciones · Clínica Pro</PageTitle>
+
+<div class="space-y-6">
+    <div>
+        <h1 class="text-xl font-semibold text-ink">Notificaciones</h1>
+        <p class="text-sm text-ink-muted">Avisos automáticos enviados a pacientes por correo o WhatsApp.</p>
+    </div>
+
+    <div class="flex flex-wrap gap-2">
+        <ChipFiltro Texto="Todas" Activo="filtroEstado is null" OnClick="() => AplicarFiltroAsync(null)" />
+        <ChipFiltro Texto="Pendientes" Activo="filtroEstado == NotificacionEstados.Pendiente"
+                    OnClick="() => AplicarFiltroAsync(NotificacionEstados.Pendiente)" />
+        <ChipFiltro Texto="Enviadas" Activo="filtroEstado == NotificacionEstados.Enviada"
+                    OnClick="() => AplicarFiltroAsync(NotificacionEstados.Enviada)" />
+        <ChipFiltro Texto="Fallidas" Activo="filtroEstado == NotificacionEstados.Fallida"
+                    OnClick="() => AplicarFiltroAsync(NotificacionEstados.Fallida)" />
+    </div>
+
+    <Card BodyPadding="p-0">
+        @if (cargando)
+        {
+            <div class="p-4"><Skeleton Filas="6" HeightClass="h-14" /></div>
+        }
+        else if (errorCarga is not null)
+        {
+            <EmptyState IconName="alert-triangle" Title="No se pudo cargar" Description="@errorCarga" />
+        }
+        else if (notificaciones.Count == 0)
+        {
+            <EmptyState IconName="inbox" Title="No hay notificaciones"
+                        Description="No hay notificaciones que coincidan con este filtro." />
+        }
+        else
+        {
+            <div class="divide-y divide-border">
+                @foreach (var grupo in notificaciones.GroupBy(n => n.CreatedAtUtc.ToLocalTime().Date).OrderByDescending(g => g.Key))
+                {
+                    <div class="bg-surface-muted px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-ink-muted">
+                        @grupo.Key.ToString("dd 'de' MMMM", new System.Globalization.CultureInfo("es-GT"))
+                    </div>
+                    @foreach (var notificacion in grupo.OrderByDescending(n => n.CreatedAtUtc))
+                    {
+                        <div class="flex items-start gap-3 px-4 py-3">
+                            <div class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-600">
+                                <Icon Name="@(notificacion.Canal == "WhatsApp" ? "phone" : "mail")" Size="16" />
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="flex flex-wrap items-center gap-x-2">
+                                    <p class="text-sm font-medium text-ink">@notificacion.PacienteNombre</p>
+                                    <span class="text-xs text-ink-muted">· @NotificacionTipos.Etiqueta(notificacion.Tipo)</span>
+                                </div>
+                                <p class="mt-0.5 truncate text-sm text-ink-muted">@notificacion.Contenido</p>
+                            </div>
+                            <div class="flex shrink-0 flex-col items-end gap-1">
+                                <NotificacionStatusBadge Estado="@notificacion.Estado" />
+                                <span class="text-xs text-ink-muted">
+                                    @notificacion.CreatedAtUtc.ToLocalTime().ToString("HH:mm")
+                                </span>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        }
+    </Card>
+</div>
+
+@code {
+    private List<NotificacionDto> notificaciones = [];
+    private bool cargando = true;
+    private string? errorCarga;
+    private string? filtroEstado;
+
+    protected override async Task OnInitializedAsync() => await CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        cargando = true;
+        errorCarga = null;
+        try
+        {
+            notificaciones = (await NotificacionesApi.ListarAsync(filtroEstado)).ToList();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            errorCarga = "No se pudo contactar a la API.";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task AplicarFiltroAsync(string? estado)
+    {
+        filtroEstado = estado;
+        await CargarAsync();
+    }
+}

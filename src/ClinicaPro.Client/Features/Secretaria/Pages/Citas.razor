@@ -1,0 +1,322 @@
+@page "/citas"
+@attribute [Authorize]
+@inject CitasApiService CitasApi
+@inject MedicosApiService MedicosApi
+@inject ToastService Toasts
+
+<PageTitle>Citas · Clínica Pro</PageTitle>
+
+<div class="space-y-6">
+    <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+        <div>
+            <h1 class="text-xl font-semibold text-ink">Gestión de Citas</h1>
+            <p class="text-sm text-ink-muted">Agenda médica, solicitudes pendientes y disponibilidad.</p>
+        </div>
+        <Button Variant="ButtonVariant.Primary" IconName="plus" OnClick="AbrirNuevaCita">Nueva cita</Button>
+    </div>
+
+    <div class="flex gap-1 border-b border-border">
+        <button type="button" class="@ClaseTab(pestana == Pestana.Agenda)" @onclick="() => CambiarPestana(Pestana.Agenda)">
+            Agenda
+        </button>
+        <button type="button" class="@ClaseTab(pestana == Pestana.Pendientes)" @onclick="() => CambiarPestana(Pestana.Pendientes)">
+            Solicitudes pendientes
+            @if (pendientes.Count > 0)
+            {
+                <span class="ml-1.5 rounded-pill bg-state-solicitada px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                    @pendientes.Count
+                </span>
+            }
+        </button>
+    </div>
+
+    @if (pestana == Pestana.Agenda)
+    {
+        <Card BodyPadding="p-4">
+            <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex items-center gap-2">
+                    <Button Variant="ButtonVariant.Secondary" Size="sm" IconName="chevron-left" OnClick="Anterior" />
+                    <Button Variant="ButtonVariant.Secondary" Size="sm" OnClick="IrAHoy">Hoy</Button>
+                    <Button Variant="ButtonVariant.Secondary" Size="sm" IconName="chevron-right" OnClick="Siguiente" />
+                    <span class="ml-2 text-sm font-medium capitalize text-ink">@TituloRango</span>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                    <select class="rounded-control border border-border px-2 py-1.5 text-sm text-ink"
+                            @bind="medicoIdTexto" @bind:after="CargarAgendaAsync">
+                        <option value="">Todos los médicos</option>
+                        @foreach (var medico in medicos)
+                        {
+                            <option value="@medico.MedicoId">@medico.NombreCompleto</option>
+                        }
+                    </select>
+
+                    <div class="flex rounded-control border border-border p-0.5">
+                        <button type="button" class="@ClaseVista(VistaAgenda.Dia)" @onclick="() => CambiarVista(VistaAgenda.Dia)">Día</button>
+                        <button type="button" class="@ClaseVista(VistaAgenda.Semana)" @onclick="() => CambiarVista(VistaAgenda.Semana)">Semana</button>
+                        <button type="button" class="@ClaseVista(VistaAgenda.Mes)" @onclick="() => CambiarVista(VistaAgenda.Mes)">Mes</button>
+                    </div>
+                </div>
+            </div>
+
+            @if (cargandoAgenda)
+            {
+                <Skeleton Filas="6" HeightClass="h-10" />
+            }
+            else if (errorAgenda is not null)
+            {
+                <EmptyState IconName="alert-triangle" Title="No se pudo cargar la agenda" Description="@errorAgenda" />
+            }
+            else if (vista == VistaAgenda.Mes)
+            {
+                <AgendaMes Mes="fechaSeleccionada" Citas="citasRango" OnSeleccionarDia="IrADia" />
+            }
+            else
+            {
+                <AgendaGrid Dias="DiasVisibles" Citas="citasRango" OnSeleccionarCita="AbrirDetalle" />
+            }
+        </Card>
+    }
+    else
+    {
+        <Card BodyPadding="p-0">
+            @if (cargandoPendientes)
+            {
+                <div class="p-4"><Skeleton Filas="4" HeightClass="h-16" /></div>
+            }
+            else if (pendientes.Count == 0)
+            {
+                <EmptyState IconName="check-circle" Title="No hay solicitudes pendientes"
+                            Description="Cuando un paciente solicite una cita nueva aparecerá aquí para tu revisión." />
+            }
+            else
+            {
+                <div class="divide-y divide-border">
+                    @foreach (var cita in pendientes.OrderBy(c => c.FechaHoraInicio))
+                    {
+                        <div class="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                            <button type="button" class="text-left" @onclick="() => AbrirDetalle(cita)">
+                                <p class="text-sm font-medium text-ink">@cita.PacienteNombre</p>
+                                <p class="text-xs text-ink-muted">
+                                    @cita.FechaHoraInicio.ToString("dd/MM/yyyy HH:mm") · @cita.EspecialidadNombre
+                                </p>
+                            </button>
+                            <div class="flex gap-2">
+                                <Button Variant="ButtonVariant.Secondary" Size="sm" OnClick="() => AbrirDetalle(cita)">Ver</Button>
+                                <Button Variant="ButtonVariant.Primary" Size="sm" IconName="check" OnClick="() => ConfirmarRapidoAsync(cita)">
+                                    Confirmar
+                                </Button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </Card>
+    }
+</div>
+
+<NuevaCitaModal IsOpen="modalNuevaAbierto" IsOpenChanged="@((bool v) => modalNuevaAbierto = v)"
+                FechaSugerida="fechaSeleccionada" OnCreada="ManejarCitaCreada" />
+
+<CitaDetalleDrawer IsOpen="drawerAbierto" IsOpenChanged="@((bool v) => drawerAbierto = v)"
+                    Cita="citaSeleccionada" OnActualizada="ManejarCitaActualizada" />
+
+@code {
+    private enum Pestana { Agenda, Pendientes }
+    private enum VistaAgenda { Dia, Semana, Mes }
+
+    private static readonly System.Globalization.CultureInfo CulturaEs = new("es-GT");
+
+    private Pestana pestana = Pestana.Agenda;
+    private VistaAgenda vista = VistaAgenda.Semana;
+    private DateOnly fechaSeleccionada = DateOnly.FromDateTime(DateTime.Today);
+
+    private List<MedicoDto> medicos = [];
+    private string? medicoIdTexto;
+
+    private List<CitaDto> citasRango = [];
+    private bool cargandoAgenda = true;
+    private string? errorAgenda;
+
+    private List<CitaDto> pendientes = [];
+    private bool cargandoPendientes = true;
+
+    private bool modalNuevaAbierto;
+    private bool drawerAbierto;
+    private CitaDto? citaSeleccionada;
+
+    protected override async Task OnInitializedAsync()
+    {
+        medicos = (await MedicosApi.ListarAsync()).ToList();
+        await CargarAgendaAsync();
+        await CargarPendientesAsync();
+    }
+
+    private List<DateOnly> DiasVisibles => vista switch
+    {
+        VistaAgenda.Dia => [fechaSeleccionada],
+        VistaAgenda.Semana => Enumerable.Range(0, 7).Select(InicioSemana(fechaSeleccionada).AddDays).ToList(),
+        _ => [fechaSeleccionada]
+    };
+
+    private static DateOnly InicioSemana(DateOnly dia) => dia.AddDays(-(int)dia.DayOfWeek);
+
+    private string TituloRango => vista switch
+    {
+        VistaAgenda.Dia => fechaSeleccionada.ToString("dddd d 'de' MMMM", CulturaEs),
+        VistaAgenda.Semana =>
+            $"{InicioSemana(fechaSeleccionada).ToString("dd MMM", CulturaEs)} – {InicioSemana(fechaSeleccionada).AddDays(6).ToString("dd MMM yyyy", CulturaEs)}",
+        _ => fechaSeleccionada.ToString("MMMM yyyy", CulturaEs)
+    };
+
+    private async Task CargarAgendaAsync()
+    {
+        cargandoAgenda = true;
+        errorAgenda = null;
+
+        var (desde, hasta) = RangoParaConsulta();
+        Guid? medicoId = Guid.TryParse(medicoIdTexto, out var id) ? id : null;
+
+        try
+        {
+            citasRango = (await CitasApi.ListarAgendaAsync(
+                desde.ToDateTime(TimeOnly.MinValue),
+                hasta.ToDateTime(TimeOnly.MinValue),
+                medicoId)).ToList();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            errorAgenda = "No se pudo contactar a la API.";
+        }
+        finally
+        {
+            cargandoAgenda = false;
+        }
+    }
+
+    private (DateOnly Desde, DateOnly Hasta) RangoParaConsulta()
+    {
+        if (vista == VistaAgenda.Dia)
+        {
+            return (fechaSeleccionada, fechaSeleccionada.AddDays(1));
+        }
+
+        if (vista == VistaAgenda.Semana)
+        {
+            var inicio = InicioSemana(fechaSeleccionada);
+            return (inicio, inicio.AddDays(7));
+        }
+
+        // Mes: se trae el rango completo de la cuadrícula de 42 días para que los
+        // conteos de los días de meses adyacentes que se ven en la cuadrícula también sean correctos.
+        var primerDiaDelMes = new DateOnly(fechaSeleccionada.Year, fechaSeleccionada.Month, 1);
+        var inicioCuadricula = primerDiaDelMes.AddDays(-(int)primerDiaDelMes.DayOfWeek);
+        return (inicioCuadricula, inicioCuadricula.AddDays(42));
+    }
+
+    private async Task CargarPendientesAsync()
+    {
+        cargandoPendientes = true;
+        try
+        {
+            pendientes = (await CitasApi.ListarPendientesAsync()).ToList();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            pendientes = [];
+        }
+        finally
+        {
+            cargandoPendientes = false;
+        }
+    }
+
+    private void CambiarPestana(Pestana nueva) => pestana = nueva;
+
+    private async Task CambiarVista(VistaAgenda nueva)
+    {
+        vista = nueva;
+        await CargarAgendaAsync();
+    }
+
+    private async Task Anterior()
+    {
+        fechaSeleccionada = vista switch
+        {
+            VistaAgenda.Dia => fechaSeleccionada.AddDays(-1),
+            VistaAgenda.Semana => fechaSeleccionada.AddDays(-7),
+            _ => fechaSeleccionada.AddMonths(-1)
+        };
+        await CargarAgendaAsync();
+    }
+
+    private async Task Siguiente()
+    {
+        fechaSeleccionada = vista switch
+        {
+            VistaAgenda.Dia => fechaSeleccionada.AddDays(1),
+            VistaAgenda.Semana => fechaSeleccionada.AddDays(7),
+            _ => fechaSeleccionada.AddMonths(1)
+        };
+        await CargarAgendaAsync();
+    }
+
+    private async Task IrAHoy()
+    {
+        fechaSeleccionada = DateOnly.FromDateTime(DateTime.Today);
+        await CargarAgendaAsync();
+    }
+
+    private async Task IrADia(DateOnly dia)
+    {
+        fechaSeleccionada = dia;
+        vista = VistaAgenda.Dia;
+        await CargarAgendaAsync();
+    }
+
+    private void AbrirNuevaCita() => modalNuevaAbierto = true;
+
+    private void AbrirDetalle(CitaDto cita)
+    {
+        citaSeleccionada = cita;
+        drawerAbierto = true;
+    }
+
+    private async Task ManejarCitaCreada(CitaDto cita)
+    {
+        Toasts.Exito("Cita agendada correctamente.");
+        await CargarAgendaAsync();
+        await CargarPendientesAsync();
+    }
+
+    private async Task ManejarCitaActualizada(CitaDto cita)
+    {
+        await CargarAgendaAsync();
+        await CargarPendientesAsync();
+    }
+
+    private async Task ConfirmarRapidoAsync(CitaDto cita)
+    {
+        var resultado = await CitasApi.ConfirmarAsync(cita.CitaId);
+        if (resultado.Exito)
+        {
+            Toasts.Exito("Solicitud confirmada.");
+            await CargarAgendaAsync();
+            await CargarPendientesAsync();
+        }
+        else
+        {
+            Toasts.Error(resultado.Error ?? "No fue posible confirmar la solicitud.");
+        }
+    }
+
+    private static string ClaseTab(bool activo) => activo
+        ? "border-b-2 border-brand-500 px-3 py-2 text-sm font-medium text-brand-600"
+        : "border-b-2 border-transparent px-3 py-2 text-sm font-medium text-ink-muted hover:text-ink";
+
+    private string ClaseVista(VistaAgenda objetivo)
+    {
+        const string baseClase = "rounded-control px-3 py-1 text-xs font-medium transition-colors ";
+        return baseClase + (vista == objetivo ? "bg-brand-500 text-white" : "text-ink-muted hover:bg-surface-muted");
+    }
+}
