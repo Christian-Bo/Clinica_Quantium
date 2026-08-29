@@ -23,6 +23,7 @@ public sealed class CitasController(
     ListarCitasPorPacienteStaffService listarCitasPacienteStaff,
     ListarDisponibilidadService listarDisponibilidad,
     ListarHistorialCitaService listarHistorial,
+    HistorialMedicoPacienteService historialMedicoPaciente,
     ResolverNombresCitaService resolverNombres) : ControllerBase
 {
     [Authorize(Roles = RolNombres.Paciente)]
@@ -141,6 +142,44 @@ public sealed class CitasController(
         }
 
         return Ok(await MapManyAsync(citas, cancellationToken));
+    }
+
+    [Authorize(Roles = RolNombres.Medico)]
+    [HttpGet("paciente/{pacienteId:guid}/historial-medico")]
+    [ProducesResponseType(typeof(HistorialMedicoPacienteDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<HistorialMedicoPacienteDto>> HistorialMedico(
+        Guid pacienteId,
+        CancellationToken cancellationToken)
+    {
+        var usuarioId = User.ObtenerUsuarioId();
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+
+        var resumen = await historialMedicoPaciente.ExecuteAsync(usuarioId.Value, pacienteId, cancellationToken);
+        if (resumen is null)
+        {
+            return NotFound();
+        }
+
+        var ultima = resumen.UltimaAtencion is null
+            ? null
+            : (await MapManyAsync([resumen.UltimaAtencion], cancellationToken))[0];
+
+        return Ok(new HistorialMedicoPacienteDto(
+            new PacienteContextoMedicoDto(
+                resumen.Paciente.Id,
+                resumen.Paciente.NombreCompleto,
+                resumen.Paciente.Sexo,
+                resumen.Paciente.Alergias,
+                resumen.Paciente.FechaNacimiento,
+                resumen.Paciente.Telefono),
+            ultima,
+            await MapManyAsync(resumen.CitasProximas, cancellationToken),
+            await MapManyAsync(resumen.CitasPasadas, cancellationToken)));
     }
 
     [HttpGet("disponibilidad")]
@@ -297,12 +336,12 @@ public sealed class CitasController(
     [Authorize(Roles = RolNombres.Medico + "," + RolNombres.Administrador)]
     [HttpPost("{citaId:guid}/iniciar")]
     public Task<ActionResult<CitaDto>> Iniciar(Guid citaId, CancellationToken cancellationToken)
-        => CambiarComoStaff(citaId, "Inicio de atención médica", cita => cita.IniciarAtencion(), cancellationToken);
+        => CambiarComoMedicoAsignado(citaId, "Inicio de atención médica", cita => cita.IniciarAtencion(), cancellationToken);
 
     [Authorize(Roles = RolNombres.Medico + "," + RolNombres.Administrador)]
     [HttpPost("{citaId:guid}/finalizar")]
     public Task<ActionResult<CitaDto>> Finalizar(Guid citaId, CancellationToken cancellationToken)
-        => CambiarComoStaff(citaId, "Consulta finalizada", cita => cita.FinalizarAtencion(), cancellationToken);
+        => CambiarComoMedicoAsignado(citaId, "Consulta finalizada", cita => cita.FinalizarAtencion(), cancellationToken);
 
     [Authorize(Roles = RolNombres.Secretaria + "," + RolNombres.Administrador)]
     [HttpPost("{citaId:guid}/no-presentada")]
@@ -322,6 +361,28 @@ public sealed class CitasController(
         }
 
         var cita = await operarCita.ExecuteAsync(citaId, usuarioId.Value, motivo, cambiar, cancellationToken);
+        return Ok(await MapAsync(cita, cancellationToken));
+    }
+
+    private async Task<ActionResult<CitaDto>> CambiarComoMedicoAsignado(
+        Guid citaId,
+        string motivo,
+        Action<Cita> cambiar,
+        CancellationToken cancellationToken)
+    {
+        var usuarioId = User.ObtenerUsuarioId();
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+
+        var cita = await operarCita.ExecuteComoMedicoOAdminAsync(
+            citaId,
+            usuarioId.Value,
+            User.IsInRole(RolNombres.Administrador),
+            motivo,
+            cambiar,
+            cancellationToken);
         return Ok(await MapAsync(cita, cancellationToken));
     }
 

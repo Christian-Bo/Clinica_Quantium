@@ -85,6 +85,7 @@ public sealed class SolicitarCitaService(
 public sealed class OperarCitaService(
     ICitaRepository citas,
     IPacienteRepository pacientes,
+    IMedicoRepository medicos,
     IUnitOfWork unitOfWork,
     EncolarNotificacionCitaService encolarNotificacion)
 {
@@ -97,6 +98,31 @@ public sealed class OperarCitaService(
     {
         var cita = await citas.ObtenerPorIdAsync(citaId, cancellationToken)
             ?? throw new DomainException("La cita no existe.");
+
+        cambiar(cita);
+        await unitOfWork.SaveChangesWithSqlSessionContextAsync(usuarioId, motivo, cancellationToken);
+        await encolarNotificacion.ExecuteAsync(cita, cancellationToken);
+        return cita;
+    }
+
+    public async Task<Cita> ExecuteComoMedicoOAdminAsync(
+        Guid citaId,
+        Guid usuarioId,
+        bool esAdministrador,
+        string motivo,
+        Action<Cita> cambiar,
+        CancellationToken cancellationToken = default)
+    {
+        var cita = await citas.ObtenerPorIdAsync(citaId, cancellationToken)
+            ?? throw new DomainException("La cita no existe.");
+
+        if (!esAdministrador)
+        {
+            var medico = await medicos.ObtenerPorUsuarioIdAsync(usuarioId, cancellationToken)
+                ?? throw new DomainException("El usuario no tiene un perfil de médico.");
+
+            CitaAccesoMedico.ExigirAsignado(cita, medico.Id);
+        }
 
         cambiar(cita);
         await unitOfWork.SaveChangesWithSqlSessionContextAsync(usuarioId, motivo, cancellationToken);

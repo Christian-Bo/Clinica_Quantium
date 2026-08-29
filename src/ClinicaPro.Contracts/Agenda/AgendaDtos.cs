@@ -75,3 +75,17 @@ public sealed record ParametroDto(
     string Valor,
     string TipoDato,
     string? Descripcion);
+
+public sealed record PacienteContextoMedicoDto(
+    Guid PacienteId,
+    string NombreCompleto,
+    string? Sexo,
+    string? Alergias,
+    DateOnly? FechaNacimiento,
+    string? Telefono);
+
+public sealed record HistorialMedicoPacienteDto(
+    PacienteContextoMedicoDto Paciente,
+    CitaDto? UltimaAtencion,
+    IReadOnlyList<CitaDto> CitasProximas,
+    IReadOnlyList<CitaDto> CitasPasadas);

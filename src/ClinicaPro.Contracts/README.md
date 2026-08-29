@@ -46,6 +46,10 @@ Estados: Solicitada → Programada → Confirmada → En Espera → En Atencion 
 
 `GET /api/citas/{id}/historial` trae `descripcion` en español (quién, de/hacia, horas).
 
+`GET /api/citas/paciente/{pacienteId}/historial-medico` (Médico): contexto básico del paciente (nombre, sexo, alergias) y citas **de ese médico** con el paciente. 403 si nunca lo atendió. No es expediente clínico.
+
+`POST /api/citas/{id}/iniciar` y `finalizar`: el médico autenticado debe ser el asignado; si no, 403. Un Administrador sí puede.
+
 ## Admin (`/api/admin`, solo Administrador)
 
 Especialidades crear/editar. Médicos crear/editar. Horarios crear/desactivar. Usuarios listar y activar/desactivar (no se desactiva un admin). Parámetros PUT valor. `GET /api/admin/auditoria`.
