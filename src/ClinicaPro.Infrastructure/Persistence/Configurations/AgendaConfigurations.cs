@@ -64,6 +64,21 @@ public sealed class CitaConfiguration : IEntityTypeConfiguration<Cita>
     }
 }
 
+public sealed class AutorizacionReprogramacionConfiguration : IEntityTypeConfiguration<AutorizacionReprogramacion>
+{
+    public void Configure(EntityTypeBuilder<AutorizacionReprogramacion> builder)
+    {
+        builder.ToTable("AutorizacionesReprogramacion");
+        builder.HasKey(item => item.Id);
+        builder.Property(item => item.Id).HasColumnName("AutorizacionReprogramacionId");
+        builder.Property(item => item.Estado).HasMaxLength(20).IsRequired();
+        builder.Property(item => item.MotivoSolicitud).HasMaxLength(500).IsRequired();
+        builder.Property(item => item.MotivoDecision).HasMaxLength(500);
+        builder.Property(item => item.CreatedAtUtc).HasColumnType("datetime2(0)");
+        builder.Property(item => item.DecididaAtUtc).HasColumnType("datetime2(0)");
+    }
+}
+
 public sealed class HistorialCitaConfiguration : IEntityTypeConfiguration<HistorialCita>
 {
     public void Configure(EntityTypeBuilder<HistorialCita> builder)

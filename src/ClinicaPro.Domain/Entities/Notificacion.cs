@@ -74,4 +74,17 @@ public sealed class Notificacion
         Estado = NotificacionEstados.Pendiente;
         ProximoIntentoUtc = DateTime.UtcNow.AddMinutes(2 * NumeroIntentos);
     }
+
+    public void Anular(string motivo)
+    {
+        if (Estado is not (NotificacionEstados.Pendiente or NotificacionEstados.Procesando))
+        {
+            return;
+        }
+
+        Estado = NotificacionEstados.Fallida;
+        ProximoIntentoUtc = null;
+        var texto = string.IsNullOrWhiteSpace(motivo) ? "Anulada." : motivo.Trim();
+        UltimoError = texto.Length > 1000 ? texto[..1000] : texto;
+    }
 }

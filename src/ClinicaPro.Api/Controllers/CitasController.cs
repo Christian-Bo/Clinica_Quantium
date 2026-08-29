@@ -1,5 +1,6 @@
 using ClinicaPro.Api.Security;
 using ClinicaPro.Application.Citas;
+using ClinicaPro.Contracts.Admin;
 using ClinicaPro.Contracts.Agenda;
 using ClinicaPro.Domain;
 using ClinicaPro.Domain.Entities;
@@ -23,6 +24,8 @@ public sealed class CitasController(
     ListarCitasPorPacienteStaffService listarCitasPacienteStaff,
     ListarDisponibilidadService listarDisponibilidad,
     ListarHistorialCitaService listarHistorial,
+    HistorialMedicoPacienteService historialMedicoPaciente,
+    SolicitarAutorizacionReprogramacionService solicitarAutorizacion,
     ResolverNombresCitaService resolverNombres) : ControllerBase
 {
     [Authorize(Roles = RolNombres.Paciente)]
@@ -117,7 +120,23 @@ public sealed class CitasController(
         [FromQuery] Guid? medicoId,
         CancellationToken cancellationToken)
     {
-        var citas = await listarAgenda.ExecuteAsync(desde, hasta, medicoId, cancellationToken);
+        var usuarioId = User.ObtenerUsuarioId();
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+
+        var soloAgendaPropia = User.IsInRole(RolNombres.Medico)
+            && !User.IsInRole(RolNombres.Secretaria)
+            && !User.IsInRole(RolNombres.Administrador);
+
+        var citas = await listarAgenda.ExecuteAsync(
+            desde,
+            hasta,
+            medicoId,
+            usuarioId.Value,
+            soloAgendaPropia,
+            cancellationToken);
         return Ok(await MapManyAsync(citas, cancellationToken));
     }
 
@@ -141,6 +160,44 @@ public sealed class CitasController(
         }
 
         return Ok(await MapManyAsync(citas, cancellationToken));
+    }
+
+    [Authorize(Roles = RolNombres.Medico)]
+    [HttpGet("paciente/{pacienteId:guid}/historial-medico")]
+    [ProducesResponseType(typeof(HistorialMedicoPacienteDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<HistorialMedicoPacienteDto>> HistorialMedico(
+        Guid pacienteId,
+        CancellationToken cancellationToken)
+    {
+        var usuarioId = User.ObtenerUsuarioId();
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+
+        var resumen = await historialMedicoPaciente.ExecuteAsync(usuarioId.Value, pacienteId, cancellationToken);
+        if (resumen is null)
+        {
+            return NotFound();
+        }
+
+        var ultima = resumen.UltimaAtencion is null
+            ? null
+            : (await MapManyAsync([resumen.UltimaAtencion], cancellationToken))[0];
+
+        return Ok(new HistorialMedicoPacienteDto(
+            new PacienteContextoMedicoDto(
+                resumen.Paciente.Id,
+                resumen.Paciente.NombreCompleto,
+                resumen.Paciente.Sexo,
+                resumen.Paciente.Alergias,
+                resumen.Paciente.FechaNacimiento,
+                resumen.Paciente.Telefono),
+            ultima,
+            await MapManyAsync(resumen.CitasProximas, cancellationToken),
+            await MapManyAsync(resumen.CitasPasadas, cancellationToken)));
     }
 
     [HttpGet("disponibilidad")]
@@ -241,6 +298,31 @@ public sealed class CitasController(
         return Ok(await MapAsync(cita, cancellationToken));
     }
 
+    [Authorize(Roles = RolNombres.Secretaria + "," + RolNombres.Administrador)]
+    [HttpPost("{citaId:guid}/solicitar-autorizacion-reprogramacion")]
+    [ProducesResponseType(typeof(AutorizacionReprogramacionDto), StatusCodes.Status201Created)]
+    public async Task<ActionResult<AutorizacionReprogramacionDto>> SolicitarAutorizacionReprogramacion(
+        Guid citaId,
+        [FromBody] MotivoCitaRequest? request,
+        CancellationToken cancellationToken)
+    {
+        var usuarioId = User.ObtenerUsuarioId();
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+
+        var autorizacion = await solicitarAutorizacion.ExecuteAsync(
+            citaId,
+            usuarioId.Value,
+            string.IsNullOrWhiteSpace(request?.Motivo) ? "Tercera reprogramación" : request.Motivo.Trim(),
+            cancellationToken);
+
+        return Created(
+            $"/api/admin/autorizaciones-reprogramacion/{autorizacion.Id}",
+            MapAutorizacion(autorizacion));
+    }
+
     [Authorize(Roles = RolNombres.Paciente)]
     [HttpPost("{citaId:guid}/anular-solicitud")]
     public Task<ActionResult<CitaDto>> AnularSolicitud(Guid citaId, CancellationToken cancellationToken)
@@ -297,12 +379,12 @@ public sealed class CitasController(
     [Authorize(Roles = RolNombres.Medico + "," + RolNombres.Administrador)]
     [HttpPost("{citaId:guid}/iniciar")]
     public Task<ActionResult<CitaDto>> Iniciar(Guid citaId, CancellationToken cancellationToken)
-        => CambiarComoStaff(citaId, "Inicio de atención médica", cita => cita.IniciarAtencion(), cancellationToken);
+        => CambiarComoMedicoAsignado(citaId, "Inicio de atención médica", cita => cita.IniciarAtencion(), cancellationToken);
 
     [Authorize(Roles = RolNombres.Medico + "," + RolNombres.Administrador)]
     [HttpPost("{citaId:guid}/finalizar")]
     public Task<ActionResult<CitaDto>> Finalizar(Guid citaId, CancellationToken cancellationToken)
-        => CambiarComoStaff(citaId, "Consulta finalizada", cita => cita.FinalizarAtencion(), cancellationToken);
+        => CambiarComoMedicoAsignado(citaId, "Consulta finalizada", cita => cita.FinalizarAtencion(), cancellationToken);
 
     [Authorize(Roles = RolNombres.Secretaria + "," + RolNombres.Administrador)]
     [HttpPost("{citaId:guid}/no-presentada")]
@@ -322,6 +404,28 @@ public sealed class CitasController(
         }
 
         var cita = await operarCita.ExecuteAsync(citaId, usuarioId.Value, motivo, cambiar, cancellationToken);
+        return Ok(await MapAsync(cita, cancellationToken));
+    }
+
+    private async Task<ActionResult<CitaDto>> CambiarComoMedicoAsignado(
+        Guid citaId,
+        string motivo,
+        Action<Cita> cambiar,
+        CancellationToken cancellationToken)
+    {
+        var usuarioId = User.ObtenerUsuarioId();
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+
+        var cita = await operarCita.ExecuteComoMedicoOAdminAsync(
+            citaId,
+            usuarioId.Value,
+            User.IsInRole(RolNombres.Administrador),
+            motivo,
+            cambiar,
+            cancellationToken);
         return Ok(await MapAsync(cita, cancellationToken));
     }
 
@@ -368,4 +472,16 @@ public sealed class CitasController(
                 cita.NumeroReprogramaciones);
         }).ToList();
     }
+
+    private static AutorizacionReprogramacionDto MapAutorizacion(AutorizacionReprogramacion autorizacion)
+        => new(
+            autorizacion.Id,
+            autorizacion.CitaId,
+            autorizacion.SolicitadaPorUsuarioId,
+            autorizacion.AutorizadaPorUsuarioId,
+            autorizacion.Estado,
+            autorizacion.MotivoSolicitud,
+            autorizacion.MotivoDecision,
+            autorizacion.CreatedAtUtc,
+            autorizacion.DecididaAtUtc);
 }

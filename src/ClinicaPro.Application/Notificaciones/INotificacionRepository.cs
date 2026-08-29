@@ -27,6 +27,12 @@ public interface INotificacionRepository
         Guid citaId,
         string tipo,
         CancellationToken cancellationToken = default);
+
+    Task AnularPendientesDeTipoAsync(
+        Guid citaId,
+        string tipo,
+        string motivo,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed record EmailSendResult(bool Succeeded, string? ProviderCode, string? Response);

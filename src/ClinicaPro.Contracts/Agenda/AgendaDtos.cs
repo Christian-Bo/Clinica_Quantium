@@ -15,7 +15,10 @@ public sealed record HorarioDto(
     Guid MedicoId,
     byte DiaSemana,
     TimeOnly HoraInicio,
-    TimeOnly HoraFin);
+    TimeOnly HoraFin,
+    DateOnly? VigenteDesde,
+    DateOnly? VigenteHasta,
+    bool IsActive);
 
 public sealed record SolicitarCitaRequest(
     Guid EspecialidadId,
@@ -75,3 +78,24 @@ public sealed record ParametroDto(
     string Valor,
     string TipoDato,
     string? Descripcion);
+
+public sealed record PacienteContextoMedicoDto(
+    Guid PacienteId,
+    string NombreCompleto,
+    string? Sexo,
+    string? Alergias,
+    DateOnly? FechaNacimiento,
+    string? Telefono);
+
+public sealed record HistorialMedicoPacienteDto(
+    PacienteContextoMedicoDto Paciente,
+    CitaDto? UltimaAtencion,
+    IReadOnlyList<CitaDto> CitasProximas,
+    IReadOnlyList<CitaDto> CitasPasadas);
+
+public sealed record PacienteLlegoDto(
+    Guid CitaId,
+    Guid PacienteId,
+    string PacienteNombre,
+    string Mensaje,
+    DateTime FechaHoraInicio);

@@ -72,6 +72,39 @@ public sealed class MedicoRepository(ClinicaProDbContext dbContext) : IMedicoRep
     {
         await dbContext.MedicoEspecialidades.AddAsync(relacion, cancellationToken);
     }
+
+    public async Task<IReadOnlyList<MedicoEspecialidad>> ListarEspecialidadesDeMedicoAsync(
+        Guid medicoId,
+        CancellationToken cancellationToken = default)
+    {
+        return await dbContext.MedicoEspecialidades.AsNoTracking()
+            .Where(relacion => relacion.MedicoId == medicoId)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<MedicoEspecialidad?> ObtenerEspecialidadRastreadaAsync(
+        Guid medicoId,
+        Guid especialidadId,
+        CancellationToken cancellationToken = default)
+    {
+        return dbContext.MedicoEspecialidades.FirstOrDefaultAsync(
+            relacion => relacion.MedicoId == medicoId && relacion.EspecialidadId == especialidadId,
+            cancellationToken);
+    }
+
+    public Task<bool> ExisteOtroPrimarioActivoAsync(
+        Guid especialidadId,
+        Guid medicoId,
+        CancellationToken cancellationToken = default)
+    {
+        return dbContext.MedicoEspecialidades.AsNoTracking().AnyAsync(
+            relacion =>
+                relacion.EspecialidadId == especialidadId
+                && relacion.MedicoId != medicoId
+                && relacion.EsPrimario
+                && relacion.IsActive,
+            cancellationToken);
+    }
 }
 
 public sealed class HorarioRepository(ClinicaProDbContext dbContext) : IHorarioRepository
@@ -211,6 +244,63 @@ public sealed class HistorialCitaRepository(ClinicaProDbContext dbContext) : IHi
             .Where(historial => historial.CitaId == citaId)
             .OrderBy(historial => historial.FechaCambioUtc)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task AgregarAsync(HistorialCita historial, CancellationToken cancellationToken = default)
+    {
+        await dbContext.HistorialCitas.AddAsync(historial, cancellationToken);
+    }
+}
+
+public sealed class AutorizacionReprogramacionRepository(ClinicaProDbContext dbContext) : IAutorizacionReprogramacionRepository
+{
+    public Task<AutorizacionReprogramacion?> ObtenerPorIdAsync(
+        Guid autorizacionId,
+        CancellationToken cancellationToken = default)
+    {
+        return dbContext.AutorizacionesReprogramacion.FirstOrDefaultAsync(
+            item => item.Id == autorizacionId,
+            cancellationToken);
+    }
+
+    public Task<AutorizacionReprogramacion?> ObtenerPendientePorCitaAsync(
+        Guid citaId,
+        CancellationToken cancellationToken = default)
+    {
+        return dbContext.AutorizacionesReprogramacion.FirstOrDefaultAsync(
+            item => item.CitaId == citaId && item.Estado == AutorizacionReprogramacionEstados.Pendiente,
+            cancellationToken);
+    }
+
+    public Task<AutorizacionReprogramacion?> ObtenerAprobadaPorCitaAsync(
+        Guid citaId,
+        CancellationToken cancellationToken = default)
+    {
+        return dbContext.AutorizacionesReprogramacion.FirstOrDefaultAsync(
+            item => item.CitaId == citaId && item.Estado == AutorizacionReprogramacionEstados.Aprobada,
+            cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AutorizacionReprogramacion>> ListarAsync(
+        string? estado,
+        CancellationToken cancellationToken = default)
+    {
+        var consulta = dbContext.AutorizacionesReprogramacion.AsNoTracking().AsQueryable();
+        if (!string.IsNullOrWhiteSpace(estado))
+        {
+            consulta = consulta.Where(item => item.Estado == estado);
+        }
+
+        return await consulta
+            .OrderBy(item => item.Estado == AutorizacionReprogramacionEstados.Pendiente ? 0 : 1)
+            .ThenByDescending(item => item.CreatedAtUtc)
+            .Take(100)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task AgregarAsync(AutorizacionReprogramacion autorizacion, CancellationToken cancellationToken = default)
+    {
+        await dbContext.AutorizacionesReprogramacion.AddAsync(autorizacion, cancellationToken);
     }
 }
 

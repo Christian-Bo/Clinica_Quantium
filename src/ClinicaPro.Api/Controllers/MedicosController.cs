@@ -52,7 +52,10 @@ public sealed class MedicosController(
             horario.MedicoId,
             horario.DiaSemana,
             horario.HoraInicio,
-            horario.HoraFin)).ToList());
+            horario.HoraFin,
+            horario.VigenteDesde,
+            horario.VigenteHasta,
+            horario.IsActive)).ToList());
     }
 
     private static MedicoDto Map(Medico medico, IReadOnlyList<MedicoEspecialidad> especialidades)
