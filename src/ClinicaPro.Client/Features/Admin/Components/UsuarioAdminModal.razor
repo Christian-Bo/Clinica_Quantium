@@ -1,0 +1,141 @@
+@inject AdminApiService AdminApi
+@inject ToastService Toast
+
+<Modal IsOpen="IsOpen" IsOpenChanged="CambiarApertura" Title="@Titulo" IconName="users" MaxWidthClass="max-w-lg" CloseOnBackdrop="false">
+    <Body>
+        <div class="space-y-4">
+            @if (Usuario is null)
+            {
+                <div class="rounded-control border border-brand-500 bg-brand-50 px-3 py-2 text-xs text-brand-700">
+                    Crea únicamente cuentas de personal administrativo. Los médicos se crean desde su módulo y deberán cambiar la contraseña temporal al ingresar.
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-ink">Correo *</label>
+                    <input type="email" autocomplete="off" class="@ClaseInput" @bind="email" />
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-ink">Contraseña temporal *</label>
+                    <input type="password" autocomplete="new-password" class="@ClaseInput" @bind="password" />
+                    <p class="mt-1 text-xs text-ink-muted">Mínimo 8 caracteres, con mayúscula, minúscula, número y símbolo.</p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-ink">Rol *</label>
+                    <select class="@ClaseInput" @bind="rolCrear">
+                        <option value="Secretaria">Secretaría</option>
+                        <option value="Administrador">Administrador</option>
+                    </select>
+                </div>
+            }
+            else
+            {
+                <div class="rounded-control bg-surface-muted px-3 py-2 text-sm text-ink">
+                    <strong>@Usuario.Email</strong>
+                    <p class="mt-0.5 text-xs text-ink-muted">Selecciona al menos un rol administrativo.</p>
+                </div>
+                <label class="flex items-center gap-2 rounded-control border border-border px-3 py-3 text-sm text-ink">
+                    <input type="checkbox" class="h-4 w-4 rounded border-border" @bind="rolAdministrador" /> Administrador
+                </label>
+                <label class="flex items-center gap-2 rounded-control border border-border px-3 py-3 text-sm text-ink">
+                    <input type="checkbox" class="h-4 w-4 rounded border-border" @bind="rolSecretaria" /> Secretaría
+                </label>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(error))
+            {
+                <p class="rounded-control bg-state-rechazada/10 px-3 py-2 text-sm text-state-rechazada">@error</p>
+            }
+        </div>
+    </Body>
+    <Footer>
+        <Button Variant="ButtonVariant.Secondary" Disabled="guardando" OnClick="Cancelar">Cancelar</Button>
+        <Button Variant="ButtonVariant.Primary" Loading="guardando" IconName="check" OnClick="GuardarAsync">Guardar</Button>
+    </Footer>
+</Modal>
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public UsuarioAdminDto? Usuario { get; set; }
+    [Parameter] public EventCallback OnGuardado { get; set; }
+
+    private const string ClaseInput = "mt-1 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100";
+    private bool aperturaAnterior;
+    private Guid? usuarioAnterior;
+    private string email = string.Empty;
+    private string password = string.Empty;
+    private string rolCrear = Roles.Secretaria;
+    private bool rolAdministrador;
+    private bool rolSecretaria;
+    private bool guardando;
+    private string? error;
+    private string Titulo => Usuario is null ? "Nuevo usuario" : "Editar roles";
+
+    protected override void OnParametersSet()
+    {
+        if (IsOpen && (!aperturaAnterior || usuarioAnterior != Usuario?.UsuarioId))
+        {
+            email = string.Empty;
+            password = string.Empty;
+            rolCrear = Roles.Secretaria;
+            rolAdministrador = Usuario?.Roles.Contains(Roles.Administrador) == true;
+            rolSecretaria = Usuario?.Roles.Contains(Roles.Secretaria) == true;
+            error = null;
+            usuarioAnterior = Usuario?.UsuarioId;
+        }
+        aperturaAnterior = IsOpen;
+    }
+
+    private async Task GuardarAsync()
+    {
+        error = null;
+        guardando = true;
+        try
+        {
+            if (Usuario is null)
+            {
+                if (string.IsNullOrWhiteSpace(email) || !new EmailAddressAttribute().IsValid(email))
+                {
+                    error = "Ingresa un correo electrónico válido.";
+                    return;
+                }
+                if (!PasswordValida(password))
+                {
+                    error = "La contraseña temporal no cumple la política de seguridad.";
+                    return;
+                }
+
+                var resultado = await AdminApi.CrearUsuarioAsync(new CrearUsuarioStaffRequest(email.Trim().ToLowerInvariant(), password, rolCrear));
+                if (!resultado.Exito) { error = resultado.Error; return; }
+                Toast.Exito("Usuario creado. Deberá cambiar su contraseña temporal al iniciar sesión.");
+            }
+            else
+            {
+                var roles = new List<string>();
+                if (rolAdministrador) roles.Add(Roles.Administrador);
+                if (rolSecretaria) roles.Add(Roles.Secretaria);
+                if (roles.Count == 0)
+                {
+                    error = "Selecciona al menos un rol administrativo.";
+                    return;
+                }
+
+                var resultado = await AdminApi.ActualizarRolesAsync(Usuario.UsuarioId, roles);
+                if (!resultado.Exito) { error = resultado.Error; return; }
+                Toast.Exito("Roles actualizados correctamente.");
+            }
+
+            await OnGuardado.InvokeAsync();
+            await IsOpenChanged.InvokeAsync(false);
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private Task Cancelar() => IsOpenChanged.InvokeAsync(false);
+    private Task CambiarApertura(bool valor) => IsOpenChanged.InvokeAsync(valor);
+    private static bool PasswordValida(string valor) =>
+        !string.IsNullOrWhiteSpace(valor) && valor.Length >= 8 && valor.Any(char.IsUpper)
+        && valor.Any(char.IsLower) && valor.Any(char.IsDigit) && valor.Any(c => !char.IsLetterOrDigit(c));
+}

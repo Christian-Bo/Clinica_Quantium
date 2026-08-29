@@ -50,7 +50,7 @@
 
     private static string ClaseCita(CitaDto cita)
     {
-        const string baseClase = "block w-full truncate rounded-control px-1.5 py-1 text-left text-[11px] leading-tight ";
+        const string baseClase = "block w-full truncate rounded-control px-1.5 py-1 text-left text-xs leading-tight ";
         return baseClase + cita.Estado switch
         {
             CitaEstados.Solicitada => "bg-state-solicitada/15 text-state-solicitada hover:bg-state-solicitada/25",

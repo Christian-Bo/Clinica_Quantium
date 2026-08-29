@@ -1,0 +1,88 @@
+@inject AdminApiService AdminApi
+@inject ToastService Toast
+
+<Modal IsOpen="IsOpen" IsOpenChanged="CambiarApertura" Title="@Titulo" IconName="shield" MaxWidthClass="max-w-lg" CloseOnBackdrop="false">
+    <Body>
+        @if (Autorizacion is not null)
+        {
+            <div class="space-y-4">
+                <div class="rounded-control bg-surface-muted p-3 text-sm">
+                    <p class="text-xs uppercase tracking-wide text-ink-muted">Motivo de Secretaría</p>
+                    <p class="mt-1 text-ink">@Autorizacion.MotivoSolicitud</p>
+                    <p class="mt-2 text-xs text-ink-muted">Cita #@Autorizacion.CitaId.ToString()[..8]</p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-ink">@(Aprobar ? "Observación de aprobación" : "Motivo del rechazo *")</label>
+                    <textarea rows="3" class="mt-1 w-full rounded-control border border-border px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none"
+                              value="@motivo" @oninput="e => motivo = e.Value?.ToString() ?? string.Empty"
+                              placeholder="@(Aprobar ? "Opcional" : "Explica por qué se rechaza la autorización")"></textarea>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(error))
+                {
+                    <p class="rounded-control bg-state-rechazada/10 px-3 py-2 text-sm text-state-rechazada">@error</p>
+                }
+            </div>
+        }
+    </Body>
+    <Footer>
+        <Button Variant="ButtonVariant.Secondary" Disabled="guardando" OnClick="Cancelar">Cancelar</Button>
+        <Button Variant="@(Aprobar ? ButtonVariant.Primary : ButtonVariant.Danger)" Loading="guardando" IconName="@(Aprobar ? "check" : "x")" OnClick="GuardarAsync">
+            @(Aprobar ? "Aprobar" : "Rechazar")
+        </Button>
+    </Footer>
+</Modal>
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public AutorizacionReprogramacionDto? Autorizacion { get; set; }
+    [Parameter] public bool Aprobar { get; set; }
+    [Parameter] public EventCallback OnGuardado { get; set; }
+
+    private bool aperturaAnterior;
+    private string motivo = string.Empty;
+    private string? error;
+    private bool guardando;
+    private string Titulo => Aprobar ? "Aprobar tercera reprogramación" : "Rechazar autorización";
+
+    protected override void OnParametersSet()
+    {
+        if (IsOpen && !aperturaAnterior)
+        {
+            motivo = string.Empty;
+            error = null;
+        }
+        aperturaAnterior = IsOpen;
+    }
+
+    private async Task GuardarAsync()
+    {
+        if (Autorizacion is null) return;
+        if (!Aprobar && motivo.Trim().Length < 5)
+        {
+            error = "Escribe un motivo de rechazo de al menos 5 caracteres.";
+            return;
+        }
+
+        guardando = true;
+        error = null;
+        try
+        {
+            var resultado = Aprobar
+                ? await AdminApi.AprobarAutorizacionAsync(Autorizacion.AutorizacionId, motivo.Trim())
+                : await AdminApi.RechazarAutorizacionAsync(Autorizacion.AutorizacionId, motivo.Trim());
+            if (!resultado.Exito) { error = resultado.Error; return; }
+
+            Toast.Exito(Aprobar ? "Autorización aprobada." : "Autorización rechazada.");
+            await OnGuardado.InvokeAsync();
+            await IsOpenChanged.InvokeAsync(false);
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private Task Cancelar() => IsOpenChanged.InvokeAsync(false);
+    private Task CambiarApertura(bool valor) => IsOpenChanged.InvokeAsync(valor);
+}
