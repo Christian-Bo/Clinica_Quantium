@@ -24,6 +24,17 @@ public sealed class CitasApiService(HttpClient http)
     public async Task<IReadOnlyList<CitaDto>> ListarPendientesAsync(CancellationToken ct = default)
         => await http.GetFromJsonAsync<List<CitaDto>>("api/citas/pendientes", ct) ?? [];
 
+    /// <summary>Todas las citas del médico autenticado (sin filtro de fecha: el backend no lo expone
+    /// todavía en este endpoint). Se filtra por día del lado del cliente.</summary>
+    public async Task<IReadOnlyList<CitaDto>> ListarMisCitasAsync(CancellationToken ct = default)
+        => await http.GetFromJsonAsync<List<CitaDto>>("api/citas/medico", ct) ?? [];
+
+    public Task<ResultadoOperacion<CitaDto>> IniciarAtencionAsync(Guid citaId, CancellationToken ct = default)
+        => AccionSimpleAsync($"api/citas/{citaId}/iniciar", ct);
+
+    public Task<ResultadoOperacion<CitaDto>> FinalizarAtencionAsync(Guid citaId, CancellationToken ct = default)
+        => AccionSimpleAsync($"api/citas/{citaId}/finalizar", ct);
+
     /// <summary>Historial administrativo de citas de un paciente específico (fecha, médico, estado). Devuelve
     /// lista vacía si el paciente no existe, en vez de propagar el 404 al llamador.</summary>
     public async Task<IReadOnlyList<CitaDto>> ListarPorPacienteAsync(Guid pacienteId, CancellationToken ct = default)
@@ -110,14 +121,7 @@ public sealed class CitasApiService(HttpClient http)
                 : ResultadoOperacion<CitaDto>.Fallo("La cita se procesó pero no se pudo leer la respuesta.");
         }
 
-        try
-        {
-            var error = await respuesta.Content.ReadFromJsonAsync<ErrorResponse>(cancellationToken: ct);
-            return ResultadoOperacion<CitaDto>.Fallo(error?.Error ?? "No fue posible completar la acción sobre la cita.");
-        }
-        catch
-        {
-            return ResultadoOperacion<CitaDto>.Fallo("No fue posible completar la acción sobre la cita.");
-        }
+        return ResultadoOperacion<CitaDto>.Fallo(
+            await ApiErrorReader.LeerAsync(respuesta, "No fue posible completar la acción sobre la cita.", ct));
     }
 }

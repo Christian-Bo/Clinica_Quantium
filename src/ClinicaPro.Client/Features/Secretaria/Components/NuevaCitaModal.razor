@@ -35,7 +35,17 @@
                                 }
                             </div>
                         }
+                        else if (busquedaHecha && !buscandoPaciente)
+                        {
+                            <p class="mt-1.5 text-xs text-ink-muted">No se encontraron pacientes con ese criterio.</p>
+                        }
                     </div>
+                    <button type="button"
+                            class="mt-1.5 flex items-center gap-1 text-xs font-medium text-brand-600 hover:underline"
+                            @onclick="AbrirRegistroPacienteNuevo">
+                        <Icon Name="user-plus" Size="14" />
+                        ¿No está en el sistema? Registrar paciente nuevo
+                    </button>
                 }
             </div>
 
@@ -106,6 +116,9 @@
     </Footer>
 </Modal>
 
+<PacienteFormModal IsOpen="modalPacienteNuevoAbierto" IsOpenChanged="@((bool v) => modalPacienteNuevoAbierto = v)"
+                    OnGuardado="ManejarPacienteCreado" />
+
 @code {
     [Parameter] public bool IsOpen { get; set; }
     [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
@@ -115,6 +128,9 @@
     private string busquedaPaciente = string.Empty;
     private List<PacienteDto> resultadosPaciente = [];
     private PacienteDto? pacienteSeleccionado;
+    private bool busquedaHecha;
+    private bool buscandoPaciente;
+    private bool modalPacienteNuevoAbierto;
 
     private List<EspecialidadDto> especialidades = [];
     private string? especialidadIdTexto;
@@ -153,6 +169,9 @@
         busquedaPaciente = string.Empty;
         resultadosPaciente = [];
         pacienteSeleccionado = null;
+        busquedaHecha = false;
+        buscandoPaciente = false;
+        modalPacienteNuevoAbierto = false;
         especialidadIdTexto = null;
         fecha = null;
         slots = [];
@@ -164,6 +183,7 @@
     private async Task BuscarPaciente(ChangeEventArgs e)
     {
         busquedaPaciente = e.Value?.ToString() ?? string.Empty;
+        busquedaHecha = false;
 
         debouncePaciente?.Cancel();
         var cts = new CancellationTokenSource();
@@ -177,14 +197,29 @@
 
         try
         {
+            buscandoPaciente = true;
             await Task.Delay(300, cts.Token);
             var pagina = await PacientesApi.BuscarAsync(busquedaPaciente, page: 1, pageSize: 6, cts.Token);
             resultadosPaciente = pagina.Items.ToList();
+            busquedaHecha = true;
         }
         catch (TaskCanceledException)
         {
             // Se canceló porque el usuario siguió escribiendo; no hacer nada.
         }
+        finally
+        {
+            buscandoPaciente = false;
+        }
+    }
+
+    private void AbrirRegistroPacienteNuevo() => modalPacienteNuevoAbierto = true;
+
+    private void ManejarPacienteCreado(PacienteDto paciente)
+    {
+        pacienteSeleccionado = paciente;
+        resultadosPaciente = [];
+        busquedaPaciente = string.Empty;
     }
 
     private void SeleccionarPaciente(PacienteDto paciente)

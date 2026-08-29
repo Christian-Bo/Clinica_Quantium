@@ -29,9 +29,13 @@
             </div>
 
             <div class="flex items-center gap-1">
-                <a href="/notificaciones" class="rounded-control p-2 text-ink-muted hover:bg-surface-muted" title="Notificaciones">
-                    <Icon Name="bell" Size="20" />
-                </a>
+                <AuthorizeView Roles="@Roles.Secretaria">
+                    <Authorized>
+                        <a href="/notificaciones" class="rounded-control p-2 text-ink-muted hover:bg-surface-muted" title="Notificaciones">
+                            <Icon Name="bell" Size="20" />
+                        </a>
+                    </Authorized>
+                </AuthorizeView>
             </div>
         </header>
 

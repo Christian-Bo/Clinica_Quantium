@@ -58,9 +58,10 @@
 
         cargando = false;
 
-        if (resultado.Exito)
+        if (resultado.Exito && resultado.Valor is not null)
         {
-            Navigation.NavigateTo("/dashboard", replace: true);
+            var destino = RoleRoutes.Inicio(resultado.Valor.Roles);
+            Navigation.NavigateTo(destino, replace: true);
         }
         else
         {

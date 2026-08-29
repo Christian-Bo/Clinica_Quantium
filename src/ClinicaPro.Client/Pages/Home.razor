@@ -11,7 +11,14 @@
     protected override async Task OnInitializedAsync()
     {
         var estado = await AuthStateProvider.GetAuthenticationStateAsync();
-        var destino = estado.User.Identity?.IsAuthenticated == true ? "/dashboard" : "/login";
+
+        if (estado.User.Identity?.IsAuthenticated != true)
+        {
+            Navigation.NavigateTo("/login", replace: true);
+            return;
+        }
+
+        var destino = RoleRoutes.Inicio(estado.User);
         Navigation.NavigateTo(destino, replace: true);
     }
 }

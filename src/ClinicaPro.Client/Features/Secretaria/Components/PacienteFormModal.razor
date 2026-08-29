@@ -1,83 +1,112 @@
 @inject PacientesApiService PacientesApi
 
-<Modal IsOpen="IsOpen" IsOpenChanged="IsOpenChanged" Title="@TituloModal" IconName="user-plus" MaxWidthClass="max-w-lg">
+<Modal IsOpen="IsOpen" IsOpenChanged="IsOpenChanged" Title="@TituloModal" IconName="user-plus" MaxWidthClass="max-w-lg" CloseOnBackdrop="false">
     <Body>
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            @if (!EsEdicion)
-            {
-                <div class="sm:col-span-2">
-                    <label class="text-sm font-medium text-ink" for="pf-email">Correo electrónico *</label>
-                    <input id="pf-email" type="email" class="@ClaseInput" @bind="modelo.Email" @bind:event="oninput" />
-                    <p class="mt-1 text-xs text-ink-muted">Se usará como usuario de acceso del paciente al portal.</p>
+        <EditForm EditContext="editContext" OnValidSubmit="GuardarAsync">
+            <DataAnnotationsValidator />
+
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                @if (!EsEdicion)
+                {
+                    <div class="sm:col-span-2">
+                        <label class="text-sm font-medium text-ink" for="pf-email">Correo electrónico *</label>
+                        <InputText id="pf-email" class="@ClaseInput" placeholder="Ej. paciente@correo.com" @bind-Value="modelo.Email" />
+                        <ValidationMessage For="() => modelo.Email" />
+                        @if (!string.IsNullOrEmpty(errorEmail))
+                        {
+                            <p class="mt-1 text-xs text-state-rechazada">@errorEmail</p>
+                        }
+                        <p class="mt-1 text-xs text-ink-muted">Debe ser único. Se usará como usuario de acceso del paciente al portal.</p>
+                    </div>
+                }
+                <div>
+                    <label class="text-sm font-medium text-ink" for="pf-nombres">Nombres *</label>
+                    <InputText id="pf-nombres" class="@ClaseInput" placeholder="Ej. María José" @bind-Value="modelo.Nombres" />
+                    <ValidationMessage For="() => modelo.Nombres" />
                 </div>
-            }
-            <div>
-                <label class="text-sm font-medium text-ink" for="pf-nombres">Nombres *</label>
-                <input id="pf-nombres" class="@ClaseInput" @bind="modelo.Nombres" @bind:event="oninput" />
-            </div>
-            <div>
-                <label class="text-sm font-medium text-ink" for="pf-apellidos">Apellidos *</label>
-                <input id="pf-apellidos" class="@ClaseInput" @bind="modelo.Apellidos" @bind:event="oninput" />
-            </div>
-            <div>
-                <label class="text-sm font-medium text-ink" for="pf-documento">Documento</label>
-                <input id="pf-documento" class="@ClaseInput" @bind="modelo.Documento" @bind:event="oninput" />
-            </div>
-            <div>
-                <label class="text-sm font-medium text-ink" for="pf-nacimiento">Fecha de nacimiento</label>
-                <input id="pf-nacimiento" type="date" class="@ClaseInput" @bind="modelo.FechaNacimiento" />
-            </div>
-            <div>
-                <label class="text-sm font-medium text-ink" for="pf-sexo">Sexo</label>
-                <select id="pf-sexo" class="@ClaseInput" @bind="modelo.Sexo">
-                    <option value="">Sin especificar</option>
-                    <option value="Femenino">Femenino</option>
-                    <option value="Masculino">Masculino</option>
-                    <option value="Otro">Otro</option>
-                </select>
-            </div>
-            <div>
-                <label class="text-sm font-medium text-ink" for="pf-telefono">Teléfono</label>
-                <input id="pf-telefono" class="@ClaseInput" @bind="modelo.Telefono" @bind:event="oninput" />
-            </div>
-            <div class="sm:col-span-2">
-                <label class="text-sm font-medium text-ink" for="pf-direccion">Dirección</label>
-                <input id="pf-direccion" class="@ClaseInput" @bind="modelo.Direccion" @bind:event="oninput" />
-            </div>
-
-            <div class="sm:col-span-2">
-                <label class="text-sm font-medium text-ink" for="pf-alergias">Alergias conocidas</label>
-                <textarea id="pf-alergias" rows="2" class="@ClaseInput" placeholder="Ej. penicilina, ninguna conocida..."
-                          @bind="modelo.Alergias" @bind:event="oninput"></textarea>
-            </div>
-
-            <div>
-                <label class="text-sm font-medium text-ink" for="pf-contacto-nombre">Contacto de emergencia</label>
-                <input id="pf-contacto-nombre" class="@ClaseInput" @bind="modelo.ContactoEmergenciaNombre" @bind:event="oninput" />
-            </div>
-            <div>
-                <label class="text-sm font-medium text-ink" for="pf-contacto-telefono">Teléfono de emergencia</label>
-                <input id="pf-contacto-telefono" class="@ClaseInput" @bind="modelo.ContactoEmergenciaTelefono" @bind:event="oninput" />
-            </div>
-
-            @if (!EsEdicion)
-            {
-                <div class="sm:col-span-2">
-                    <label class="text-sm font-medium text-ink" for="pf-password">Contraseña temporal *</label>
-                    <input id="pf-password" class="@ClaseInput" @bind="modelo.Password" @bind:event="oninput" />
-                    <p class="mt-1 text-xs text-ink-muted">El paciente podrá cambiarla la primera vez que ingrese al portal.</p>
+                <div>
+                    <label class="text-sm font-medium text-ink" for="pf-apellidos">Apellidos *</label>
+                    <InputText id="pf-apellidos" class="@ClaseInput" placeholder="Ej. López García" @bind-Value="modelo.Apellidos" />
+                    <ValidationMessage For="() => modelo.Apellidos" />
                 </div>
-            }
-        </div>
+                <div>
+                    <label class="text-sm font-medium text-ink" for="pf-documento">Documento</label>
+                    <InputText id="pf-documento" class="@ClaseInput" placeholder="Ej. 1234567890101" @bind-Value="modelo.Documento" />
+                    <ValidationMessage For="() => modelo.Documento" />
+                    @if (!string.IsNullOrEmpty(errorDocumento))
+                    {
+                        <p class="mt-1 text-xs text-state-rechazada">@errorDocumento</p>
+                    }
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-ink" for="pf-nacimiento">Fecha de nacimiento</label>
+                    <InputDate id="pf-nacimiento" class="@ClaseInput" @bind-Value="modelo.FechaNacimiento" />
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-ink" for="pf-sexo">Sexo</label>
+                    <InputSelect id="pf-sexo" class="@ClaseInput" @bind-Value="modelo.Sexo">
+                        <option value="">Sin especificar</option>
+                        <option value="F">Femenino</option>
+                        <option value="M">Masculino</option>
+                        <option value="X">Otro / no especificado</option>
+                    </InputSelect>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-ink" for="pf-telefono">Teléfono</label>
+                    <InputText id="pf-telefono" class="@ClaseInput" placeholder="Ej. 5512-3456" @bind-Value="modelo.Telefono" />
+                    <ValidationMessage For="() => modelo.Telefono" />
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="text-sm font-medium text-ink" for="pf-direccion">Dirección</label>
+                    <InputText id="pf-direccion" class="@ClaseInput" placeholder="Ej. Zona 1, Ciudad de Guatemala" @bind-Value="modelo.Direccion" />
+                    <ValidationMessage For="() => modelo.Direccion" />
+                </div>
 
-        @if (!string.IsNullOrEmpty(error))
-        {
-            <p class="mt-4 rounded-control bg-state-rechazada/10 px-3 py-2 text-sm text-state-rechazada">@error</p>
-        }
+                <div class="sm:col-span-2">
+                    <label class="text-sm font-medium text-ink" for="pf-alergias">Alergias conocidas</label>
+                    <InputTextArea id="pf-alergias" rows="2" class="@ClaseInput" placeholder="Ej. penicilina, ninguna conocida..." @bind-Value="modelo.Alergias" />
+                    <ValidationMessage For="() => modelo.Alergias" />
+                </div>
+
+                <div>
+                    <label class="text-sm font-medium text-ink" for="pf-contacto-nombre">Contacto de emergencia</label>
+                    <InputText id="pf-contacto-nombre" class="@ClaseInput" placeholder="Ej. Juan Pérez (padre)" @bind-Value="modelo.ContactoEmergenciaNombre" />
+                    <ValidationMessage For="() => modelo.ContactoEmergenciaNombre" />
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-ink" for="pf-contacto-telefono">Teléfono de emergencia</label>
+                    <InputText id="pf-contacto-telefono" class="@ClaseInput" placeholder="Ej. 5500-1122" @bind-Value="modelo.ContactoEmergenciaTelefono" />
+                    <ValidationMessage For="() => modelo.ContactoEmergenciaTelefono" />
+                </div>
+
+                @if (!EsEdicion)
+                {
+                    <div class="sm:col-span-2">
+                        <label class="text-sm font-medium text-ink" for="pf-password">Contraseña temporal *</label>
+                        <InputText id="pf-password" type="password" class="@ClaseInputPassword" placeholder="Mínimo 8 caracteres" @bind-Value="modelo.Password" />
+                        @if (!string.IsNullOrEmpty(errorPassword))
+                        {
+                            <p class="mt-1 text-xs text-state-rechazada">@errorPassword</p>
+                        }
+                        <p class="mt-1 text-xs text-ink-muted">Mínimo 8 caracteres e incluye mayúscula, minúscula, número y símbolo. El paciente deberá cambiarla al ingresar.</p>
+                    </div>
+                }
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorGeneral))
+            {
+                <p class="mt-4 rounded-control bg-state-rechazada/10 px-3 py-2 text-sm text-state-rechazada">@errorGeneral</p>
+            }
+
+            <div class="hidden">
+                <!-- El botón real vive en Footer; este submit oculto permite Enter para enviar el formulario. -->
+                <button type="submit"></button>
+            </div>
+        </EditForm>
     </Body>
     <Footer>
         <Button Variant="ButtonVariant.Secondary" OnClick="Cerrar">Cancelar</Button>
-        <Button Variant="ButtonVariant.Primary" Loading="guardando" OnClick="Guardar">
+        <Button Variant="ButtonVariant.Primary" Loading="guardando" OnClick="SolicitarEnvio">
             @(EsEdicion ? "Guardar cambios" : "Guardar paciente")
         </Button>
     </Footer>
@@ -89,11 +118,17 @@
     [Parameter] public PacienteDto? Paciente { get; set; }
     [Parameter] public EventCallback<PacienteDto> OnGuardado { get; set; }
 
-    private const string ClaseInput =
-        "mt-1 w-full rounded-control border border-border px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100";
+    private const string ClaseInputBase =
+        "mt-1 w-full rounded-control border px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-100";
+    private const string ClaseInput = ClaseInputBase + " border-border focus:border-brand-500";
+    private const string ClaseInputPassword = ClaseInputBase + " border-border focus:border-brand-500";
 
     private ModeloPaciente modelo = new();
-    private string? error;
+    private EditContext editContext = new(new ModeloPaciente());
+    private string? errorGeneral;
+    private string? errorEmail;
+    private string? errorDocumento;
+    private string? errorPassword;
     private bool guardando;
     private bool isOpenAnterior;
     private Guid? pacienteIdAnterior;
@@ -108,50 +143,149 @@
         if (IsOpen && (!isOpenAnterior || cambioDePaciente))
         {
             modelo = Paciente is null ? new ModeloPaciente() : ModeloPaciente.DesdeExistente(Paciente);
-            error = null;
+            modelo.EsEdicion = EsEdicion;
+            editContext = new EditContext(modelo);
+            errorGeneral = null;
+            errorEmail = null;
+            errorDocumento = null;
+            errorPassword = null;
             pacienteIdAnterior = Paciente?.PacienteId;
         }
 
         isOpenAnterior = IsOpen;
     }
 
-    private async Task Guardar()
+    /// <summary>El botón visible del Footer vive fuera del &lt;form&gt; real (por el layout de Modal),
+    /// así que dispara la validación manualmente contra el mismo EditContext que usan los
+    /// ValidationMessage, en vez de depender de un submit nativo.</summary>
+    private void SolicitarEnvio()
     {
-        error = null;
-
-        if (string.IsNullOrWhiteSpace(modelo.Nombres) || string.IsNullOrWhiteSpace(modelo.Apellidos))
+        if (editContext.Validate())
         {
-            error = "Nombres y apellidos son obligatorios.";
-            return;
-        }
-
-        if (!EsEdicion && (string.IsNullOrWhiteSpace(modelo.Email) || string.IsNullOrWhiteSpace(modelo.Password)))
-        {
-            error = "Correo y contraseña son obligatorios para registrar un paciente nuevo.";
-            return;
-        }
-
-        guardando = true;
-
-        var resultado = EsEdicion
-            ? await PacientesApi.ActualizarAsync(Paciente!.PacienteId, ConstruirActualizarRequest())
-            : await PacientesApi.CrearAsync(ConstruirCrearRequest());
-
-        guardando = false;
-
-        if (resultado.Exito && resultado.Valor is not null)
-        {
-            await OnGuardado.InvokeAsync(resultado.Valor);
-            await Cerrar();
-        }
-        else
-        {
-            error = resultado.Error ?? "No fue posible guardar al paciente.";
+            _ = GuardarAsync();
         }
     }
 
+    private async Task GuardarAsync()
+    {
+        if (guardando)
+        {
+            return;
+        }
+
+        errorGeneral = null;
+        errorEmail = null;
+        errorDocumento = null;
+        errorPassword = null;
+
+        if (!EsEdicion)
+        {
+            if (string.IsNullOrWhiteSpace(modelo.Email))
+            {
+                errorEmail = "El correo es obligatorio.";
+                return;
+            }
+
+            if (!PasswordValida(modelo.Password, out var mensajePassword))
+            {
+                errorPassword = mensajePassword;
+                return;
+            }
+        }
+
+        guardando = true;
+        try
+        {
+            var resultado = EsEdicion
+                ? await PacientesApi.ActualizarAsync(Paciente!.PacienteId, ConstruirActualizarRequest())
+                : await PacientesApi.CrearAsync(ConstruirCrearRequest());
+
+            if (resultado.Exito && resultado.Valor is not null)
+            {
+                await OnGuardado.InvokeAsync(resultado.Valor);
+                await Cerrar();
+                return;
+            }
+
+            MostrarErrorServidor(resultado.Error ?? "No fue posible guardar al paciente.");
+        }
+        catch (HttpRequestException)
+        {
+            errorGeneral = "No se pudo contactar a la API. Verifica que el servidor esté iniciado e inténtalo nuevamente.";
+        }
+        catch (TaskCanceledException)
+        {
+            errorGeneral = "La operación tardó demasiado. Inténtalo nuevamente.";
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private static bool PasswordValida(string? password, out string mensaje)
+    {
+        if (string.IsNullOrWhiteSpace(password) || password.Length < 8)
+        {
+            mensaje = "La contraseña debe tener al menos 8 caracteres.";
+            return false;
+        }
+
+        if (!password.Any(char.IsUpper))
+        {
+            mensaje = "La contraseña debe incluir al menos una letra mayúscula.";
+            return false;
+        }
+
+        if (!password.Any(char.IsLower))
+        {
+            mensaje = "La contraseña debe incluir al menos una letra minúscula.";
+            return false;
+        }
+
+        if (!password.Any(char.IsDigit))
+        {
+            mensaje = "La contraseña debe incluir al menos un número.";
+            return false;
+        }
+
+        if (!password.Any(c => !char.IsLetterOrDigit(c)))
+        {
+            mensaje = "La contraseña debe incluir al menos un símbolo, por ejemplo !, @ o #.";
+            return false;
+        }
+
+        mensaje = string.Empty;
+        return true;
+    }
+
+    private void MostrarErrorServidor(string mensaje)
+    {
+        if (mensaje.Contains("correo", StringComparison.OrdinalIgnoreCase)
+            && mensaje.Contains("registr", StringComparison.OrdinalIgnoreCase))
+        {
+            errorEmail = "Ese correo ya está registrado. Usa otro correo o busca al paciente existente antes de crear un registro duplicado.";
+            return;
+        }
+
+        if (mensaje.Contains("documento", StringComparison.OrdinalIgnoreCase))
+        {
+            errorDocumento = "Ese documento/DPI ya está asociado a un paciente. Verifica el número o busca el registro existente.";
+            return;
+        }
+
+        if (mensaje.Contains("contraseña", StringComparison.OrdinalIgnoreCase)
+            || mensaje.Contains("password", StringComparison.OrdinalIgnoreCase))
+        {
+            errorPassword = "La contraseña no cumple la política: mínimo 8 caracteres, mayúscula, minúscula, número y símbolo.";
+            return;
+        }
+
+        errorGeneral = mensaje;
+    }
+
     private RegisterPacienteRequest ConstruirCrearRequest() => new(
-        modelo.Email.Trim(),
+        modelo.Email.Trim().ToLowerInvariant(),
         modelo.Password,
         modelo.Nombres.Trim(),
         modelo.Apellidos.Trim(),
@@ -180,27 +314,54 @@
 
     private async Task Cerrar()
     {
-        error = null;
+        errorGeneral = null;
+        errorEmail = null;
+        errorDocumento = null;
+        errorPassword = null;
         await IsOpenChanged.InvokeAsync(false);
     }
 
     private sealed class ModeloPaciente
     {
-        public string Email { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
+        /// <summary>No se valida contra el servidor; solo le indica a Validate() si Email/Password
+        /// son obligatorios (no lo son en modo edición, donde ni siquiera se muestran esos campos).</summary>
+        public bool EsEdicion { get; set; }
+
+        [Required(ErrorMessage = "El nombre es obligatorio.")]
+        [StringLength(100, ErrorMessage = "Los nombres no pueden superar 100 caracteres.")]
         public string Nombres { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "El apellido es obligatorio.")]
+        [StringLength(100, ErrorMessage = "Los apellidos no pueden superar 100 caracteres.")]
         public string Apellidos { get; set; } = string.Empty;
+
+        [EmailAddress(ErrorMessage = "Ingresa un correo válido.")]
+        public string Email { get; set; } = string.Empty;
+
+        public string Password { get; set; } = string.Empty;
+
+        [StringLength(30, ErrorMessage = "El documento no puede superar 30 caracteres.")]
         public string Documento { get; set; } = string.Empty;
         public DateTime? FechaNacimiento { get; set; }
         public string Sexo { get; set; } = string.Empty;
+        [StringLength(30, ErrorMessage = "El teléfono no puede superar 30 caracteres.")]
         public string Telefono { get; set; } = string.Empty;
+
+        [StringLength(250, ErrorMessage = "La dirección no puede superar 250 caracteres.")]
         public string Direccion { get; set; } = string.Empty;
+
+        [StringLength(500, ErrorMessage = "Las alergias no pueden superar 500 caracteres.")]
         public string Alergias { get; set; } = string.Empty;
+
+        [StringLength(150, ErrorMessage = "El contacto de emergencia no puede superar 150 caracteres.")]
         public string ContactoEmergenciaNombre { get; set; } = string.Empty;
+
+        [StringLength(30, ErrorMessage = "El teléfono de emergencia no puede superar 30 caracteres.")]
         public string ContactoEmergenciaTelefono { get; set; } = string.Empty;
 
         public static ModeloPaciente DesdeExistente(PacienteDto paciente) => new()
         {
+            EsEdicion = true,
             Nombres = paciente.Nombres,
             Apellidos = paciente.Apellidos,
             Documento = paciente.Documento ?? string.Empty,

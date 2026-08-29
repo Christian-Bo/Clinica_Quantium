@@ -1,5 +1,5 @@
 @page "/notificaciones"
-@attribute [Authorize]
+@attribute [Authorize(Roles = Roles.Secretaria)]
 @inject NotificacionesApiService NotificacionesApi
 
 <PageTitle>Notificaciones · Clínica Pro</PageTitle>

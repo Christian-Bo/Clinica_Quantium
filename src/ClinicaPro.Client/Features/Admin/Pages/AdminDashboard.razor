@@ -1,0 +1,143 @@
+@page "/admin"
+@attribute [Authorize(Roles = Roles.Administrador)]
+@inject AdminApiService AdminApi
+@inject NavigationManager Navigation
+
+<PageTitle>Administración · Clínica Pro</PageTitle>
+
+<div class="space-y-6">
+    <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">Administración</p>
+        <h1 class="mt-1 text-xl font-semibold text-ink">Panel de control</h1>
+        <p class="mt-1 text-sm text-ink-muted">Configura el catálogo clínico, personal, accesos y parámetros generales.</p>
+    </div>
+
+    @if (cargando)
+    {
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            @for (var i = 0; i < 4; i++)
+            {
+                <Skeleton Filas="1" HeightClass="h-28" />
+            }
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(error))
+    {
+        <Card><EmptyState IconName="alert-triangle" Title="No se pudo cargar el panel" Description="@error" /></Card>
+    }
+    else
+    {
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <button type="button" class="rounded-card border border-border bg-surface p-5 text-left shadow-card transition hover:border-brand-200 hover:bg-brand-50/40" @onclick="IrEspecialidades">
+                <div class="flex items-center justify-between"><span class="text-sm text-ink-muted">Especialidades activas</span><Icon Name="clipboard-list" Size="19" CssClass="text-brand-600" /></div>
+                <p class="mt-3 text-3xl font-semibold text-ink">@especialidadesActivas</p>
+                <p class="mt-1 text-xs text-ink-muted">de @especialidadesTotal registradas</p>
+            </button>
+            <button type="button" class="rounded-card border border-border bg-surface p-5 text-left shadow-card transition hover:border-brand-200 hover:bg-brand-50/40" @onclick="IrMedicos">
+                <div class="flex items-center justify-between"><span class="text-sm text-ink-muted">Médicos disponibles</span><Icon Name="user-check" Size="19" CssClass="text-brand-600" /></div>
+                <p class="mt-3 text-3xl font-semibold text-ink">@medicosActivos</p>
+                <p class="mt-1 text-xs text-ink-muted">activos en la agenda</p>
+            </button>
+            <button type="button" class="rounded-card border border-border bg-surface p-5 text-left shadow-card transition hover:border-brand-200 hover:bg-brand-50/40" @onclick="IrUsuarios">
+                <div class="flex items-center justify-between"><span class="text-sm text-ink-muted">Usuarios activos</span><Icon Name="users" Size="19" CssClass="text-brand-600" /></div>
+                <p class="mt-3 text-3xl font-semibold text-ink">@usuariosActivos</p>
+                <p class="mt-1 text-xs text-ink-muted">de @usuariosTotal cuentas</p>
+            </button>
+            <button type="button" class="rounded-card border border-border bg-surface p-5 text-left shadow-card transition hover:border-brand-200 hover:bg-brand-50/40" @onclick="IrParametros">
+                <div class="flex items-center justify-between"><span class="text-sm text-ink-muted">Parámetros</span><Icon Name="settings" Size="19" CssClass="text-brand-600" /></div>
+                <p class="mt-3 text-3xl font-semibold text-ink">@parametrosTotal</p>
+                <p class="mt-1 text-xs text-ink-muted">reglas configurables</p>
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <Card Title="Acciones rápidas" IconName="settings" CssClass="xl:col-span-1">
+                <div class="space-y-2">
+                    <button class="flex w-full items-center justify-between rounded-control border border-border px-3 py-3 text-left text-sm text-ink hover:bg-surface-muted" @onclick="IrMedicos">
+                        <span class="flex items-center gap-2"><Icon Name="user-plus" Size="17" CssClass="text-brand-600" /> Gestionar médicos</span><Icon Name="chevron-right" Size="16" CssClass="text-ink-muted" />
+                    </button>
+                    <button class="flex w-full items-center justify-between rounded-control border border-border px-3 py-3 text-left text-sm text-ink hover:bg-surface-muted" @onclick="IrEspecialidades">
+                        <span class="flex items-center gap-2"><Icon Name="plus" Size="17" CssClass="text-brand-600" /> Gestionar especialidades</span><Icon Name="chevron-right" Size="16" CssClass="text-ink-muted" />
+                    </button>
+                    <button class="flex w-full items-center justify-between rounded-control border border-border px-3 py-3 text-left text-sm text-ink hover:bg-surface-muted" @onclick="IrUsuarios">
+                        <span class="flex items-center gap-2"><Icon Name="shield" Size="17" CssClass="text-brand-600" /> Revisar accesos</span><Icon Name="chevron-right" Size="16" CssClass="text-ink-muted" />
+                    </button>
+                </div>
+            </Card>
+
+            <Card Title="Actividad reciente" IconName="history" CssClass="xl:col-span-2">
+                @if (auditoria.Count == 0)
+                {
+                    <EmptyState IconName="history" Title="Sin actividad reciente" Description="Los cambios administrativos aparecerán aquí." />
+                }
+                else
+                {
+                    <div class="divide-y divide-border">
+                        @foreach (var item in auditoria.Take(6))
+                        {
+                            <div class="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-medium text-ink">@item.Accion · @item.Entidad</p>
+                                    <p class="mt-0.5 truncate text-xs text-ink-muted">@(string.IsNullOrWhiteSpace(item.Detalle) ? item.EntidadId ?? "Sin detalle" : item.Detalle)</p>
+                                </div>
+                                <time class="shrink-0 text-xs text-ink-muted">@item.FechaUtc.ToLocalTime().ToString("dd/MM HH:mm")</time>
+                            </div>
+                        }
+                    </div>
+                    <div class="mt-4 border-t border-border pt-3 text-right">
+                        <Button Variant="ButtonVariant.Ghost" Size="sm" OnClick="IrAuditoria">Ver auditoría completa</Button>
+                    </div>
+                }
+            </Card>
+        </div>
+    }
+</div>
+
+@code {
+    private bool cargando = true;
+    private string? error;
+    private int especialidadesTotal;
+    private int especialidadesActivas;
+    private int medicosActivos;
+    private int usuariosTotal;
+    private int usuariosActivos;
+    private int parametrosTotal;
+    private IReadOnlyList<AuditoriaDto> auditoria = [];
+
+    private void IrEspecialidades() => Navigation.NavigateTo("/admin/especialidades");
+    private void IrMedicos() => Navigation.NavigateTo("/admin/medicos");
+    private void IrUsuarios() => Navigation.NavigateTo("/admin/usuarios");
+    private void IrParametros() => Navigation.NavigateTo("/admin/parametros");
+    private void IrAuditoria() => Navigation.NavigateTo("/admin/auditoria");
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var especialidadesTask = AdminApi.ListarEspecialidadesAsync();
+            var medicosTask = AdminApi.ListarMedicosAsync();
+            var usuariosTask = AdminApi.ListarUsuariosAsync();
+            var parametrosTask = AdminApi.ListarParametrosAsync();
+            var auditoriaTask = AdminApi.ListarAuditoriaAsync();
+            await Task.WhenAll(especialidadesTask, medicosTask, usuariosTask, parametrosTask, auditoriaTask);
+
+            var especialidades = await especialidadesTask;
+            var usuarios = await usuariosTask;
+            especialidadesTotal = especialidades.Count;
+            especialidadesActivas = especialidades.Count(x => x.IsActive);
+            medicosActivos = (await medicosTask).Count;
+            usuariosTotal = usuarios.Count;
+            usuariosActivos = usuarios.Count(x => x.IsActive);
+            parametrosTotal = (await parametrosTask).Count;
+            auditoria = await auditoriaTask;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            error = "No fue posible contactar a la API para obtener la información administrativa.";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+}

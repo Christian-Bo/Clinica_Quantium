@@ -1,0 +1,119 @@
+@inject AdminApiService AdminApi
+@inject ToastService Toast
+
+<Modal IsOpen="IsOpen" IsOpenChanged="CambiarApertura" Title="@Titulo" IconName="clipboard-list" MaxWidthClass="max-w-lg" CloseOnBackdrop="false">
+    <Body>
+        <EditForm EditContext="editContext">
+            <DataAnnotationsValidator />
+            <div class="space-y-4">
+                <div>
+                    <label class="text-sm font-medium text-ink" for="adm-esp-nombre">Nombre *</label>
+                    <InputText id="adm-esp-nombre" class="@ClaseInput" @bind-Value="modelo.Nombre" placeholder="Ej. Cardiología" />
+                    <ValidationMessage For="() => modelo.Nombre" />
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-ink" for="adm-esp-desc">Descripción</label>
+                    <InputTextArea id="adm-esp-desc" class="@ClaseTextArea" @bind-Value="modelo.Descripcion" maxlength="300" placeholder="Descripción breve de la especialidad" />
+                    <p class="mt-1 text-xs text-ink-muted">Máximo 300 caracteres.</p>
+                </div>
+                @if (EsEdicion)
+                {
+                    <label class="flex items-start gap-3 rounded-control border border-border bg-surface-muted p-3">
+                        <InputCheckbox class="mt-0.5 h-4 w-4 accent-brand-500" @bind-Value="modelo.IsActive" />
+                        <span>
+                            <span class="block text-sm font-medium text-ink">Especialidad activa</span>
+                            <span class="block text-xs text-ink-muted">Si se desactiva dejará de aparecer para nuevas citas.</span>
+                        </span>
+                    </label>
+                }
+                @if (!string.IsNullOrWhiteSpace(error))
+                {
+                    <p class="rounded-control bg-state-rechazada/10 px-3 py-2 text-sm text-state-rechazada">@error</p>
+                }
+            </div>
+        </EditForm>
+    </Body>
+    <Footer>
+        <Button Variant="ButtonVariant.Secondary" Disabled="guardando" OnClick="Cancelar">Cancelar</Button>
+        <Button Variant="ButtonVariant.Primary" Loading="guardando" IconName="check" OnClick="GuardarAsync">Guardar</Button>
+    </Footer>
+</Modal>
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public EspecialidadAdminItem? Especialidad { get; set; }
+    [Parameter] public EventCallback OnGuardado { get; set; }
+
+    private const string ClaseInput = "mt-1 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100";
+    private const string ClaseTextArea = ClaseInput + " min-h-24 resize-y";
+    private Modelo modelo = new();
+    private EditContext editContext = new(new Modelo());
+    private bool guardando;
+    private string? error;
+    private bool aperturaAnterior;
+    private Guid? idAnterior;
+
+    private bool EsEdicion => Especialidad is not null;
+    private string Titulo => EsEdicion ? "Editar especialidad" : "Nueva especialidad";
+
+    protected override void OnParametersSet()
+    {
+        if (IsOpen && (!aperturaAnterior || idAnterior != Especialidad?.EspecialidadId))
+        {
+            modelo = Especialidad is null
+                ? new Modelo()
+                : new Modelo { Nombre = Especialidad.Nombre, Descripcion = Especialidad.Descripcion ?? string.Empty, IsActive = Especialidad.IsActive };
+            editContext = new EditContext(modelo);
+            error = null;
+            idAnterior = Especialidad?.EspecialidadId;
+        }
+        aperturaAnterior = IsOpen;
+    }
+
+    private async Task GuardarAsync()
+    {
+        if (!editContext.Validate()) return;
+
+        guardando = true;
+        error = null;
+        try
+        {
+            if (EsEdicion)
+            {
+                var resultado = await AdminApi.ActualizarEspecialidadAsync(
+                    Especialidad!.EspecialidadId,
+                    new ActualizarEspecialidadRequest(modelo.Nombre.Trim(), Limpio(modelo.Descripcion), modelo.IsActive));
+                if (!resultado.Exito) { error = resultado.Error; return; }
+                Toast.Exito("Especialidad actualizada correctamente.");
+            }
+            else
+            {
+                var resultado = await AdminApi.CrearEspecialidadAsync(
+                    new CrearEspecialidadRequest(modelo.Nombre.Trim(), Limpio(modelo.Descripcion)));
+                if (!resultado.Exito) { error = resultado.Error; return; }
+                Toast.Exito("Especialidad creada correctamente.");
+            }
+
+            await OnGuardado.InvokeAsync();
+            await IsOpenChanged.InvokeAsync(false);
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private Task Cancelar() => IsOpenChanged.InvokeAsync(false);
+    private Task CambiarApertura(bool valor) => IsOpenChanged.InvokeAsync(valor);
+    private static string? Limpio(string? valor) => string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
+
+    private sealed class Modelo
+    {
+        [Required(ErrorMessage = "El nombre es obligatorio.")]
+        [StringLength(100, ErrorMessage = "El nombre no puede superar 100 caracteres.")]
+        public string Nombre { get; set; } = string.Empty;
+        public string Descripcion { get; set; } = string.Empty;
+        public bool IsActive { get; set; } = true;
+    }
+}

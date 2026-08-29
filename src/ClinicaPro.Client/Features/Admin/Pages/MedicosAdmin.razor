@@ -1,0 +1,212 @@
+@page "/admin/medicos"
+@attribute [Authorize(Roles = Roles.Administrador)]
+@inject AdminApiService AdminApi
+@inject ConfirmDialogService Confirmar
+@inject ToastService Toast
+
+<PageTitle>Médicos y horarios · Administración</PageTitle>
+
+<div class="space-y-5">
+    <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+        <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">Personal clínico</p>
+            <h1 class="mt-1 text-xl font-semibold text-ink">Médicos y horarios</h1>
+            <p class="mt-1 text-sm text-ink-muted">Administra médicos activos y define sus jornadas de atención.</p>
+        </div>
+        <Button Variant="ButtonVariant.Primary" IconName="user-plus" OnClick="NuevoMedico">Nuevo médico</Button>
+    </div>
+
+    <Card BodyPadding="p-0">
+        <div class="border-b border-border p-4">
+            <div class="relative max-w-sm">
+                <span class="pointer-events-none absolute left-3 top-2.5 text-ink-muted"><Icon Name="search" Size="17" /></span>
+                <input class="w-full rounded-control border border-border py-2 pl-9 pr-3 text-sm text-ink focus:border-brand-500 focus:outline-none" placeholder="Buscar por nombre o colegiado..." @bind="busqueda" @bind:event="oninput" />
+            </div>
+        </div>
+
+        @if (cargando)
+        {
+            <div class="p-5"><Skeleton Filas="5" /></div>
+        }
+        else if (!string.IsNullOrWhiteSpace(error))
+        {
+            <div class="p-5"><EmptyState IconName="alert-triangle" Title="No se pudieron cargar los médicos" Description="@error" /></div>
+        }
+        else if (Filtrados.Count == 0)
+        {
+            <div class="p-5"><EmptyState IconName="user-check" Title="Sin médicos" Description="No hay médicos activos que coincidan con la búsqueda." /></div>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full min-w-[780px] text-left text-sm">
+                    <thead class="bg-surface-muted text-xs uppercase tracking-wide text-ink-muted">
+                        <tr><th class="px-5 py-3 font-medium">Médico</th><th class="px-5 py-3 font-medium">Colegiado</th><th class="px-5 py-3 font-medium">Teléfono</th><th class="px-5 py-3 font-medium">Especialidades</th><th class="px-5 py-3 text-right font-medium">Acciones</th></tr>
+                    </thead>
+                    <tbody class="divide-y divide-border">
+                        @foreach (var medico in Filtrados)
+                        {
+                            <tr class="@(medicoSeleccionado?.MedicoId == medico.MedicoId ? "bg-brand-50" : "hover:bg-surface-muted/60")">
+                                <td class="px-5 py-3"><div class="font-medium text-ink">@medico.NombreCompleto</div><div class="text-xs text-ink-muted">ID: @(medico.MedicoId.ToString()[..8])</div></td>
+                                <td class="px-5 py-3 text-ink-muted">@(medico.NumeroColegiado ?? "—")</td>
+                                <td class="px-5 py-3 text-ink-muted">@(medico.Telefono ?? "—")</td>
+                                <td class="px-5 py-3 text-ink-muted">@NombreEspecialidades(medico)</td>
+                                <td class="px-5 py-3"><div class="flex justify-end gap-1"><Button Variant="ButtonVariant.Ghost" Size="sm" IconName="clock" OnClick="() => SeleccionarHorariosAsync(medico)">Horarios</Button><Button Variant="ButtonVariant.Ghost" Size="sm" IconName="edit" OnClick="() => EditarMedico(medico)">Editar</Button><Button Variant="ButtonVariant.Ghost" Size="sm" IconName="x" OnClick="() => DesactivarMedicoAsync(medico)">Desactivar</Button></div></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </Card>
+
+    @if (medicoSeleccionado is not null)
+    {
+        <Card Title="@TituloHorarios" IconName="clock">
+            <HeaderActions>
+                <div class="flex gap-2">
+                    <Button Variant="ButtonVariant.Ghost" Size="sm" OnClick="CerrarHorarios">Cerrar</Button>
+                    <Button Variant="ButtonVariant.Primary" Size="sm" IconName="plus" OnClick="NuevoHorario">Agregar horario</Button>
+                </div>
+            </HeaderActions>
+            <ChildContent>
+                @if (cargandoHorarios)
+                {
+                    <Skeleton Filas="3" />
+                }
+                else if (horarios.Count == 0)
+                {
+                    <EmptyState IconName="clock" Title="Sin horarios" Description="Agrega al menos una jornada para que el médico tenga disponibilidad." />
+                }
+                else
+                {
+                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        @foreach (var horario in horarios.OrderBy(h => OrdenDia(h.DiaSemana)).ThenBy(h => h.HoraInicio))
+                        {
+                            <div class="flex items-center justify-between rounded-control border border-border bg-surface-muted px-4 py-3">
+                                <div><p class="text-sm font-medium text-ink">@NombreDia(horario.DiaSemana)</p><p class="mt-0.5 text-xs text-ink-muted">@horario.HoraInicio.ToString("HH:mm") – @horario.HoraFin.ToString("HH:mm")</p></div>
+                                <Button Variant="ButtonVariant.Ghost" Size="sm" IconName="trash" OnClick="() => EliminarHorarioAsync(horario)">Quitar</Button>
+                            </div>
+                        }
+                    </div>
+                }
+            </ChildContent>
+        </Card>
+    }
+</div>
+
+<MedicoAdminModal IsOpen="modalMedicoAbierto" IsOpenChanged="@(v => modalMedicoAbierto = v)" Medico="medicoEdicion" Especialidades="especialidades" OnGuardado="RecargarMedicosAsync" />
+<HorarioAdminModal IsOpen="modalHorarioAbierto" IsOpenChanged="@(v => modalHorarioAbierto = v)" Medico="medicoSeleccionado" OnGuardado="RecargarHorariosAsync" />
+
+@code {
+    private bool cargando = true;
+    private string? error;
+    private string busqueda = string.Empty;
+    private IReadOnlyList<MedicoDto> medicos = [];
+    private IReadOnlyList<EspecialidadAdminItem> especialidades = [];
+
+    private bool modalMedicoAbierto;
+    private MedicoDto? medicoEdicion;
+
+    private MedicoDto? medicoSeleccionado;
+    private IReadOnlyList<HorarioDto> horarios = [];
+    private bool cargandoHorarios;
+    private bool modalHorarioAbierto;
+
+    private string TituloHorarios => medicoSeleccionado is null ? "Horarios" : $"Horarios de {medicoSeleccionado.NombreCompleto}";
+
+    private IReadOnlyList<MedicoDto> Filtrados => medicos
+        .Where(x => string.IsNullOrWhiteSpace(busqueda)
+            || x.NombreCompleto.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
+            || (x.NumeroColegiado?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false))
+        .OrderBy(x => x.NombreCompleto)
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var medicosTask = AdminApi.ListarMedicosAsync();
+            var especialidadesTask = AdminApi.ListarEspecialidadesAsync();
+            await Task.WhenAll(medicosTask, especialidadesTask);
+            medicos = await medicosTask;
+            especialidades = await especialidadesTask;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            error = "No se pudo contactar a la API.";
+        }
+        finally { cargando = false; }
+    }
+
+    private void NuevoMedico() { medicoEdicion = null; modalMedicoAbierto = true; }
+    private void EditarMedico(MedicoDto medico) { medicoEdicion = medico; modalMedicoAbierto = true; }
+
+    private async Task RecargarMedicosAsync()
+    {
+        medicos = await AdminApi.ListarMedicosAsync();
+        especialidades = await AdminApi.ListarEspecialidadesAsync();
+        if (medicoSeleccionado is not null)
+        {
+            medicoSeleccionado = medicos.FirstOrDefault(x => x.MedicoId == medicoSeleccionado.MedicoId);
+            if (medicoSeleccionado is null) { horarios = []; }
+        }
+    }
+
+    private async Task DesactivarMedicoAsync(MedicoDto medico)
+    {
+        var ok = await Confirmar.ConfirmarAsync(
+            $"¿Deseas desactivar a {medico.NombreCompleto}? Dejará de estar disponible para agenda y nuevas citas.",
+            "Desactivar médico", "Desactivar", true);
+        if (!ok) return;
+
+        var resultado = await AdminApi.ActualizarMedicoAsync(
+            medico.MedicoId,
+            new ActualizarMedicoRequest(medico.Nombres, medico.Apellidos, medico.NumeroColegiado, medico.Telefono, false));
+        if (!resultado.Exito) { Toast.Error(resultado.Error ?? "No fue posible desactivar al médico."); return; }
+        Toast.Exito("Médico desactivado.");
+        await RecargarMedicosAsync();
+    }
+
+    private async Task SeleccionarHorariosAsync(MedicoDto medico)
+    {
+        medicoSeleccionado = medico;
+        await RecargarHorariosAsync();
+    }
+
+    private async Task RecargarHorariosAsync()
+    {
+        if (medicoSeleccionado is null) return;
+        cargandoHorarios = true;
+        try { horarios = await AdminApi.ListarHorariosAsync(medicoSeleccionado.MedicoId); }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { Toast.Error("No fue posible cargar los horarios."); }
+        finally { cargandoHorarios = false; }
+    }
+
+    private void NuevoHorario() => modalHorarioAbierto = true;
+    private void CerrarHorarios() { medicoSeleccionado = null; horarios = []; }
+
+    private async Task EliminarHorarioAsync(HorarioDto horario)
+    {
+        var inicioTexto = horario.HoraInicio.ToString("HH:mm");
+        var finTexto = horario.HoraFin.ToString("HH:mm");
+        var ok = await Confirmar.ConfirmarAsync(
+            $"¿Quitar el horario del {NombreDia(horario.DiaSemana)} de {inicioTexto} a {finTexto}?",
+            "Quitar horario", "Quitar", true);
+        if (!ok) return;
+
+        var resultado = await AdminApi.EliminarHorarioAsync(horario.HorarioId);
+        if (!resultado.Exito) { Toast.Error(resultado.Error ?? "No fue posible quitar el horario."); return; }
+        Toast.Exito("Horario eliminado.");
+        await RecargarHorariosAsync();
+    }
+
+    private string NombreEspecialidades(MedicoDto medico)
+    {
+        var nombres = especialidades.Where(e => medico.EspecialidadIds.Contains(e.EspecialidadId)).Select(e => e.Nombre).ToList();
+        return nombres.Count == 0 ? "Sin especialidad" : string.Join(", ", nombres);
+    }
+
+    private static int OrdenDia(byte dia) => dia;
+    private static string NombreDia(byte dia) => dia switch { 1 => "Lunes", 2 => "Martes", 3 => "Miércoles", 4 => "Jueves", 5 => "Viernes", 6 => "Sábado", 7 => "Domingo", _ => "Día" };
+}
