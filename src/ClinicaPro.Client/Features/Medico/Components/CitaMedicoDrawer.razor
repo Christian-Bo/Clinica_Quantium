@@ -1,56 +1,25 @@
 @inject CitasApiService CitasApi
 @inject ToastService Toasts
 
-<Drawer IsOpen="IsOpen" IsOpenChanged="IsOpenChanged" Title="Detalle de la cita">
+<Drawer IsOpen="IsOpen" IsOpenChanged="IsOpenChanged" Title="Detalle de la cita" CloseOnBackdrop="false">
     <Body>
         @if (Cita is not null)
         {
             <div class="space-y-5">
-                <div class="flex items-center justify-between">
-                    <CitaStatusBadge Estado="@Cita.Estado" />
-                    <span class="text-xs text-ink-muted">
-                        @Cita.FechaHoraInicio.ToString("HH:mm") – @Cita.FechaHoraFin.ToString("HH:mm")
-                    </span>
-                </div>
-
+                <div class="flex items-center justify-between"><CitaStatusBadge Estado="@Cita.Estado" /><span class="text-xs text-ink-muted">@Cita.FechaHoraInicio.ToString("HH:mm") – @Cita.FechaHoraFin.ToString("HH:mm")</span></div>
                 <div class="space-y-1">
-                    <div class="flex items-center justify-between gap-2">
-                        <p class="text-lg font-semibold text-ink">@Cita.PacienteNombre</p>
-                        <button type="button" class="flex shrink-0 items-center gap-1 text-xs font-medium text-brand-600 hover:underline"
-                                @onclick="AbrirHistorial">
-                            <Icon Name="history" Size="14" />
-                            Ver historial
-                        </button>
-                    </div>
+                    <div class="flex items-center justify-between gap-2"><p class="text-lg font-semibold text-ink">@Cita.PacienteNombre</p><button type="button" class="flex shrink-0 items-center gap-1 text-xs font-medium text-brand-600 hover:underline" @onclick="AbrirHistorial"><Icon Name="history" Size="14" /> Contexto del paciente</button></div>
                     <p class="text-sm text-ink-muted">@Cita.EspecialidadNombre</p>
                 </div>
+                <div class="rounded-control bg-surface-muted p-3"><p class="text-xs uppercase text-ink-muted">Motivo de consulta</p><p class="mt-1 text-sm text-ink">@Cita.MotivoConsulta</p></div>
 
                 <div>
-                    <p class="text-xs uppercase text-ink-muted">Motivo de consulta</p>
-                    <p class="mt-1 text-sm text-ink">@Cita.MotivoConsulta</p>
-                </div>
-
-                <div>
-                    <p class="mb-2 text-xs uppercase text-ink-muted">Historial</p>
-                    @if (cargandoHistorial)
-                    {
-                        <Skeleton Filas="2" HeightClass="h-10" />
-                    }
-                    else if (historial.Count == 0)
-                    {
-                        <p class="text-sm text-ink-muted">Sin movimientos registrados todavía.</p>
-                    }
+                    <p class="mb-2 text-xs uppercase text-ink-muted">Historial de esta cita</p>
+                    @if (cargandoHistorial) { <Skeleton Filas="2" HeightClass="h-10" /> }
+                    else if (historial.Count == 0) { <p class="text-sm text-ink-muted">Sin movimientos registrados todavía.</p> }
                     else
                     {
-                        <ul class="space-y-2">
-                            @foreach (var item in historial.OrderByDescending(h => h.FechaCambioUtc))
-                            {
-                                <li class="rounded-control border border-border bg-surface p-2.5 text-sm">
-                                    <p class="text-ink">@item.Descripcion</p>
-                                    <p class="mt-0.5 text-xs text-ink-muted">@item.FechaCambioLocal.ToString("dd/MM/yyyy HH:mm")</p>
-                                </li>
-                            }
-                        </ul>
+                        <ul class="space-y-2">@foreach (var item in historial.OrderByDescending(h => h.FechaCambioUtc)) { <li class="rounded-control border border-border bg-surface p-2.5 text-sm"><p class="text-ink">@item.Descripcion</p><p class="mt-0.5 text-xs text-ink-muted">@item.FechaCambioLocal.ToString("dd/MM/yyyy HH:mm")</p></li> }</ul>
                     }
                 </div>
             </div>
@@ -59,21 +28,16 @@
     <Footer>
         @if (Cita?.Estado == CitaEstados.EnEspera)
         {
-            <Button Variant="ButtonVariant.Primary" IconName="check" Loading="enviando" OnClick="IniciarAsync">
-                Iniciar atención
-            </Button>
+            <Button Variant="ButtonVariant.Primary" IconName="check" Loading="enviando" OnClick="IniciarAsync">Iniciar atención</Button>
         }
         @if (Cita?.Estado == CitaEstados.EnAtencion)
         {
-            <Button Variant="ButtonVariant.Primary" IconName="check" Loading="enviando" OnClick="FinalizarAsync">
-                Finalizar atención
-            </Button>
+            <Button Variant="ButtonVariant.Primary" IconName="check" Loading="enviando" OnClick="FinalizarAsync">Finalizar atención</Button>
         }
     </Footer>
 </Drawer>
 
-<HistorialPacienteDrawer IsOpen="historialAbierto" IsOpenChanged="@((bool v) => historialAbierto = v)"
-                          Paciente="pacienteParaHistorial" />
+<HistorialMedicoPacienteDrawer IsOpen="historialAbierto" IsOpenChanged="@((bool v) => historialAbierto = v)" PacienteId="Cita?.PacienteId" />
 
 @code {
     [Parameter] public bool IsOpen { get; set; }
@@ -87,77 +51,39 @@
     private Guid? citaIdCargada;
     private bool historialAbierto;
 
-    /// <summary>CitaDto no trae el objeto Paciente completo, solo Id y nombre. Se arma un PacienteDto
-    /// mínimo con lo que ya se tiene, suficiente para que HistorialPacienteDrawer pueda consultar
-    /// GET /api/citas?pacienteId=X y mostrar el título — el resto de campos no se usan ahí.</summary>
-    private PacienteDto? pacienteParaHistorial => Cita is null
-        ? null
-        : new PacienteDto(Cita.PacienteId, Guid.Empty, string.Empty, string.Empty, Cita.PacienteNombre,
-            null, null, null, null, null, null, null, null);
-
     private void AbrirHistorial() => historialAbierto = true;
 
     protected override async Task OnParametersSetAsync()
     {
-        if (Cita is not null && Cita.CitaId != citaIdCargada)
-        {
-            citaIdCargada = Cita.CitaId;
-            await CargarHistorialAsync();
-        }
-        else if (Cita is null)
-        {
-            citaIdCargada = null;
-        }
+        if (Cita is not null && Cita.CitaId != citaIdCargada) { citaIdCargada = Cita.CitaId; historialAbierto = false; await CargarHistorialAsync(); }
+        else if (Cita is null) { citaIdCargada = null; }
     }
 
     private async Task CargarHistorialAsync()
     {
-        if (Cita is null)
-        {
-            return;
-        }
-
+        if (Cita is null) return;
         cargandoHistorial = true;
-        try
-        {
-            historial = (await CitasApi.ObtenerHistorialAsync(Cita.CitaId)).ToList();
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
-        {
-            historial = [];
-        }
-        finally
-        {
-            cargandoHistorial = false;
-        }
+        try { historial = (await CitasApi.ObtenerHistorialAsync(Cita.CitaId)).ToList(); }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { historial = []; }
+        finally { cargandoHistorial = false; }
     }
 
-    private async Task IniciarAsync() => await EjecutarAsync(
-        () => CitasApi.IniciarAtencionAsync(Cita!.CitaId), "Atención iniciada.");
-
-    private async Task FinalizarAsync() => await EjecutarAsync(
-        () => CitasApi.FinalizarAtencionAsync(Cita!.CitaId), "Consulta finalizada.");
+    private async Task IniciarAsync() => await EjecutarAsync(() => CitasApi.IniciarAtencionAsync(Cita!.CitaId), "Atención iniciada.");
+    private async Task FinalizarAsync() => await EjecutarAsync(() => CitasApi.FinalizarAtencionAsync(Cita!.CitaId), "Consulta finalizada.");
 
     private async Task EjecutarAsync(Func<Task<ResultadoOperacion<CitaDto>>> accion, string mensajeExito)
     {
-        if (Cita is null)
-        {
-            return;
-        }
-
+        if (Cita is null) return;
         enviando = true;
-        var resultado = await accion();
-        enviando = false;
-
-        if (resultado.Exito && resultado.Valor is not null)
+        try
         {
-            Toasts.Exito(mensajeExito);
-            await OnActualizada.InvokeAsync(resultado.Valor);
-            await IsOpenChanged.InvokeAsync(false);
+            var resultado = await accion();
+            if (resultado.Exito && resultado.Valor is not null)
+            {
+                Toasts.Exito(mensajeExito); await OnActualizada.InvokeAsync(resultado.Valor); await IsOpenChanged.InvokeAsync(false);
+            }
+            else Toasts.Error(resultado.Error ?? "No fue posible completar la acción.");
         }
-        else
-        {
-            Toasts.Error(resultado.Error ?? "No fue posible completar la acción.");
-        }
+        finally { enviando = false; }
     }
 }

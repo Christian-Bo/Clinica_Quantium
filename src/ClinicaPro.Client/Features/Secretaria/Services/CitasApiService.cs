@@ -48,6 +48,55 @@ public sealed class CitasApiService(HttpClient http)
         return await respuesta.Content.ReadFromJsonAsync<List<CitaDto>>(cancellationToken: ct) ?? [];
     }
 
+    public async Task<HistorialMedicoPacienteDto?> ObtenerHistorialMedicoPacienteAsync(
+        Guid pacienteId,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            using var respuesta = await http.GetAsync($"api/citas/paciente/{pacienteId}/historial-medico", ct);
+            if (!respuesta.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            return await respuesta.Content.ReadFromJsonAsync<HistorialMedicoPacienteDto>(cancellationToken: ct);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            return null;
+        }
+    }
+
+    public async Task<ResultadoOperacion<AutorizacionReprogramacionDto>> SolicitarAutorizacionReprogramacionAsync(
+        Guid citaId,
+        string motivo,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            using var respuesta = await http.PostAsJsonAsync(
+                $"api/citas/{citaId}/solicitar-autorizacion-reprogramacion",
+                new MotivoCitaRequest(motivo),
+                ct);
+
+            if (!respuesta.IsSuccessStatusCode)
+            {
+                return ResultadoOperacion<AutorizacionReprogramacionDto>.Fallo(
+                    await ApiErrorReader.LeerAsync(respuesta, "No fue posible solicitar la autorización.", ct));
+            }
+
+            var valor = await respuesta.Content.ReadFromJsonAsync<AutorizacionReprogramacionDto>(cancellationToken: ct);
+            return valor is null
+                ? ResultadoOperacion<AutorizacionReprogramacionDto>.Fallo("La autorización se creó pero no se pudo leer la respuesta.")
+                : ResultadoOperacion<AutorizacionReprogramacionDto>.Ok(valor);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            return ResultadoOperacion<AutorizacionReprogramacionDto>.Fallo("No se pudo contactar al servidor.");
+        }
+    }
+
     public async Task<IReadOnlyList<SlotDisponibleDto>> ListarDisponibilidadAsync(
         Guid especialidadId,
         DateOnly fecha,

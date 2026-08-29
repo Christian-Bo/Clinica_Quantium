@@ -1,0 +1,205 @@
+@page "/reportes"
+@attribute [Authorize(Roles = "Secretaria,Administrador")]
+@inject ReportesApiService ReportesApi
+@inject CitasApiService CitasApi
+@inject MedicosApiService MedicosApi
+@inject AdminApiService AdminApi
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Reportes · Clínica Pro</PageTitle>
+
+<div class="space-y-5">
+    <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">Análisis operativo</p>
+        <h1 class="mt-1 text-xl font-semibold text-ink">Reportes de citas</h1>
+        <p class="mt-1 text-sm text-ink-muted">Consulta indicadores y el detalle de la agenda por período, médico y estado.</p>
+    </div>
+
+    <Card>
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4 sm:items-end">
+            <div>
+                <label class="text-xs font-medium text-ink-muted">Desde</label>
+                <input type="date" class="@ClaseInput" value="@desdeTexto" @onchange="e => desdeTexto = e.Value?.ToString() ?? string.Empty" />
+            </div>
+            <div>
+                <label class="text-xs font-medium text-ink-muted">Hasta</label>
+                <input type="date" class="@ClaseInput" value="@hastaTexto" @onchange="e => hastaTexto = e.Value?.ToString() ?? string.Empty" />
+            </div>
+            <div>
+                <label class="text-xs font-medium text-ink-muted">Médico</label>
+                <select class="@ClaseInput" @bind="medicoFiltro">
+                    <option value="">Todos los médicos</option>
+                    @foreach (var medico in medicos)
+                    {
+                        <option value="@medico.MedicoId">@medico.Nombre @(medico.Activo ? string.Empty : "· inactivo")</option>
+                    }
+                </select>
+            </div>
+            <div>
+                <label class="text-xs font-medium text-ink-muted">Estado en detalle</label>
+                <select class="@ClaseInput" @bind="estadoFiltro">
+                    <option value="">Todos</option>
+                    @foreach (var estado in Estados)
+                    {
+                        <option value="@estado">@estado</option>
+                    }
+                </select>
+            </div>
+            <Button Variant="ButtonVariant.Primary" IconName="filter" Loading="cargando" OnClick="CargarAsync">Aplicar filtros</Button>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(error))
+        {
+            <p class="mt-3 rounded-control bg-state-rechazada/10 px-3 py-2 text-sm text-state-rechazada">@error</p>
+        }
+    </Card>
+
+    @if (cargando && reporte is null)
+    {
+        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">@for (var i = 0; i < 5; i++) { <Skeleton Filas="1" HeightClass="h-24" /> }</div>
+        <Card><Skeleton Filas="6" /></Card>
+    }
+    else if (reporte is not null)
+    {
+        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <TarjetaKpi Titulo="Total" Valor="reporte.Total" IconName="calendar" />
+            <TarjetaKpi Titulo="Atendidas" Valor="reporte.Atendidas" IconName="check-circle" />
+            <TarjetaKpi Titulo="Canceladas" Valor="reporte.Canceladas" IconName="x" />
+            <TarjetaKpi Titulo="No presentadas" Valor="reporte.NoPresentadas" IconName="alert-triangle" />
+            <TarjetaKpi Titulo="Reprogramadas" Valor="reporte.Reprogramadas" IconName="refresh" />
+        </div>
+
+        <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <Card Title="Distribución por estado" IconName="chart" CssClass="xl:col-span-1">
+                @if (reporte.PorEstado.Count == 0)
+                {
+                    <EmptyState IconName="chart" Title="Sin datos" Description="No hay movimientos en el período seleccionado." />
+                }
+                else
+                {
+                    <div class="space-y-4">
+                        @foreach (var item in reporte.PorEstado.OrderByDescending(x => x.Cantidad))
+                        {
+                            <div>
+                                <div class="mb-2 flex items-center justify-between gap-2 text-xs"><span class="text-ink-muted">@item.Estado</span><span class="font-medium text-ink">@item.Cantidad</span></div>
+                                <div class="h-2 overflow-hidden rounded-pill bg-surface-muted"><div class="h-full rounded-pill bg-brand-500" style="@AnchoBarra(item.Cantidad)"></div></div>
+                            </div>
+                        }
+                    </div>
+                }
+            </Card>
+
+            <Card Title="Detalle de citas" IconName="clipboard-list" CssClass="xl:col-span-2" BodyPadding="p-0">
+                @if (CitasFiltradas.Count == 0)
+                {
+                    <div class="p-5"><EmptyState IconName="calendar" Title="Sin citas" Description="No hay citas que coincidan con los filtros." /></div>
+                }
+                else
+                {
+                    <div class="overflow-x-auto">
+                        <table class="w-full min-w-[780px] text-left text-sm">
+                            <thead class="bg-surface-muted text-xs uppercase tracking-wide text-ink-muted"><tr><th class="px-4 py-3 font-medium">Fecha</th><th class="px-4 py-3 font-medium">Paciente</th><th class="px-4 py-3 font-medium">Médico</th><th class="px-4 py-3 font-medium">Especialidad</th><th class="px-4 py-3 font-medium">Estado</th></tr></thead>
+                            <tbody class="divide-y divide-border">
+                                @foreach (var cita in CitasFiltradas)
+                                {
+                                    <tr class="hover:bg-surface-muted"><td class="whitespace-nowrap px-4 py-3"><p class="font-medium text-ink">@cita.FechaHoraInicio.ToString("dd/MM/yyyy")</p><p class="text-xs text-ink-muted">@cita.FechaHoraInicio.ToString("HH:mm")</p></td><td class="px-4 py-3 text-ink">@cita.PacienteNombre</td><td class="px-4 py-3 text-ink-muted">@cita.MedicoNombre</td><td class="px-4 py-3 text-ink-muted">@cita.EspecialidadNombre</td><td class="px-4 py-3"><CitaStatusBadge Estado="@cita.Estado" /></td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </Card>
+        </div>
+    }
+</div>
+
+@code {
+    private const string ClaseInput = "mt-1 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none";
+    private static readonly string[] Estados = [CitaEstados.Solicitada, CitaEstados.Programada, CitaEstados.Confirmada, CitaEstados.EnEspera, CitaEstados.EnAtencion, CitaEstados.Atendida, CitaEstados.Cancelada, CitaEstados.NoPresentada, CitaEstados.Rechazada];
+
+    private string desdeTexto = DateOnly.FromDateTime(DateTime.Today.AddDays(-30)).ToString("yyyy-MM-dd");
+    private string hastaTexto = DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd");
+    private string medicoFiltro = string.Empty;
+    private string estadoFiltro = string.Empty;
+    private bool cargando = true;
+    private string? error;
+    private ReporteCitasDto? reporte;
+    private IReadOnlyList<CitaDto> citas = [];
+    private IReadOnlyList<MedicoFiltro> medicos = [];
+
+    private IReadOnlyList<CitaDto> CitasFiltradas => citas
+        .Where(x => string.IsNullOrWhiteSpace(estadoFiltro) || x.Estado == estadoFiltro)
+        .OrderByDescending(x => x.FechaHoraInicio)
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarMedicosAsync();
+        await CargarAsync();
+    }
+
+    private async Task CargarMedicosAsync()
+    {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (auth.User.IsInRole(Roles.Administrador))
+        {
+            var lista = await AdminApi.ListarMedicosAsync();
+            medicos = lista.Select(x => new MedicoFiltro(x.MedicoId, x.NombreCompleto, x.IsActive)).OrderByDescending(x => x.Activo).ThenBy(x => x.Nombre).ToList();
+        }
+        else
+        {
+            var lista = await MedicosApi.ListarAsync();
+            medicos = lista.Select(x => new MedicoFiltro(x.MedicoId, x.NombreCompleto, true)).OrderBy(x => x.Nombre).ToList();
+        }
+    }
+
+    private async Task CargarAsync()
+    {
+        error = null;
+        if (!DateOnly.TryParse(desdeTexto, out var desde) || !DateOnly.TryParse(hastaTexto, out var hasta))
+        {
+            error = "Selecciona un rango de fechas válido.";
+            cargando = false;
+            return;
+        }
+        if (hasta < desde)
+        {
+            error = "La fecha final no puede ser anterior a la inicial.";
+            cargando = false;
+            return;
+        }
+        if (hasta.DayNumber - desde.DayNumber > 366)
+        {
+            error = "Para mantener el reporte ágil, selecciona un período máximo de un año.";
+            cargando = false;
+            return;
+        }
+
+        Guid? medicoId = Guid.TryParse(medicoFiltro, out var id) ? id : null;
+        var fechaDesde = desde.ToDateTime(TimeOnly.MinValue);
+        var fechaHasta = hasta.ToDateTime(TimeOnly.MaxValue);
+        cargando = true;
+        try
+        {
+            var reporteTask = ReportesApi.ObtenerReporteCitasAsync(fechaDesde, fechaHasta, medicoId);
+            var citasTask = CitasApi.ListarAgendaAsync(fechaDesde, fechaHasta, medicoId);
+            await Task.WhenAll(reporteTask, citasTask);
+            reporte = await reporteTask;
+            citas = await citasTask;
+            if (reporte is null) error = "La API no devolvió información del reporte.";
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            error = "No se pudo contactar a la API para generar el reporte.";
+        }
+        finally { cargando = false; }
+    }
+
+    private string AnchoBarra(int cantidad)
+    {
+        if (reporte is null || reporte.Total <= 0) return "width: 0%";
+        var porcentaje = Math.Clamp((double)cantidad / reporte.Total * 100, 0, 100);
+        return $"width: {porcentaje.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}%";
+    }
+
+    private sealed record MedicoFiltro(Guid MedicoId, string Nombre, bool Activo);
+}
