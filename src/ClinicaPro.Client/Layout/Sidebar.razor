@@ -1,5 +1,6 @@
 @inject AuthApiService AuthApi
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="flex h-full flex-col">
     <div class="flex items-center gap-2 px-5 py-5">
@@ -8,17 +9,40 @@
         </div>
         <div>
             <p class="text-sm font-semibold leading-tight">Clínica Pro</p>
-            <p class="text-xs text-white/50">Panel de Secretaría</p>
+            <p class="text-xs text-white/50">@Subtitulo</p>
         </div>
     </div>
 
-    <NavMenu />
+    @if (!rolCargado)
+    {
+        <div class="space-y-2 px-3 py-2">
+            <div class="h-9 animate-pulse rounded-control bg-white/5"></div>
+            <div class="h-9 animate-pulse rounded-control bg-white/5"></div>
+            <div class="h-9 animate-pulse rounded-control bg-white/5"></div>
+        </div>
+    }
+    else if (esAdministrador)
+    {
+        <NavMenuAdmin />
+    }
+    else if (esMedico)
+    {
+        <NavMenuMedico />
+    }
+    else if (esSecretaria)
+    {
+        <NavMenu />
+    }
+    else
+    {
+        <div class="px-5 py-3 text-xs text-white/50">Sin opciones disponibles para este rol.</div>
+    }
 
     <div class="mt-auto border-t border-white/10 px-5 py-4">
         <AuthorizeView>
             <Authorized>
                 <p class="truncate text-sm font-medium">@context.User.Identity?.Name</p>
-                <p class="text-xs text-white/50">Secretaria</p>
+                <p class="text-xs text-white/50">@Etiqueta</p>
             </Authorized>
         </AuthorizeView>
         <button type="button" class="mt-3 flex items-center gap-2 text-sm text-white/70 hover:text-white"
@@ -30,6 +54,23 @@
 </div>
 
 @code {
+    private bool rolCargado;
+    private bool esMedico;
+    private bool esAdministrador;
+    private bool esSecretaria;
+
+    private string Subtitulo => esAdministrador ? "Panel Administrativo" : esMedico ? "Panel Médico" : "Panel de Secretaría";
+    private string Etiqueta => esAdministrador ? "Administrador" : esMedico ? "Médico" : esSecretaria ? "Secretaría" : "Usuario";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var estado = await AuthStateProvider.GetAuthenticationStateAsync();
+        esAdministrador = estado.User.IsInRole(Roles.Administrador);
+        esMedico = estado.User.IsInRole(Roles.Medico);
+        esSecretaria = estado.User.IsInRole(Roles.Secretaria);
+        rolCargado = true;
+    }
+
     private async Task CerrarSesion()
     {
         await AuthApi.CerrarSesionAsync();

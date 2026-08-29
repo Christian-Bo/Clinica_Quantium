@@ -1,0 +1,111 @@
+@inject AdminApiService AdminApi
+@inject ToastService Toast
+
+<Modal IsOpen="IsOpen" IsOpenChanged="CambiarApertura" Title="Nuevo horario" IconName="clock" MaxWidthClass="max-w-md" CloseOnBackdrop="false">
+    <Body>
+        <div class="space-y-4">
+            <div class="rounded-control bg-brand-50 px-3 py-2 text-sm text-brand-700">
+                Médico: <strong>@(Medico?.NombreCompleto ?? "—")</strong>
+            </div>
+            <div>
+                <label class="text-sm font-medium text-ink" for="adm-hor-dia">Día *</label>
+                <select id="adm-hor-dia" class="@ClaseInput" @bind="diaSemana">
+                    @foreach (var dia in Dias)
+                    {
+                        <option value="@dia.Valor">@dia.Nombre</option>
+                    }
+                </select>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-sm font-medium text-ink" for="adm-hor-ini">Inicio *</label>
+                    <input id="adm-hor-ini" type="time" class="@ClaseInput" value="@horaInicio" @onchange="CambiarHoraInicio" />
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-ink" for="adm-hor-fin">Fin *</label>
+                    <input id="adm-hor-fin" type="time" class="@ClaseInput" value="@horaFin" @onchange="CambiarHoraFin" />
+                </div>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(error))
+            {
+                <p class="rounded-control bg-state-rechazada/10 px-3 py-2 text-sm text-state-rechazada">@error</p>
+            }
+        </div>
+    </Body>
+    <Footer>
+        <Button Variant="ButtonVariant.Secondary" Disabled="guardando" OnClick="Cancelar">Cancelar</Button>
+        <Button Variant="ButtonVariant.Primary" Loading="guardando" IconName="check" OnClick="GuardarAsync">Guardar horario</Button>
+    </Footer>
+</Modal>
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public MedicoDto? Medico { get; set; }
+    [Parameter] public EventCallback OnGuardado { get; set; }
+
+    private const string ClaseInput = "mt-1 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100";
+    private static readonly (byte Valor, string Nombre)[] Dias =
+    [
+        (1, "Lunes"), (2, "Martes"), (3, "Miércoles"), (4, "Jueves"), (5, "Viernes"), (6, "Sábado"), (7, "Domingo")
+    ];
+
+    private byte diaSemana = 1;
+    private string horaInicio = "08:00";
+    private string horaFin = "17:00";
+    private string? error;
+    private bool guardando;
+    private bool aperturaAnterior;
+
+    protected override void OnParametersSet()
+    {
+        if (IsOpen && !aperturaAnterior)
+        {
+            diaSemana = 1;
+            horaInicio = "08:00";
+            horaFin = "17:00";
+            error = null;
+        }
+        aperturaAnterior = IsOpen;
+    }
+
+    private void CambiarHoraInicio(ChangeEventArgs e)
+        => horaInicio = e.Value?.ToString() ?? string.Empty;
+
+    private void CambiarHoraFin(ChangeEventArgs e)
+        => horaFin = e.Value?.ToString() ?? string.Empty;
+
+    private async Task GuardarAsync()
+    {
+        if (Medico is null) return;
+        if (!TimeOnly.TryParse(horaInicio, out var inicio) || !TimeOnly.TryParse(horaFin, out var fin))
+        {
+            error = "Ingresa horas válidas.";
+            return;
+        }
+        if (fin <= inicio)
+        {
+            error = "La hora de fin debe ser posterior a la hora de inicio.";
+            return;
+        }
+
+        guardando = true;
+        error = null;
+        try
+        {
+            var resultado = await AdminApi.CrearHorarioAsync(Medico.MedicoId, new CrearHorarioRequest(diaSemana, inicio, fin));
+            if (!resultado.Exito) { error = resultado.Error; return; }
+
+            Toast.Exito("Horario agregado correctamente.");
+            await OnGuardado.InvokeAsync();
+            await IsOpenChanged.InvokeAsync(false);
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private Task Cancelar() => IsOpenChanged.InvokeAsync(false);
+    private Task CambiarApertura(bool valor) => IsOpenChanged.InvokeAsync(valor);
+}

@@ -1,5 +1,5 @@
 @page "/citas"
-@attribute [Authorize]
+@attribute [Authorize(Roles = Roles.Secretaria)]
 @inject CitasApiService CitasApi
 @inject MedicosApiService MedicosApi
 @inject ToastService Toasts
@@ -145,8 +145,16 @@
     private bool drawerAbierto;
     private CitaDto? citaSeleccionada;
 
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "tab")]
+    public string? TabQuery { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
+        pestana = string.Equals(TabQuery, "pendientes", StringComparison.OrdinalIgnoreCase)
+            ? Pestana.Pendientes
+            : Pestana.Agenda;
+
         medicos = (await MedicosApi.ListarAsync()).ToList();
         await CargarAgendaAsync();
         await CargarPendientesAsync();

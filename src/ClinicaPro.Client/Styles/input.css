@@ -77,3 +77,17 @@ body {
   text-decoration: underline;
   margin-left: 0.5rem;
 }
+
+/* Validación de formularios (EditForm + DataAnnotationsValidator).
+   Blazor agrega/quita estas clases automáticamente según el estado del campo;
+   Tailwind no las conoce porque no son utilidades, así que se estilan aparte. */
+.invalid {
+  border-color: var(--color-state-rechazada) !important;
+}
+
+.validation-message {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--color-state-rechazada);
+}
