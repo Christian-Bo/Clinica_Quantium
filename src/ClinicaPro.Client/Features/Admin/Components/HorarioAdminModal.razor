@@ -93,7 +93,7 @@
         error = null;
         try
         {
-            var resultado = await AdminApi.CrearHorarioAsync(Medico.MedicoId, new CrearHorarioRequest(diaSemana, inicio, fin));
+            var resultado = await AdminApi.CrearHorarioAsync(Medico.MedicoId, new CrearHorarioRequest(diaSemana, inicio, fin, null, null));
             if (!resultado.Exito) { error = resultado.Error; return; }
 
             Toast.Exito("Horario agregado correctamente.");

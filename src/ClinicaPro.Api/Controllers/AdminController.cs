@@ -83,9 +83,9 @@ public sealed class AdminController(
             item.NombreCompleto,
             item.NumeroColegiado,
             item.Telefono,
+            item.IsActive,
             item.EspecialidadIds,
-            item.EspecialidadPrimariaId,
-            item.IsActive)).ToList());
+            item.EspecialidadPrimariaId)).ToList());
     }
 
     [HttpPost("medicos")]
@@ -113,24 +113,6 @@ public sealed class AdminController(
             cancellationToken);
 
         return Created($"/api/medicos/{medico.Id}", MapMedico(medico, [request.EspecialidadId], request.EsPrimario ? request.EspecialidadId : null));
-    }
-
-    [HttpGet("medicos")]
-    public async Task<ActionResult<IReadOnlyList<AdminMedicoDto>>> Medicos(CancellationToken cancellationToken)
-    {
-        var lista = await staff.ListarMedicosAsync(cancellationToken);
-        return Ok(lista.Select(item => new AdminMedicoDto(
-            item.MedicoId,
-            item.UsuarioId,
-            item.Email,
-            item.Nombres,
-            item.Apellidos,
-            item.NombreCompleto,
-            item.NumeroColegiado,
-            item.Telefono,
-            item.IsActive,
-            item.EspecialidadIds,
-            item.EspecialidadPrimariaId)).ToList());
     }
 
     [HttpGet("medicos/{medicoId:guid}/especialidades")]
