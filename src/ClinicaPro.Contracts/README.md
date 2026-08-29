@@ -42,7 +42,7 @@ Estados: Solicitada → Programada → Confirmada → En Espera → En Atencion 
 
 `POST /api/citas/{id}/llegada` acepta **Programada o Confirmada**.
 
-`POST /api/citas/{id}/reprogramar`. La tercera la hace un Administrador. Cancelar con menos de 2 h → `No presentada`.
+`POST /api/citas/{id}/reprogramar`. Las dos primeras las hace Secretaria. La tercera: `POST /api/citas/{id}/solicitar-autorizacion-reprogramacion`, Admin lista/aprueba/rechaza en `/api/admin/autorizaciones-reprogramacion`. Tras aprobar, Secretaria reprograma y el historial guarda quién autorizó. Un Administrador puede reprogramar la tercera directo. Cancelar con menos de 2 h → `No presentada`. El máximo es **3**, no es parámetro editable.
 
 `GET /api/citas/{id}/historial` trae `descripcion` en español (quién, de/hacia, horas).
 
@@ -56,7 +56,7 @@ Aviso de llegada: `POST /api/citas/{id}/llegada` publica SignalR `pacienteLlego`
 
 ## Admin (`/api/admin`, solo Administrador)
 
-Especialidades crear/editar. Médicos crear/editar. Horarios crear/desactivar. Usuarios listar y activar/desactivar (no se desactiva un admin). `POST /api/admin/usuarios` crea Secretaria o Administrador (`email`, `password`, `rol`). `PUT /api/admin/usuarios/{id}/roles` cambia esos roles (`roles: ["Secretaria"]`). Médico se crea en `POST /api/admin/medicos`. Parámetros PUT valor. `GET /api/admin/auditoria`.
+Especialidades crear/editar. `GET /api/admin/medicos` lista activos e inactivos (`isActive`). Médicos crear/editar. Especialidades del médico: GET/POST/PUT/DELETE `/api/admin/medicos/{id}/especialidades` (un primario activo por especialidad). Horarios crear/editar (`PUT .../horarios/{horarioId}` con `vigenteDesde`/`vigenteHasta`)/desactivar. Usuarios listar y activar/desactivar (no se desactiva un admin). `POST /api/admin/usuarios` crea Secretaria o Administrador. `PUT /api/admin/usuarios/{id}/roles` cambia esos roles. Médico se crea en `POST /api/admin/medicos`. Autorizaciones de 3.ª reprogramación: GET/aprobar/rechazar. Parámetros PUT valor (no `Citas.MaximoReprogramaciones`). `GET /api/admin/auditoria`.
 
 ## Reportes y notificaciones
 

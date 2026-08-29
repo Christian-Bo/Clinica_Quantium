@@ -1,5 +1,6 @@
 using ClinicaPro.Api.Security;
 using ClinicaPro.Application.Citas;
+using ClinicaPro.Contracts.Admin;
 using ClinicaPro.Contracts.Agenda;
 using ClinicaPro.Domain;
 using ClinicaPro.Domain.Entities;
@@ -24,6 +25,7 @@ public sealed class CitasController(
     ListarDisponibilidadService listarDisponibilidad,
     ListarHistorialCitaService listarHistorial,
     HistorialMedicoPacienteService historialMedicoPaciente,
+    SolicitarAutorizacionReprogramacionService solicitarAutorizacion,
     ResolverNombresCitaService resolverNombres) : ControllerBase
 {
     [Authorize(Roles = RolNombres.Paciente)]
@@ -296,6 +298,31 @@ public sealed class CitasController(
         return Ok(await MapAsync(cita, cancellationToken));
     }
 
+    [Authorize(Roles = RolNombres.Secretaria + "," + RolNombres.Administrador)]
+    [HttpPost("{citaId:guid}/solicitar-autorizacion-reprogramacion")]
+    [ProducesResponseType(typeof(AutorizacionReprogramacionDto), StatusCodes.Status201Created)]
+    public async Task<ActionResult<AutorizacionReprogramacionDto>> SolicitarAutorizacionReprogramacion(
+        Guid citaId,
+        [FromBody] MotivoCitaRequest? request,
+        CancellationToken cancellationToken)
+    {
+        var usuarioId = User.ObtenerUsuarioId();
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+
+        var autorizacion = await solicitarAutorizacion.ExecuteAsync(
+            citaId,
+            usuarioId.Value,
+            string.IsNullOrWhiteSpace(request?.Motivo) ? "Tercera reprogramación" : request.Motivo.Trim(),
+            cancellationToken);
+
+        return Created(
+            $"/api/admin/autorizaciones-reprogramacion/{autorizacion.Id}",
+            MapAutorizacion(autorizacion));
+    }
+
     [Authorize(Roles = RolNombres.Paciente)]
     [HttpPost("{citaId:guid}/anular-solicitud")]
     public Task<ActionResult<CitaDto>> AnularSolicitud(Guid citaId, CancellationToken cancellationToken)
@@ -445,4 +472,16 @@ public sealed class CitasController(
                 cita.NumeroReprogramaciones);
         }).ToList();
     }
+
+    private static AutorizacionReprogramacionDto MapAutorizacion(AutorizacionReprogramacion autorizacion)
+        => new(
+            autorizacion.Id,
+            autorizacion.CitaId,
+            autorizacion.SolicitadaPorUsuarioId,
+            autorizacion.AutorizadaPorUsuarioId,
+            autorizacion.Estado,
+            autorizacion.MotivoSolicitud,
+            autorizacion.MotivoDecision,
+            autorizacion.CreatedAtUtc,
+            autorizacion.DecididaAtUtc);
 }

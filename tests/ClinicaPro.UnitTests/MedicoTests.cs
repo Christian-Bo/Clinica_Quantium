@@ -35,4 +35,19 @@ public sealed class MedicoTests
 
         Assert.Contains("día", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void Horario_VigenciaInvertida_LanzaExcepcion()
+    {
+        var exception = Assert.Throws<DomainException>(
+            () => Horario.Create(
+                Guid.NewGuid(),
+                1,
+                new TimeOnly(8, 0),
+                new TimeOnly(16, 0),
+                new DateOnly(2026, 10, 1),
+                new DateOnly(2026, 9, 1)));
+
+        Assert.Contains("VigenteHasta", exception.Message);
+    }
 }

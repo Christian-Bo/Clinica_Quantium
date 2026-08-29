@@ -15,7 +15,10 @@ public sealed record HorarioDto(
     Guid MedicoId,
     byte DiaSemana,
     TimeOnly HoraInicio,
-    TimeOnly HoraFin);
+    TimeOnly HoraFin,
+    DateOnly? VigenteDesde,
+    DateOnly? VigenteHasta,
+    bool IsActive);
 
 public sealed record SolicitarCitaRequest(
     Guid EspecialidadId,

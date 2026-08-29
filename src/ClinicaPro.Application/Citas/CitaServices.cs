@@ -88,7 +88,8 @@ public sealed class OperarCitaService(
     IMedicoRepository medicos,
     IUnitOfWork unitOfWork,
     EncolarNotificacionCitaService encolarNotificacion,
-    IAvisoTiempoRealAgenda avisoAgenda)
+    IAvisoTiempoRealAgenda avisoAgenda,
+    AjustarRecordatorioCitaService ajustarRecordatorio)
 {
     public async Task<Cita> ExecuteAsync(
         Guid citaId,
@@ -104,7 +105,20 @@ public sealed class OperarCitaService(
         await unitOfWork.SaveChangesWithSqlSessionContextAsync(usuarioId, motivo, cancellationToken);
         await encolarNotificacion.ExecuteAsync(cita, cancellationToken);
         await AvisarLlegadaSiAplicaAsync(cita, cancellationToken);
+        await AnularRecordatorioSiCierraAsync(cita, cancellationToken);
         return cita;
+    }
+
+    private async Task AnularRecordatorioSiCierraAsync(Cita cita, CancellationToken cancellationToken)
+    {
+        if (cita.Estado is not (
+            CitaEstados.Cancelada or CitaEstados.Rechazada or CitaEstados.NoPresentada or CitaEstados.Atendida))
+        {
+            return;
+        }
+
+        await ajustarRecordatorio.AnularPendientesAsync(cita.Id, $"Cita {cita.Estado}.", cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     private async Task AvisarLlegadaSiAplicaAsync(Cita cita, CancellationToken cancellationToken)

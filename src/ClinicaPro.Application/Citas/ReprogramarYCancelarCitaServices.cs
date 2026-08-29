@@ -10,8 +10,10 @@ namespace ClinicaPro.Application.Citas;
 
 public sealed class ReprogramarCitaService(
     ICitaRepository citas,
+    IAutorizacionReprogramacionRepository autorizaciones,
     IUnitOfWork unitOfWork,
-    EncolarNotificacionCitaService encolarNotificacion)
+    EncolarNotificacionCitaService encolarNotificacion,
+    AjustarRecordatorioCitaService ajustarRecordatorio)
 {
     public async Task<Cita> ExecuteAsync(
         Guid citaId,
@@ -25,14 +27,29 @@ public sealed class ReprogramarCitaService(
             ?? throw new DomainException("La cita no existe.");
 
         var duracion = (int)Math.Round((cita.FechaHoraFin - cita.FechaHoraInicio).TotalMinutes);
-        var autorizacion = esAdministrador ? usuarioId : (Guid?)null;
+        Guid? autorizacion = esAdministrador ? usuarioId : null;
+        AutorizacionReprogramacion? aprobada = null;
+        if (autorizacion is null && cita.NumeroReprogramaciones + 1 >= Cita.MaximoReprogramaciones)
+        {
+            aprobada = await autorizaciones.ObtenerAprobadaPorCitaAsync(cita.Id, cancellationToken)
+                ?? throw new DomainException("La tercera reprogramación requiere autorización de un Administrador.");
+            autorizacion = aprobada.AutorizadaPorUsuarioId;
+            aprobada.MarcarUsada();
+        }
+
         cita.Reprogramar(nuevaFechaHoraInicio, duracion, autorizacion);
 
         var motivoFinal = string.IsNullOrWhiteSpace(motivo)
             ? "Reprogramación de la cita"
             : motivo.Trim();
+        if (aprobada is not null)
+        {
+            motivoFinal = $"{motivoFinal}. Autorizó administrador {aprobada.AutorizadaPorUsuarioId}.";
+        }
 
         await unitOfWork.SaveChangesWithSqlSessionContextAsync(usuarioId, motivoFinal, cancellationToken);
+        await ajustarRecordatorio.AnularPendientesAsync(cita.Id, "Cita reprogramada.", cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         await encolarNotificacion.ExecuteAsync(cita, cancellationToken, NotificacionTipos.CitaReprogramada);
         return cita;
     }
@@ -43,7 +60,8 @@ public sealed class CancelarCitaService(
     IPacienteRepository pacientes,
     IParametroRepository parametros,
     IUnitOfWork unitOfWork,
-    EncolarNotificacionCitaService encolarNotificacion)
+    EncolarNotificacionCitaService encolarNotificacion,
+    AjustarRecordatorioCitaService ajustarRecordatorio)
 {
     public Task<Cita> ExecuteComoStaffAsync(
         Guid citaId,
@@ -82,12 +100,14 @@ public sealed class CancelarCitaService(
         }
 
         var horas = await parametros.ObtenerEnteroAsync(
-            "Citas.HorasMinimasCancelacion",
+            ParametrosClave.HorasMinimasCancelacion,
             2,
             cancellationToken);
 
         cita.Cancelar(HoraClinica.Ahora(), horas);
         await unitOfWork.SaveChangesWithSqlSessionContextAsync(usuarioId, motivo, cancellationToken);
+        await ajustarRecordatorio.AnularPendientesAsync(cita.Id, "Cita cancelada.", cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         await encolarNotificacion.ExecuteAsync(cita, cancellationToken);
         return cita;
     }

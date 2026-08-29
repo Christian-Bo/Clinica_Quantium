@@ -1,5 +1,6 @@
 using ClinicaPro.Application.Agenda;
 using ClinicaPro.Contracts.Agenda;
+using ClinicaPro.Domain;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,10 +16,12 @@ public sealed class ParametrosController(IParametroRepository parametros) : Cont
     public async Task<ActionResult<IReadOnlyList<ParametroDto>>> Get(CancellationToken cancellationToken)
     {
         var lista = await parametros.ListarActivosAsync(cancellationToken);
-        return Ok(lista.Select(parametro => new ParametroDto(
-            parametro.Clave,
-            parametro.Valor,
-            parametro.TipoDato,
-            parametro.Descripcion)).ToList());
+        return Ok(lista
+            .Where(parametro => parametro.Clave != ParametrosClave.MaximoReprogramaciones)
+            .Select(parametro => new ParametroDto(
+                parametro.Clave,
+                parametro.Valor,
+                parametro.TipoDato,
+                parametro.Descripcion)).ToList());
     }
 }

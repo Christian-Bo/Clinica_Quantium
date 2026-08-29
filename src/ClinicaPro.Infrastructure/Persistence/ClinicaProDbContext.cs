@@ -27,6 +27,7 @@ public sealed class ClinicaProDbContext
     public DbSet<MedicoEspecialidad> MedicoEspecialidades => Set<MedicoEspecialidad>();
     public DbSet<Horario> Horarios => Set<Horario>();
     public DbSet<Cita> Citas => Set<Cita>();
+    public DbSet<AutorizacionReprogramacion> AutorizacionesReprogramacion => Set<AutorizacionReprogramacion>();
     public DbSet<HistorialCita> HistorialCitas => Set<HistorialCita>();
     public DbSet<Parametro> Parametros => Set<Parametro>();
     public DbSet<Notificacion> Notificaciones => Set<Notificacion>();

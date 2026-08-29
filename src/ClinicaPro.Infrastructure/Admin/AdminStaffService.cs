@@ -117,6 +117,39 @@ public sealed class AdminStaffService(
         return resultado;
     }
 
+    public async Task<IReadOnlyList<AdminMedicoInfo>> ListarMedicosAsync(CancellationToken cancellationToken)
+    {
+        var lista = await medicos.ListarTodosAsync(cancellationToken);
+        var relaciones = (await medicos.ListarEspecialidadesActivasAsync(cancellationToken))
+            .GroupBy(item => item.MedicoId)
+            .ToDictionary(grupo => grupo.Key, grupo => grupo.ToList());
+
+        var usuarioIds = lista.Select(item => item.UsuarioId).ToList();
+        var correos = await dbContext.Users.AsNoTracking()
+            .Where(usuario => usuarioIds.Contains(usuario.Id))
+            .Select(usuario => new { usuario.Id, usuario.Email })
+            .ToListAsync(cancellationToken);
+        var porUsuario = correos.ToDictionary(item => item.Id, item => item.Email ?? string.Empty);
+
+        return lista.Select(medico =>
+        {
+            relaciones.TryGetValue(medico.Id, out var especialidades);
+            especialidades ??= [];
+            return new AdminMedicoInfo(
+                medico.Id,
+                medico.UsuarioId,
+                porUsuario.GetValueOrDefault(medico.UsuarioId, string.Empty),
+                medico.Nombres,
+                medico.Apellidos,
+                medico.NombreCompleto,
+                medico.NumeroColegiado,
+                medico.Telefono,
+                medico.IsActive,
+                especialidades.Select(item => item.EspecialidadId).ToList(),
+                especialidades.FirstOrDefault(item => item.EsPrimario)?.EspecialidadId);
+        }).ToList();
+    }
+
     public async Task CambiarActivoUsuarioAsync(Guid usuarioId, bool isActive, Guid adminId, CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(usuarioId.ToString())

@@ -53,4 +53,22 @@ public sealed class NotificacionTests
         Assert.Equal(1, aviso.NumeroIntentos);
         Assert.NotNull(aviso.EnviadaAtUtc);
     }
+
+    [Fact]
+    public void Anular_Pendiente_PasaAFallidaYNoSeReenvia()
+    {
+        var aviso = Notificacion.EncolarEmail(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            NotificacionTipos.RecordatorioCita,
+            "ana@clinica.test",
+            "Asunto",
+            "Cuerpo");
+
+        aviso.Anular("Cita reprogramada.");
+
+        Assert.Equal(NotificacionEstados.Fallida, aviso.Estado);
+        Assert.Contains("reprogramada", aviso.UltimoError, StringComparison.OrdinalIgnoreCase);
+        Assert.Null(aviso.ProximoIntentoUtc);
+    }
 }
