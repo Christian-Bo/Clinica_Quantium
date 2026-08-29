@@ -1,6 +1,7 @@
 using ClinicaPro.Api.Security;
 using ClinicaPro.Application;
 using ClinicaPro.Application.Admin;
+using ClinicaPro.Application.Citas;
 using ClinicaPro.Contracts.Admin;
 using ClinicaPro.Contracts.Agenda;
 using ClinicaPro.Contracts.Especialidades;
@@ -17,8 +18,11 @@ namespace ClinicaPro.Api.Controllers;
 public sealed class AdminController(
     AdministrarEspecialidadesService especialidades,
     AdministrarHorariosService horarios,
+    AdministrarMedicoEspecialidadesService medicoEspecialidades,
     AdministrarParametrosService parametros,
     IAdminStaffService staff,
+    ListarAutorizacionesReprogramacionService listarAutorizaciones,
+    ResolverAutorizacionReprogramacionService resolverAutorizaciones,
     IAuditoriaWriter auditoria) : ControllerBase
 {
     [HttpGet("especialidades")]
@@ -92,6 +96,96 @@ public sealed class AdminController(
         return Created($"/api/medicos/{medico.Id}", MapMedico(medico, [request.EspecialidadId], request.EsPrimario ? request.EspecialidadId : null));
     }
 
+    [HttpGet("medicos")]
+    public async Task<ActionResult<IReadOnlyList<AdminMedicoDto>>> Medicos(CancellationToken cancellationToken)
+    {
+        var lista = await staff.ListarMedicosAsync(cancellationToken);
+        return Ok(lista.Select(item => new AdminMedicoDto(
+            item.MedicoId,
+            item.UsuarioId,
+            item.Email,
+            item.Nombres,
+            item.Apellidos,
+            item.NombreCompleto,
+            item.NumeroColegiado,
+            item.Telefono,
+            item.IsActive,
+            item.EspecialidadIds,
+            item.EspecialidadPrimariaId)).ToList());
+    }
+
+    [HttpGet("medicos/{medicoId:guid}/especialidades")]
+    public async Task<ActionResult<IReadOnlyList<MedicoEspecialidadAdminDto>>> EspecialidadesDeMedico(
+        Guid medicoId,
+        CancellationToken cancellationToken)
+    {
+        var lista = await medicoEspecialidades.ListarAsync(medicoId, cancellationToken);
+        return Ok(lista.Select(MapEspecialidadMedico).ToList());
+    }
+
+    [HttpPost("medicos/{medicoId:guid}/especialidades")]
+    public async Task<ActionResult<MedicoEspecialidadAdminDto>> AgregarEspecialidadMedico(
+        Guid medicoId,
+        [FromBody] AsignarEspecialidadMedicoRequest request,
+        CancellationToken cancellationToken)
+    {
+        var usuarioId = User.ObtenerUsuarioId();
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+
+        var creada = await medicoEspecialidades.AgregarAsync(
+            medicoId,
+            request.EspecialidadId,
+            request.EsPrimario,
+            usuarioId.Value,
+            cancellationToken);
+
+        return Created(
+            $"/api/admin/medicos/{medicoId}/especialidades/{creada.EspecialidadId}",
+            MapEspecialidadMedico(creada));
+    }
+
+    [HttpPut("medicos/{medicoId:guid}/especialidades/{especialidadId:guid}")]
+    public async Task<ActionResult<MedicoEspecialidadAdminDto>> ActualizarEspecialidadMedico(
+        Guid medicoId,
+        Guid especialidadId,
+        [FromBody] ActualizarEspecialidadMedicoRequest request,
+        CancellationToken cancellationToken)
+    {
+        var usuarioId = User.ObtenerUsuarioId();
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+
+        var actualizada = await medicoEspecialidades.ActualizarAsync(
+            medicoId,
+            especialidadId,
+            request.EsPrimario,
+            request.IsActive,
+            usuarioId.Value,
+            cancellationToken);
+        return Ok(MapEspecialidadMedico(actualizada));
+    }
+
+    [HttpDelete("medicos/{medicoId:guid}/especialidades/{especialidadId:guid}")]
+    public async Task<IActionResult> QuitarEspecialidadMedico(
+        Guid medicoId,
+        Guid especialidadId,
+        CancellationToken cancellationToken)
+    {
+        var usuarioId = User.ObtenerUsuarioId();
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+
+        await medicoEspecialidades.QuitarAsync(medicoId, especialidadId, usuarioId.Value, cancellationToken);
+        return NoContent();
+    }
+
     [HttpPut("medicos/{medicoId:guid}")]
     public async Task<ActionResult<MedicoDto>> ActualizarMedico(
         Guid medicoId,
@@ -133,12 +227,42 @@ public sealed class AdminController(
             request.DiaSemana,
             request.HoraInicio,
             request.HoraFin,
+            request.VigenteDesde,
+            request.VigenteHasta,
             usuarioId.Value,
             cancellationToken);
 
         return Created(
-            $"/api/medicos/{medicoId}/horarios",
-            new HorarioDto(horario.Id, horario.MedicoId, horario.DiaSemana, horario.HoraInicio, horario.HoraFin));
+            $"/api/admin/medicos/{medicoId}/horarios/{horario.Id}",
+            MapHorario(horario));
+    }
+
+    [HttpPut("medicos/{medicoId:guid}/horarios/{horarioId:guid}")]
+    public async Task<ActionResult<HorarioDto>> ActualizarHorario(
+        Guid medicoId,
+        Guid horarioId,
+        [FromBody] ActualizarHorarioRequest request,
+        CancellationToken cancellationToken)
+    {
+        var usuarioId = User.ObtenerUsuarioId();
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+
+        var horario = await horarios.ActualizarAsync(
+            medicoId,
+            horarioId,
+            request.DiaSemana,
+            request.HoraInicio,
+            request.HoraFin,
+            request.VigenteDesde,
+            request.VigenteHasta,
+            request.IsActive,
+            usuarioId.Value,
+            cancellationToken);
+
+        return Ok(MapHorario(horario));
     }
 
     [HttpDelete("horarios/{horarioId:guid}")]
@@ -175,6 +299,100 @@ public sealed class AdminController(
 
         await staff.CambiarActivoUsuarioAsync(usuarioId, request.IsActive, actorId.Value, cancellationToken);
         return Ok();
+    }
+
+    [HttpPost("usuarios")]
+    [ProducesResponseType(typeof(UsuarioAdminDto), StatusCodes.Status201Created)]
+    public async Task<ActionResult<UsuarioAdminDto>> CrearUsuario(
+        [FromBody] CrearUsuarioStaffRequest request,
+        CancellationToken cancellationToken)
+    {
+        var actorId = User.ObtenerUsuarioId();
+        if (actorId is null)
+        {
+            return Unauthorized();
+        }
+
+        var creado = await staff.CrearUsuarioStaffAsync(
+            request.Email,
+            request.Password,
+            request.Rol,
+            actorId.Value,
+            cancellationToken);
+
+        return Created(
+            $"/api/admin/usuarios/{creado.UsuarioId}",
+            new UsuarioAdminDto(creado.UsuarioId, creado.Email, creado.IsActive, creado.Roles));
+    }
+
+    [HttpPut("usuarios/{usuarioId:guid}/roles")]
+    public async Task<ActionResult<UsuarioAdminDto>> ActualizarRoles(
+        Guid usuarioId,
+        [FromBody] ActualizarRolesUsuarioRequest request,
+        CancellationToken cancellationToken)
+    {
+        var actorId = User.ObtenerUsuarioId();
+        if (actorId is null)
+        {
+            return Unauthorized();
+        }
+
+        var actualizado = await staff.ActualizarRolesAsync(
+            usuarioId,
+            request.Roles ?? [],
+            actorId.Value,
+            cancellationToken);
+
+        return Ok(new UsuarioAdminDto(actualizado.UsuarioId, actualizado.Email, actualizado.IsActive, actualizado.Roles));
+    }
+
+    [HttpGet("autorizaciones-reprogramacion")]
+    public async Task<ActionResult<IReadOnlyList<AutorizacionReprogramacionDto>>> Autorizaciones(
+        [FromQuery] string? estado,
+        CancellationToken cancellationToken)
+    {
+        var lista = await listarAutorizaciones.ExecuteAsync(estado, cancellationToken);
+        return Ok(lista.Select(MapAutorizacion).ToList());
+    }
+
+    [HttpPost("autorizaciones-reprogramacion/{autorizacionId:guid}/aprobar")]
+    public async Task<ActionResult<AutorizacionReprogramacionDto>> AprobarAutorizacion(
+        Guid autorizacionId,
+        [FromBody] MotivoCitaRequest? request,
+        CancellationToken cancellationToken)
+    {
+        var actorId = User.ObtenerUsuarioId();
+        if (actorId is null)
+        {
+            return Unauthorized();
+        }
+
+        var autorizacion = await resolverAutorizaciones.AprobarAsync(
+            autorizacionId,
+            actorId.Value,
+            request?.Motivo,
+            cancellationToken);
+        return Ok(MapAutorizacion(autorizacion));
+    }
+
+    [HttpPost("autorizaciones-reprogramacion/{autorizacionId:guid}/rechazar")]
+    public async Task<ActionResult<AutorizacionReprogramacionDto>> RechazarAutorizacion(
+        Guid autorizacionId,
+        [FromBody] MotivoCitaRequest? request,
+        CancellationToken cancellationToken)
+    {
+        var actorId = User.ObtenerUsuarioId();
+        if (actorId is null)
+        {
+            return Unauthorized();
+        }
+
+        var autorizacion = await resolverAutorizaciones.RechazarAsync(
+            autorizacionId,
+            actorId.Value,
+            request?.Motivo,
+            cancellationToken);
+        return Ok(MapAutorizacion(autorizacion));
     }
 
     [HttpPut("parametros/{clave}")]
@@ -217,4 +435,30 @@ public sealed class AdminController(
             medico.Telefono,
             especialidadIds,
             primaria);
+
+    private static HorarioDto MapHorario(Horario horario)
+        => new(
+            horario.Id,
+            horario.MedicoId,
+            horario.DiaSemana,
+            horario.HoraInicio,
+            horario.HoraFin,
+            horario.VigenteDesde,
+            horario.VigenteHasta,
+            horario.IsActive);
+
+    private static MedicoEspecialidadAdminDto MapEspecialidadMedico(MedicoEspecialidadDetalle item)
+        => new(item.EspecialidadId, item.Nombre, item.EsPrimario, item.IsActive);
+
+    private static AutorizacionReprogramacionDto MapAutorizacion(AutorizacionReprogramacion autorizacion)
+        => new(
+            autorizacion.Id,
+            autorizacion.CitaId,
+            autorizacion.SolicitadaPorUsuarioId,
+            autorizacion.AutorizadaPorUsuarioId,
+            autorizacion.Estado,
+            autorizacion.MotivoSolicitud,
+            autorizacion.MotivoDecision,
+            autorizacion.CreatedAtUtc,
+            autorizacion.DecididaAtUtc);
 }

@@ -26,6 +26,13 @@ public static class DependencyInjection
         services.AddScoped<ReprogramarCitaService>();
         services.AddScoped<CancelarCitaService>();
         services.AddScoped<ListarHistorialCitaService>();
+        services.AddScoped<HistorialMedicoPacienteService>();
+        services.AddScoped<IAvisoTiempoRealAgenda, AvisoTiempoRealAgendaNulo>();
+        services.AddScoped<AjustarRecordatorioCitaService>();
+        services.AddScoped<SolicitarAutorizacionReprogramacionService>();
+        services.AddScoped<ListarAutorizacionesReprogramacionService>();
+        services.AddScoped<ResolverAutorizacionReprogramacionService>();
+        services.AddScoped<AdministrarMedicoEspecialidadesService>();
         services.AddScoped<BuscarPacientesService>();
         services.AddScoped<ListarReporteCitasService>();
         services.AddScoped<EncolarNotificacionCitaService>();

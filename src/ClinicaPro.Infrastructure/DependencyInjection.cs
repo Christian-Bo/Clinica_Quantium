@@ -77,6 +77,7 @@ public static class DependencyInjection
         services.AddScoped<IHorarioRepository, HorarioRepository>();
         services.AddScoped<ICitaRepository, CitaRepository>();
         services.AddScoped<IHistorialCitaRepository, HistorialCitaRepository>();
+        services.AddScoped<IAutorizacionReprogramacionRepository, AutorizacionReprogramacionRepository>();
         services.AddScoped<IParametroRepository, ParametroRepository>();
         services.AddScoped<INotificacionRepository, NotificacionRepository>();
         services.AddScoped<IActorConsulta, ActorConsulta>();

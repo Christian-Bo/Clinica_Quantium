@@ -11,6 +11,9 @@ public interface IMedicoRepository
     Task<IReadOnlyList<Medico>> ListarActivosAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Medico>> ListarTodosAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<MedicoEspecialidad>> ListarEspecialidadesActivasAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<MedicoEspecialidad>> ListarEspecialidadesDeMedicoAsync(Guid medicoId, CancellationToken cancellationToken = default);
+    Task<MedicoEspecialidad?> ObtenerEspecialidadRastreadaAsync(Guid medicoId, Guid especialidadId, CancellationToken cancellationToken = default);
+    Task<bool> ExisteOtroPrimarioActivoAsync(Guid especialidadId, Guid medicoId, CancellationToken cancellationToken = default);
     Task AgregarAsync(Medico medico, CancellationToken cancellationToken = default);
     Task AgregarEspecialidadAsync(MedicoEspecialidad relacion, CancellationToken cancellationToken = default);
 }
@@ -48,6 +51,16 @@ public interface ICitaRepository
 public interface IHistorialCitaRepository
 {
     Task<IReadOnlyList<HistorialCita>> ListarPorCitaAsync(Guid citaId, CancellationToken cancellationToken = default);
+    Task AgregarAsync(HistorialCita historial, CancellationToken cancellationToken = default);
+}
+
+public interface IAutorizacionReprogramacionRepository
+{
+    Task<AutorizacionReprogramacion?> ObtenerPorIdAsync(Guid autorizacionId, CancellationToken cancellationToken = default);
+    Task<AutorizacionReprogramacion?> ObtenerPendientePorCitaAsync(Guid citaId, CancellationToken cancellationToken = default);
+    Task<AutorizacionReprogramacion?> ObtenerAprobadaPorCitaAsync(Guid citaId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AutorizacionReprogramacion>> ListarAsync(string? estado, CancellationToken cancellationToken = default);
+    Task AgregarAsync(AutorizacionReprogramacion autorizacion, CancellationToken cancellationToken = default);
 }
 
 public interface IParametroRepository

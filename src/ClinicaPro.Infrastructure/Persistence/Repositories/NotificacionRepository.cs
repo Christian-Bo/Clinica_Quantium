@@ -78,7 +78,31 @@ public sealed class NotificacionRepository(ClinicaProDbContext dbContext) : INot
         CancellationToken cancellationToken = default)
     {
         return dbContext.Notificaciones.AsNoTracking().AnyAsync(
-            notificacion => notificacion.CitaId == citaId && notificacion.Tipo == tipo,
+            notificacion =>
+                notificacion.CitaId == citaId
+                && notificacion.Tipo == tipo
+                && (notificacion.Estado == NotificacionEstados.Pendiente
+                    || notificacion.Estado == NotificacionEstados.Procesando),
             cancellationToken);
+    }
+
+    public async Task AnularPendientesDeTipoAsync(
+        Guid citaId,
+        string tipo,
+        string motivo,
+        CancellationToken cancellationToken = default)
+    {
+        var pendientes = await dbContext.Notificaciones
+            .Where(notificacion =>
+                notificacion.CitaId == citaId
+                && notificacion.Tipo == tipo
+                && (notificacion.Estado == NotificacionEstados.Pendiente
+                    || notificacion.Estado == NotificacionEstados.Procesando))
+            .ToListAsync(cancellationToken);
+
+        foreach (var notificacion in pendientes)
+        {
+            notificacion.Anular(motivo);
+        }
     }
 }

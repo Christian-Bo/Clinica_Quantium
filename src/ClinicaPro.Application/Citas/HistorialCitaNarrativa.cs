@@ -54,6 +54,8 @@ public static class HistorialCitaNarrativa
                 $"{quien} reprogramó la cita del {FormatoRango(fechaHoraInicioAnterior, fechaHoraFinAnterior)} al {FormatoRango(fechaHoraInicioNueva, fechaHoraFinNueva)}.{motivoTexto}",
             "Cancelacion" =>
                 $"{quien} canceló la cita.{motivoTexto}",
+            "Autorizacion" =>
+                $"{quien} resolvió la autorización de la tercera reprogramación.{motivoTexto}",
             _ => estadoAnterior is null
                 ? $"{quien} actualizó la cita.{motivoTexto}"
                 : $"{quien} cambió el estado de {estadoAnterior} a {estadoNuevo}.{motivoTexto}"

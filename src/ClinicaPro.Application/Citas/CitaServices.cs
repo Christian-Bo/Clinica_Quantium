@@ -85,8 +85,11 @@ public sealed class SolicitarCitaService(
 public sealed class OperarCitaService(
     ICitaRepository citas,
     IPacienteRepository pacientes,
+    IMedicoRepository medicos,
     IUnitOfWork unitOfWork,
-    EncolarNotificacionCitaService encolarNotificacion)
+    EncolarNotificacionCitaService encolarNotificacion,
+    IAvisoTiempoRealAgenda avisoAgenda,
+    AjustarRecordatorioCitaService ajustarRecordatorio)
 {
     public async Task<Cita> ExecuteAsync(
         Guid citaId,
@@ -97,6 +100,76 @@ public sealed class OperarCitaService(
     {
         var cita = await citas.ObtenerPorIdAsync(citaId, cancellationToken)
             ?? throw new DomainException("La cita no existe.");
+
+        cambiar(cita);
+        await unitOfWork.SaveChangesWithSqlSessionContextAsync(usuarioId, motivo, cancellationToken);
+        await encolarNotificacion.ExecuteAsync(cita, cancellationToken);
+        await AvisarLlegadaSiAplicaAsync(cita, cancellationToken);
+        await AnularRecordatorioSiCierraAsync(cita, cancellationToken);
+        return cita;
+    }
+
+    private async Task AnularRecordatorioSiCierraAsync(Cita cita, CancellationToken cancellationToken)
+    {
+        if (cita.Estado is not (
+            CitaEstados.Cancelada or CitaEstados.Rechazada or CitaEstados.NoPresentada or CitaEstados.Atendida))
+        {
+            return;
+        }
+
+        await ajustarRecordatorio.AnularPendientesAsync(cita.Id, $"Cita {cita.Estado}.", cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task AvisarLlegadaSiAplicaAsync(Cita cita, CancellationToken cancellationToken)
+    {
+        if (cita.Estado != CitaEstados.EnEspera)
+        {
+            return;
+        }
+
+        var paciente = await pacientes.ObtenerPorIdAsync(cita.PacienteId, cancellationToken);
+        var medico = await medicos.ObtenerPorIdAsync(cita.MedicoId, cancellationToken);
+        if (medico is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await avisoAgenda.PacienteLlegoAsync(
+                medico.UsuarioId,
+                new PacienteLlegoAviso(
+                    cita.Id,
+                    cita.PacienteId,
+                    paciente?.NombreCompleto ?? "Paciente",
+                    cita.FechaHoraInicio),
+                cancellationToken);
+        }
+        catch
+        {
+            // La llegada ya quedó guardada; el aviso en vivo no debe revertirla.
+        }
+    }
+
+    public async Task<Cita> ExecuteComoMedicoOAdminAsync(
+        Guid citaId,
+        Guid usuarioId,
+        bool esAdministrador,
+        string motivo,
+        Action<Cita> cambiar,
+        CancellationToken cancellationToken = default)
+    {
+        var cita = await citas.ObtenerPorIdAsync(citaId, cancellationToken)
+            ?? throw new DomainException("La cita no existe.");
+
+        if (!esAdministrador)
+        {
+            var medico = await medicos.ObtenerPorUsuarioIdAsync(usuarioId, cancellationToken)
+                ?? throw new DomainException("El usuario no tiene un perfil de médico.");
+
+            CitaAccesoMedico.ExigirAsignado(cita, medico.Id);
+        }
 
         cambiar(cita);
         await unitOfWork.SaveChangesWithSqlSessionContextAsync(usuarioId, motivo, cancellationToken);
@@ -179,12 +252,14 @@ public sealed class ListarCitasPendientesService(ICitaRepository citas)
     }
 }
 
-public sealed class ListarAgendaService(ICitaRepository citas)
+public sealed class ListarAgendaService(ICitaRepository citas, IMedicoRepository medicos)
 {
-    public Task<IReadOnlyList<Cita>> ExecuteAsync(
+    public async Task<IReadOnlyList<Cita>> ExecuteAsync(
         DateTime? desde,
         DateTime? hasta,
         Guid? medicoId,
+        Guid usuarioId,
+        bool soloAgendaPropia,
         CancellationToken cancellationToken = default)
     {
         var inicio = DateTime.SpecifyKind(desde ?? DateTime.Today, DateTimeKind.Unspecified);
@@ -194,6 +269,14 @@ public sealed class ListarAgendaService(ICitaRepository citas)
             throw new DomainException("El rango de agenda es inválido.");
         }
 
-        return citas.ListarEnRangoAsync(inicio, fin, medicoId, cancellationToken);
+        Guid? filtroMedicoId = medicoId;
+        if (soloAgendaPropia)
+        {
+            var medico = await medicos.ObtenerPorUsuarioIdAsync(usuarioId, cancellationToken)
+                ?? throw new DomainException("El usuario no tiene un perfil de médico.");
+            filtroMedicoId = medico.Id;
+        }
+
+        return await citas.ListarEnRangoAsync(inicio, fin, filtroMedicoId, cancellationToken);
     }
 }

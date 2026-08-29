@@ -11,6 +11,15 @@ internal sealed class DomainExceptionHandler : IExceptionHandler
         Exception exception,
         CancellationToken cancellationToken)
     {
+        if (exception is ForbiddenException forbiddenException)
+        {
+            httpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await httpContext.Response.WriteAsJsonAsync(
+                new ErrorResponse(forbiddenException.Message),
+                cancellationToken);
+            return true;
+        }
+
         if (exception is not DomainException domainException)
         {
             return false;
