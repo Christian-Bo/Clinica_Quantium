@@ -1,0 +1,119 @@
+@page "/admin/usuarios"
+@attribute [Authorize(Roles = Roles.Administrador)]
+@inject AdminApiService AdminApi
+@inject ConfirmDialogService Confirmar
+@inject ToastService Toast
+
+<PageTitle>Usuarios · Administración</PageTitle>
+
+<div class="space-y-5">
+    <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">Seguridad y acceso</p>
+        <h1 class="mt-1 text-xl font-semibold text-ink">Usuarios</h1>
+        <p class="mt-1 text-sm text-ink-muted">Consulta cuentas y controla su acceso sin modificar datos clínicos.</p>
+    </div>
+
+    <Card BodyPadding="p-0">
+        <div class="flex flex-col gap-3 border-b border-border p-4 sm:flex-row">
+            <div class="relative flex-1 sm:max-w-sm">
+                <span class="pointer-events-none absolute left-3 top-2.5 text-ink-muted"><Icon Name="search" Size="17" /></span>
+                <input class="w-full rounded-control border border-border py-2 pl-9 pr-3 text-sm text-ink focus:border-brand-500 focus:outline-none" placeholder="Buscar correo..." @bind="busqueda" @bind:event="oninput" />
+            </div>
+            <select class="rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink" @bind="rolFiltro">
+                <option value="">Todos los roles</option>
+                <option value="Administrador">Administrador</option>
+                <option value="Secretaria">Secretaría</option>
+                <option value="Medico">Médico</option>
+                <option value="Paciente">Paciente</option>
+            </select>
+        </div>
+
+        @if (cargando)
+        {
+            <div class="p-5"><Skeleton Filas="6" /></div>
+        }
+        else if (!string.IsNullOrWhiteSpace(error))
+        {
+            <div class="p-5"><EmptyState IconName="alert-triangle" Title="No se pudieron cargar los usuarios" Description="@error" /></div>
+        }
+        else if (Filtrados.Count == 0)
+        {
+            <div class="p-5"><EmptyState IconName="users" Title="Sin resultados" Description="No hay usuarios que coincidan con los filtros." /></div>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full min-w-[720px] text-left text-sm">
+                    <thead class="bg-surface-muted text-xs uppercase tracking-wide text-ink-muted"><tr><th class="px-5 py-3 font-medium">Usuario</th><th class="px-5 py-3 font-medium">Rol</th><th class="px-5 py-3 font-medium">Estado</th><th class="px-5 py-3 text-right font-medium">Acceso</th></tr></thead>
+                    <tbody class="divide-y divide-border">
+                        @foreach (var usuario in Filtrados)
+                        {
+                            var esAdmin = usuario.Roles.Contains(Roles.Administrador);
+                            <tr class="hover:bg-surface-muted/60">
+                                <td class="px-5 py-3"><p class="font-medium text-ink">@usuario.Email</p><p class="mt-0.5 text-xs text-ink-muted">@(usuario.UsuarioId.ToString()[..8])</p></td>
+                                <td class="px-5 py-3">
+                                    <div class="flex flex-wrap gap-1">
+                                        @foreach (var rol in usuario.Roles)
+                                        {
+                                            <span class="rounded-pill bg-surface-muted px-2 py-1 text-xs text-ink-muted">@EtiquetaRol(rol)</span>
+                                        }
+                                    </div>
+                                </td>
+                                <td class="px-5 py-3"><span class="inline-flex rounded-pill px-2.5 py-1 text-xs font-medium @(usuario.IsActive ? "bg-brand-100 text-brand-700" : "bg-state-rechazada/10 text-state-rechazada")">@(usuario.IsActive ? "Activo" : "Inactivo")</span></td>
+                                <td class="px-5 py-3 text-right">
+                                    <Button Variant="ButtonVariant.Ghost" Size="sm" IconName="@(usuario.IsActive ? "lock" : "unlock")" Disabled="@(esAdmin && usuario.IsActive)" OnClick="() => CambiarEstadoAsync(usuario)">@(usuario.IsActive ? "Desactivar" : "Activar")</Button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </Card>
+</div>
+
+@code {
+    private bool cargando = true;
+    private string? error;
+    private string busqueda = string.Empty;
+    private string rolFiltro = string.Empty;
+    private IReadOnlyList<UsuarioAdminDto> usuarios = [];
+
+    private IReadOnlyList<UsuarioAdminDto> Filtrados => usuarios
+        .Where(x => string.IsNullOrWhiteSpace(busqueda) || x.Email.Contains(busqueda, StringComparison.OrdinalIgnoreCase))
+        .Where(x => string.IsNullOrWhiteSpace(rolFiltro) || x.Roles.Contains(rolFiltro))
+        .OrderByDescending(x => x.IsActive)
+        .ThenBy(x => x.Email)
+        .ToList();
+
+    protected override async Task OnInitializedAsync() => await CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        try { usuarios = await AdminApi.ListarUsuariosAsync(); error = null; }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { error = "No se pudo contactar a la API."; }
+        finally { cargando = false; }
+    }
+
+    private async Task CambiarEstadoAsync(UsuarioAdminDto usuario)
+    {
+        if (usuario.Roles.Contains(Roles.Administrador) && usuario.IsActive)
+        {
+            Toast.Info("Los administradores activos están protegidos contra desactivación.");
+            return;
+        }
+
+        var activar = !usuario.IsActive;
+        var ok = await Confirmar.ConfirmarAsync(
+            $"¿Deseas {(activar ? "activar" : "desactivar")} el acceso de {usuario.Email}?",
+            "Cambiar acceso", activar ? "Activar" : "Desactivar", !activar);
+        if (!ok) return;
+
+        var resultado = await AdminApi.ActualizarUsuarioAsync(usuario.UsuarioId, activar);
+        if (!resultado.Exito) { Toast.Error(resultado.Error ?? "No fue posible actualizar el usuario."); return; }
+        Toast.Exito($"Usuario {(activar ? "activado" : "desactivado")}.");
+        await CargarAsync();
+    }
+
+    private static string EtiquetaRol(string rol) => rol switch { "Secretaria" => "Secretaría", "Medico" => "Médico", _ => rol };
+}

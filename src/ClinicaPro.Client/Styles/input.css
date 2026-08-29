@@ -1,2 +1,93 @@
 @import "tailwindcss";
 @source "../**/*.{razor,html,cs}";
+
+/*
+ * Sistema de diseño único de Clínica Pro.
+ * Todo color, borde, sombra o fuente que se use en cualquier parte del
+ * frontend (Secretaría, Paciente, Médico, Admin) se define UNA sola vez
+ * aquí. Cambiar la marca es cambiar este archivo, no buscar hex codes
+ * repetidos por todo el proyecto.
+ */
+@theme {
+  /* Tipografía */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  /* Marca (verde naturista) */
+  --color-brand-50: #eef7f4;
+  --color-brand-100: #d7ece3;
+  --color-brand-200: #b0d9c8;
+  --color-brand-500: #2f8f6f;
+  --color-brand-600: #257259;
+  --color-brand-700: #1c5844;
+
+  /* Neutros / superficies */
+  --color-surface: #ffffff;
+  --color-surface-muted: #f6f7f8;
+  --color-border: #e2e5e8;
+  --color-ink: #1f2937;
+  --color-ink-muted: #6b7280;
+
+  /* Estados de Cita — mismos nombres que ClinicaPro.Domain.CitaEstados,
+     normalizados en minúsculas y con guiones para nombrar la clase utilitaria. */
+  --color-state-solicitada: #f5a524;
+  --color-state-programada: #3b82f6;
+  --color-state-confirmada: #2f8f6f;
+  --color-state-en-espera: #8b5cf6;
+  --color-state-en-atencion: #7c3aed;
+  --color-state-atendida: #16a34a;
+  --color-state-cancelada: #6b7280;
+  --color-state-no-presentada: #ef4444;
+  --color-state-rechazada: #b91c1c;
+
+  /* Geometría */
+  --radius-control: 0.5rem;
+  --radius-card: 0.75rem;
+  --radius-pill: 999px;
+
+  /* Sombras */
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.08);
+  --shadow-modal: 0 20px 40px rgba(15, 23, 42, 0.25);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+#blazor-error-ui {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: var(--color-state-rechazada);
+  color: white;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+}
+
+#blazor-error-ui .reload {
+  color: white;
+  text-decoration: underline;
+  margin-left: 0.5rem;
+}
+
+/* Validación de formularios (EditForm + DataAnnotationsValidator).
+   Blazor agrega/quita estas clases automáticamente según el estado del campo;
+   Tailwind no las conoce porque no son utilidades, así que se estilan aparte. */
+.invalid {
+  border-color: var(--color-state-rechazada) !important;
+}
+
+.validation-message {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--color-state-rechazada);
+}

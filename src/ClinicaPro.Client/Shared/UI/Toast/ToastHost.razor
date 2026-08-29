@@ -1,0 +1,50 @@
+@implements IDisposable
+@inject ToastService Toasts
+
+<div class="pointer-events-none fixed bottom-4 right-4 z-[100] flex w-full max-w-sm flex-col gap-2">
+    @foreach (var mensaje in Toasts.Mensajes)
+    {
+        <div class="pointer-events-auto flex items-start gap-3 rounded-card border px-4 py-3 shadow-modal @Fondo(mensaje.Tipo)">
+            <Icon Name="@IconoPara(mensaje.Tipo)" Size="18" CssClass="@($"{IconoColor(mensaje.Tipo)} mt-0.5")" />
+            <p class="flex-1 text-sm text-ink">@mensaje.Texto</p>
+            <button type="button" class="text-ink-muted hover:text-ink" @onclick="() => Toasts.Cerrar(mensaje.Id)">
+                <Icon Name="x" Size="16" />
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Toasts.Cambio += ManejarCambio;
+    }
+
+    private void ManejarCambio() => InvokeAsync(StateHasChanged);
+
+    private static string Fondo(ToastTipo tipo) => tipo switch
+    {
+        ToastTipo.Exito => "border-state-atendida/30 bg-surface",
+        ToastTipo.Error => "border-state-rechazada/30 bg-surface",
+        _ => "border-border bg-surface"
+    };
+
+    private static string IconoPara(ToastTipo tipo) => tipo switch
+    {
+        ToastTipo.Exito => "check-circle",
+        ToastTipo.Error => "alert-triangle",
+        _ => "bell"
+    };
+
+    private static string IconoColor(ToastTipo tipo) => tipo switch
+    {
+        ToastTipo.Exito => "text-state-atendida",
+        ToastTipo.Error => "text-state-rechazada",
+        _ => "text-brand-600"
+    };
+
+    public void Dispose()
+    {
+        Toasts.Cambio -= ManejarCambio;
+    }
+}

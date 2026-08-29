@@ -1,0 +1,65 @@
+<div class="overflow-x-auto">
+    <div class="grid" style="grid-template-columns: 4.5rem repeat(@Dias.Count, minmax(9rem, 1fr));">
+        <!-- Encabezado -->
+        <div class="border-b border-r border-border bg-surface-muted"></div>
+        @foreach (var dia in Dias)
+        {
+            <div class="border-b border-r border-border bg-surface-muted px-2 py-2 text-center">
+                <p class="text-xs uppercase text-ink-muted">@dia.ToString("ddd", CulturaEs)</p>
+                <p class="text-sm font-semibold @(dia == Hoy ? "text-brand-600" : "text-ink")">@dia.Day</p>
+            </div>
+        }
+
+        <!-- Filas por hora -->
+        @foreach (var hora in Horas)
+        {
+            <div class="border-b border-r border-border px-2 py-2 text-right text-xs text-ink-muted">
+                @hora:00
+            </div>
+            @foreach (var dia in Dias)
+            {
+                var citasDeLaCelda = CitasEn(dia, hora);
+                <div class="min-h-[3.25rem] space-y-1 border-b border-r border-border p-1">
+                    @foreach (var cita in citasDeLaCelda)
+                    {
+                        <button type="button" class="@ClaseCita(cita)" @onclick="() => OnSeleccionarCita.InvokeAsync(cita)">
+                            <span class="font-medium">@cita.FechaHoraInicio.ToString("HH:mm")</span>
+                            <span class="truncate">@cita.PacienteNombre</span>
+                        </button>
+                    }
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<DateOnly> Dias { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<CitaDto> Citas { get; set; } = [];
+    [Parameter] public EventCallback<CitaDto> OnSeleccionarCita { get; set; }
+
+    private static readonly System.Globalization.CultureInfo CulturaEs = new("es-GT");
+    private static readonly int[] Horas = Enumerable.Range(7, 13).ToArray(); // 07:00 a 19:00
+
+    private static DateOnly Hoy => DateOnly.FromDateTime(DateTime.Today);
+
+    private List<CitaDto> CitasEn(DateOnly dia, int hora) =>
+        Citas.Where(c => DateOnly.FromDateTime(c.FechaHoraInicio) == dia && c.FechaHoraInicio.Hour == hora)
+             .OrderBy(c => c.FechaHoraInicio)
+             .ToList();
+
+    private static string ClaseCita(CitaDto cita)
+    {
+        const string baseClase = "block w-full truncate rounded-control px-1.5 py-1 text-left text-[11px] leading-tight ";
+        return baseClase + cita.Estado switch
+        {
+            CitaEstados.Solicitada => "bg-state-solicitada/15 text-state-solicitada hover:bg-state-solicitada/25",
+            CitaEstados.Programada => "bg-state-programada/15 text-state-programada hover:bg-state-programada/25",
+            CitaEstados.Confirmada => "bg-state-confirmada/15 text-state-confirmada hover:bg-state-confirmada/25",
+            CitaEstados.EnEspera => "bg-state-en-espera/15 text-state-en-espera hover:bg-state-en-espera/25",
+            CitaEstados.EnAtencion => "bg-state-en-atencion/15 text-state-en-atencion hover:bg-state-en-atencion/25",
+            CitaEstados.Atendida => "bg-state-atendida/15 text-state-atendida hover:bg-state-atendida/25",
+            _ => "bg-surface-muted text-ink-muted hover:bg-border"
+        };
+    }
+}

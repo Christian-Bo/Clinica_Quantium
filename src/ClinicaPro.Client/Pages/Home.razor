@@ -1,19 +1,24 @@
 @page "/"
+@attribute [AllowAnonymous]
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
 
-<PageTitle>Clínica Pro</PageTitle>
-
-<h1 class="text-3xl font-semibold">Clínica Pro</h1>
-<p class="mt-4 max-w-2xl">
-    Base inicial del Módulo de Gestión de Citas. El proyecto está preparado para comenzar
-    la implementación por capas sin funcionalidades de demostración que interfieran con el desarrollo real.
-</p>
-
-<div class="mt-8 border border-black p-5">
-    <h2 class="text-xl font-semibold">Estado inicial</h2>
-    <ul class="mt-3 list-disc space-y-1 pl-6">
-        <li>Blazor WebAssembly configurado.</li>
-        <li>API ASP.NET Core configurada.</li>
-        <li>EF Core preparado para SQL Server.</li>
-        <li>Conexión compartida de Somee configurada en la API.</li>
-    </ul>
+<div class="flex min-h-screen items-center justify-center bg-surface-muted text-sm text-ink-muted">
+    Cargando Clínica Pro...
 </div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var estado = await AuthStateProvider.GetAuthenticationStateAsync();
+
+        if (estado.User.Identity?.IsAuthenticated != true)
+        {
+            Navigation.NavigateTo("/login", replace: true);
+            return;
+        }
+
+        var destino = RoleRoutes.Inicio(estado.User);
+        Navigation.NavigateTo(destino, replace: true);
+    }
+}

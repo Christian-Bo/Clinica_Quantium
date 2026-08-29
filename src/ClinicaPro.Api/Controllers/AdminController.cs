@@ -69,6 +69,25 @@ public sealed class AdminController(
         return Ok(new EspecialidadDto(actualizada.Id, actualizada.Nombre, actualizada.Descripcion));
     }
 
+    [HttpGet("medicos")]
+    [ProducesResponseType(typeof(IReadOnlyList<AdminMedicoDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<AdminMedicoDto>>> Medicos(CancellationToken cancellationToken)
+    {
+        var lista = await staff.ListarMedicosAsync(cancellationToken);
+        return Ok(lista.Select(item => new AdminMedicoDto(
+            item.MedicoId,
+            item.UsuarioId,
+            item.Email,
+            item.Nombres,
+            item.Apellidos,
+            item.NombreCompleto,
+            item.NumeroColegiado,
+            item.Telefono,
+            item.EspecialidadIds,
+            item.EspecialidadPrimariaId,
+            item.IsActive)).ToList());
+    }
+
     [HttpPost("medicos")]
     public async Task<ActionResult<MedicoDto>> CrearMedico(
         [FromBody] CrearMedicoRequest request,
