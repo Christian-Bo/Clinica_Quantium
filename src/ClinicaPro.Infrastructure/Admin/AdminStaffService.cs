@@ -139,4 +139,111 @@ public sealed class AdminStaffService(
             user.Email,
             cancellationToken);
     }
+
+    public async Task<UsuarioStaffInfo> CrearUsuarioStaffAsync(
+        string email,
+        string password,
+        string rol,
+        Guid adminId,
+        CancellationToken cancellationToken)
+    {
+        var rolCanonico = RolesStaffAdministrables.NormalizarUno(rol);
+        var correo = (email ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(correo))
+        {
+            throw new DomainException("El correo es obligatorio.");
+        }
+
+        if (await userManager.FindByEmailAsync(correo) is not null)
+        {
+            throw new DomainException("El correo ya está registrado.");
+        }
+
+        _ = await roleManager.FindByNameAsync(rolCanonico)
+            ?? throw new DomainException($"No existe el rol {rolCanonico}.");
+
+        var user = new ApplicationUser
+        {
+            Id = Guid.NewGuid(),
+            UserName = correo,
+            Email = correo,
+            EmailConfirmed = true,
+            IsActive = true,
+            MustChangePassword = true,
+            CreatedAtUtc = DateTime.UtcNow,
+            LockoutEnabled = true
+        };
+
+        var creado = await userManager.CreateAsync(user, password);
+        if (!creado.Succeeded)
+        {
+            throw new DomainException("No fue posible crear el usuario. Revise la contraseña.");
+        }
+
+        await userManager.AddToRoleAsync(user, rolCanonico);
+        await auditoria.RegistrarAsync(adminId, "Crear", "Usuario", user.Id.ToString(), $"{correo} ({rolCanonico})", cancellationToken);
+        return new UsuarioStaffInfo(user.Id, correo, user.IsActive, [rolCanonico]);
+    }
+
+    public async Task<UsuarioStaffInfo> ActualizarRolesAsync(
+        Guid usuarioId,
+        IReadOnlyList<string> roles,
+        Guid adminId,
+        CancellationToken cancellationToken)
+    {
+        var user = await userManager.FindByIdAsync(usuarioId.ToString())
+            ?? throw new DomainException("El usuario no existe.");
+
+        var actuales = await userManager.GetRolesAsync(user);
+        var staffNuevo = RolesStaffAdministrables.Normalizar(roles);
+        var staffActual = actuales
+            .Where(rol => RolesStaffAdministrables.Nombres.Contains(rol))
+            .ToList();
+        var conservados = actuales
+            .Where(rol => !RolesStaffAdministrables.Nombres.Contains(rol))
+            .ToList();
+
+        if (staffNuevo.Count == 0 && conservados.Count == 0)
+        {
+            throw new DomainException("El usuario debe conservar al menos un rol.");
+        }
+
+        var aQuitar = staffActual.Except(staffNuevo, StringComparer.Ordinal).ToList();
+        var aAgregar = staffNuevo.Except(staffActual, StringComparer.Ordinal).ToList();
+
+        if (aQuitar.Contains(RolNombres.Administrador, StringComparer.Ordinal))
+        {
+            if (usuarioId == adminId)
+            {
+                throw new DomainException("No puede quitarse el rol Administrador a sí mismo.");
+            }
+
+            var adminsActivos = (await userManager.GetUsersInRoleAsync(RolNombres.Administrador))
+                .Count(item => item.IsActive && item.Id != usuarioId);
+            if (adminsActivos == 0)
+            {
+                throw new DomainException("Debe quedar al menos un administrador activo.");
+            }
+        }
+
+        if (aQuitar.Count > 0)
+        {
+            await userManager.RemoveFromRolesAsync(user, aQuitar);
+        }
+
+        if (aAgregar.Count > 0)
+        {
+            await userManager.AddToRolesAsync(user, aAgregar);
+        }
+
+        var finales = await userManager.GetRolesAsync(user);
+        await auditoria.RegistrarAsync(
+            adminId,
+            "Actualizar",
+            "Usuario",
+            usuarioId.ToString(),
+            string.Join(", ", finales),
+            cancellationToken);
+        return new UsuarioStaffInfo(user.Id, user.Email ?? string.Empty, user.IsActive, finales.ToList());
+    }
 }

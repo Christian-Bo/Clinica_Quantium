@@ -177,6 +177,51 @@ public sealed class AdminController(
         return Ok();
     }
 
+    [HttpPost("usuarios")]
+    [ProducesResponseType(typeof(UsuarioAdminDto), StatusCodes.Status201Created)]
+    public async Task<ActionResult<UsuarioAdminDto>> CrearUsuario(
+        [FromBody] CrearUsuarioStaffRequest request,
+        CancellationToken cancellationToken)
+    {
+        var actorId = User.ObtenerUsuarioId();
+        if (actorId is null)
+        {
+            return Unauthorized();
+        }
+
+        var creado = await staff.CrearUsuarioStaffAsync(
+            request.Email,
+            request.Password,
+            request.Rol,
+            actorId.Value,
+            cancellationToken);
+
+        return Created(
+            $"/api/admin/usuarios/{creado.UsuarioId}",
+            new UsuarioAdminDto(creado.UsuarioId, creado.Email, creado.IsActive, creado.Roles));
+    }
+
+    [HttpPut("usuarios/{usuarioId:guid}/roles")]
+    public async Task<ActionResult<UsuarioAdminDto>> ActualizarRoles(
+        Guid usuarioId,
+        [FromBody] ActualizarRolesUsuarioRequest request,
+        CancellationToken cancellationToken)
+    {
+        var actorId = User.ObtenerUsuarioId();
+        if (actorId is null)
+        {
+            return Unauthorized();
+        }
+
+        var actualizado = await staff.ActualizarRolesAsync(
+            usuarioId,
+            request.Roles ?? [],
+            actorId.Value,
+            cancellationToken);
+
+        return Ok(new UsuarioAdminDto(actualizado.UsuarioId, actualizado.Email, actualizado.IsActive, actualizado.Roles));
+    }
+
     [HttpPut("parametros/{clave}")]
     public async Task<IActionResult> ActualizarParametro(
         string clave,

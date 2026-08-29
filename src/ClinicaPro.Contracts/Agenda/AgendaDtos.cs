@@ -89,3 +89,10 @@ public sealed record HistorialMedicoPacienteDto(
     CitaDto? UltimaAtencion,
     IReadOnlyList<CitaDto> CitasProximas,
     IReadOnlyList<CitaDto> CitasPasadas);
+
+public sealed record PacienteLlegoDto(
+    Guid CitaId,
+    Guid PacienteId,
+    string PacienteNombre,
+    string Mensaje,
+    DateTime FechaHoraInicio);

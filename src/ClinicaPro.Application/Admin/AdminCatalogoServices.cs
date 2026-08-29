@@ -33,6 +33,17 @@ public interface IAdminStaffService
         CancellationToken cancellationToken);
     Task<IReadOnlyList<UsuarioStaffInfo>> ListarUsuariosAsync(CancellationToken cancellationToken);
     Task CambiarActivoUsuarioAsync(Guid usuarioId, bool isActive, Guid adminId, CancellationToken cancellationToken);
+    Task<UsuarioStaffInfo> CrearUsuarioStaffAsync(
+        string email,
+        string password,
+        string rol,
+        Guid adminId,
+        CancellationToken cancellationToken);
+    Task<UsuarioStaffInfo> ActualizarRolesAsync(
+        Guid usuarioId,
+        IReadOnlyList<string> roles,
+        Guid adminId,
+        CancellationToken cancellationToken);
 }
 
 public sealed class AdministrarEspecialidadesService(

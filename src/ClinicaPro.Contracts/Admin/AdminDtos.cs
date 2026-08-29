@@ -27,6 +27,10 @@ public sealed record ActualizarParametroRequest(string Valor);
 
 public sealed record ActualizarUsuarioRequest(bool IsActive);
 
+public sealed record CrearUsuarioStaffRequest(string Email, string Password, string Rol);
+
+public sealed record ActualizarRolesUsuarioRequest(IReadOnlyList<string> Roles);
+
 public sealed record UsuarioAdminDto(
     Guid UsuarioId,
     string Email,

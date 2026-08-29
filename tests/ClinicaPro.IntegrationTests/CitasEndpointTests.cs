@@ -140,6 +140,38 @@ public sealed class CitasEndpointTests : IClassFixture<WebApplicationFactory<Pro
     }
 
     [Fact]
+    public async Task Agenda_WithoutToken_ReturnsUnauthorized()
+    {
+        using var client = _factory.CreateClient();
+
+        var response = await client.GetAsync("/api/citas/agenda?medicoId=40000000-0000-0000-0000-000000000001");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AdminCrearUsuario_WithoutToken_ReturnsUnauthorized()
+    {
+        using var client = _factory.CreateClient();
+
+        var response = await client.PostAsync("/api/admin/usuarios", content: null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AdminRoles_WithoutToken_ReturnsUnauthorized()
+    {
+        using var client = _factory.CreateClient();
+
+        var response = await client.PutAsync(
+            "/api/admin/usuarios/62079587-271f-4e88-aee3-2c9006f3d813/roles",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
     public async Task AdminAuditoria_WithoutToken_ReturnsUnauthorized()
     {
         using var client = _factory.CreateClient();

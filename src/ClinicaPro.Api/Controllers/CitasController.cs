@@ -118,7 +118,23 @@ public sealed class CitasController(
         [FromQuery] Guid? medicoId,
         CancellationToken cancellationToken)
     {
-        var citas = await listarAgenda.ExecuteAsync(desde, hasta, medicoId, cancellationToken);
+        var usuarioId = User.ObtenerUsuarioId();
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+
+        var soloAgendaPropia = User.IsInRole(RolNombres.Medico)
+            && !User.IsInRole(RolNombres.Secretaria)
+            && !User.IsInRole(RolNombres.Administrador);
+
+        var citas = await listarAgenda.ExecuteAsync(
+            desde,
+            hasta,
+            medicoId,
+            usuarioId.Value,
+            soloAgendaPropia,
+            cancellationToken);
         return Ok(await MapManyAsync(citas, cancellationToken));
     }
 

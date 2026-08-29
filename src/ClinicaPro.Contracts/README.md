@@ -50,9 +50,13 @@ Estados: Solicitada → Programada → Confirmada → En Espera → En Atencion 
 
 `POST /api/citas/{id}/iniciar` y `finalizar`: el médico autenticado debe ser el asignado; si no, 403. Un Administrador sí puede.
 
+`GET /api/citas/agenda`: Secretaria/Admin pueden filtrar con `medicoId`. Un Médico **ignora** `medicoId` ajeno y solo ve la suya. `GET /api/citas/medico` sigue resolviendo al usuario autenticado.
+
+Aviso de llegada: `POST /api/citas/{id}/llegada` publica SignalR `pacienteLlego` en `/hubs/agenda-medico` (JWT en `access_token`). El doctor conectado recibe `{ citaId, pacienteId, pacienteNombre, mensaje, fechaHoraInicio }`.
+
 ## Admin (`/api/admin`, solo Administrador)
 
-Especialidades crear/editar. Médicos crear/editar. Horarios crear/desactivar. Usuarios listar y activar/desactivar (no se desactiva un admin). Parámetros PUT valor. `GET /api/admin/auditoria`.
+Especialidades crear/editar. Médicos crear/editar. Horarios crear/desactivar. Usuarios listar y activar/desactivar (no se desactiva un admin). `POST /api/admin/usuarios` crea Secretaria o Administrador (`email`, `password`, `rol`). `PUT /api/admin/usuarios/{id}/roles` cambia esos roles (`roles: ["Secretaria"]`). Médico se crea en `POST /api/admin/medicos`. Parámetros PUT valor. `GET /api/admin/auditoria`.
 
 ## Reportes y notificaciones
 
@@ -71,4 +75,4 @@ Tras `POST /api/demo/preparar-agenda`:
 - `medico@clinica.com` / `Medico123!` (Carlos Hernandez)
 - `medico2@clinica.com` / `Medico123!` (Ana Morales)
 
-Medicina General: `20000000-0000-0000-0000-000000000001`. Horario lun–vie 08:00–16:00. Agenda por médico: `GET /api/citas/agenda?medicoId=`.
+Medicina General: `20000000-0000-0000-0000-000000000001`. Horario lun–vie 08:00–16:00. Agenda por médico (staff): `GET /api/citas/agenda?medicoId=`. El médico usa la misma ruta o `GET /api/citas/medico`; no puede ver la agenda de otro.
