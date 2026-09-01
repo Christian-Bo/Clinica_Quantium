@@ -23,13 +23,15 @@ public sealed record HorarioDto(
 public sealed record SolicitarCitaRequest(
     Guid EspecialidadId,
     DateTime FechaHoraInicio,
-    string MotivoConsulta);
+    string MotivoConsulta,
+    Guid? MedicoId = null);
 
 public sealed record SolicitarCitaParaPacienteRequest(
     Guid PacienteId,
     Guid EspecialidadId,
     DateTime FechaHoraInicio,
-    string MotivoConsulta);
+    string MotivoConsulta,
+    Guid? MedicoId = null);
 
 public sealed record CitaDto(
     Guid CitaId,
