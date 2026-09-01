@@ -23,11 +23,16 @@ public sealed class AdminApiService(HttpClient http)
             .ToList();
     }
 
-    public Task<IReadOnlyList<MedicoDto>> ListarMedicosAsync(CancellationToken ct = default)
-        => ObtenerListaAsync<MedicoDto>("api/medicos", ct);
+    public Task<IReadOnlyList<AdminMedicoDto>> ListarMedicosAsync(CancellationToken ct = default)
+        => ObtenerListaAsync<AdminMedicoDto>("api/admin/medicos", ct);
 
     public Task<IReadOnlyList<HorarioDto>> ListarHorariosAsync(Guid medicoId, CancellationToken ct = default)
         => ObtenerListaAsync<HorarioDto>($"api/medicos/{medicoId}/horarios", ct);
+
+    public Task<IReadOnlyList<MedicoEspecialidadAdminDto>> ListarEspecialidadesMedicoAsync(
+        Guid medicoId,
+        CancellationToken ct = default)
+        => ObtenerListaAsync<MedicoEspecialidadAdminDto>($"api/admin/medicos/{medicoId}/especialidades", ct);
 
     public Task<IReadOnlyList<UsuarioAdminDto>> ListarUsuariosAsync(CancellationToken ct = default)
         => ObtenerListaAsync<UsuarioAdminDto>("api/admin/usuarios", ct);
@@ -38,59 +43,157 @@ public sealed class AdminApiService(HttpClient http)
     public Task<IReadOnlyList<AuditoriaDto>> ListarAuditoriaAsync(CancellationToken ct = default)
         => ObtenerListaAsync<AuditoriaDto>("api/admin/auditoria", ct);
 
-    public async Task<ResultadoOperacion<EspecialidadDto>> CrearEspecialidadAsync(
+    public Task<IReadOnlyList<AutorizacionReprogramacionDto>> ListarAutorizacionesAsync(
+        string? estado = null,
+        CancellationToken ct = default)
+    {
+        var url = "api/admin/autorizaciones-reprogramacion";
+        if (!string.IsNullOrWhiteSpace(estado))
+        {
+            url += $"?estado={Uri.EscapeDataString(estado)}";
+        }
+
+        return ObtenerListaAsync<AutorizacionReprogramacionDto>(url, ct);
+    }
+
+    public Task<ResultadoOperacion<EspecialidadDto>> CrearEspecialidadAsync(
         CrearEspecialidadRequest request,
         CancellationToken ct = default)
-        => await EnviarConRespuestaAsync<CrearEspecialidadRequest, EspecialidadDto>(
+        => EnviarConRespuestaAsync<CrearEspecialidadRequest, EspecialidadDto>(
             HttpMethod.Post, "api/admin/especialidades", request, "No fue posible crear la especialidad.", ct);
 
-    public async Task<ResultadoOperacion<EspecialidadDto>> ActualizarEspecialidadAsync(
+    public Task<ResultadoOperacion<EspecialidadDto>> ActualizarEspecialidadAsync(
         Guid especialidadId,
         ActualizarEspecialidadRequest request,
         CancellationToken ct = default)
-        => await EnviarConRespuestaAsync<ActualizarEspecialidadRequest, EspecialidadDto>(
+        => EnviarConRespuestaAsync<ActualizarEspecialidadRequest, EspecialidadDto>(
             HttpMethod.Put, $"api/admin/especialidades/{especialidadId}", request, "No fue posible actualizar la especialidad.", ct);
 
-    public async Task<ResultadoOperacion<MedicoDto>> CrearMedicoAsync(
+    public Task<ResultadoOperacion<MedicoDto>> CrearMedicoAsync(
         CrearMedicoRequest request,
         CancellationToken ct = default)
-        => await EnviarConRespuestaAsync<CrearMedicoRequest, MedicoDto>(
+        => EnviarConRespuestaAsync<CrearMedicoRequest, MedicoDto>(
             HttpMethod.Post, "api/admin/medicos", request, "No fue posible crear al médico.", ct);
 
-    public async Task<ResultadoOperacion<MedicoDto>> ActualizarMedicoAsync(
+    public Task<ResultadoOperacion<MedicoDto>> ActualizarMedicoAsync(
         Guid medicoId,
         ActualizarMedicoRequest request,
         CancellationToken ct = default)
-        => await EnviarConRespuestaAsync<ActualizarMedicoRequest, MedicoDto>(
+        => EnviarConRespuestaAsync<ActualizarMedicoRequest, MedicoDto>(
             HttpMethod.Put, $"api/admin/medicos/{medicoId}", request, "No fue posible actualizar al médico.", ct);
 
-    public async Task<ResultadoOperacion<HorarioDto>> CrearHorarioAsync(
+    public Task<ResultadoOperacion<MedicoEspecialidadAdminDto>> AgregarEspecialidadMedicoAsync(
+        Guid medicoId,
+        AsignarEspecialidadMedicoRequest request,
+        CancellationToken ct = default)
+        => EnviarConRespuestaAsync<AsignarEspecialidadMedicoRequest, MedicoEspecialidadAdminDto>(
+            HttpMethod.Post,
+            $"api/admin/medicos/{medicoId}/especialidades",
+            request,
+            "No fue posible asignar la especialidad.",
+            ct);
+
+    public Task<ResultadoOperacion<MedicoEspecialidadAdminDto>> ActualizarEspecialidadMedicoAsync(
+        Guid medicoId,
+        Guid especialidadId,
+        ActualizarEspecialidadMedicoRequest request,
+        CancellationToken ct = default)
+        => EnviarConRespuestaAsync<ActualizarEspecialidadMedicoRequest, MedicoEspecialidadAdminDto>(
+            HttpMethod.Put,
+            $"api/admin/medicos/{medicoId}/especialidades/{especialidadId}",
+            request,
+            "No fue posible actualizar la especialidad del médico.",
+            ct);
+
+    public Task<ResultadoOperacion<bool>> QuitarEspecialidadMedicoAsync(
+        Guid medicoId,
+        Guid especialidadId,
+        CancellationToken ct = default)
+        => EnviarSinRespuestaAsync(
+            HttpMethod.Delete,
+            $"api/admin/medicos/{medicoId}/especialidades/{especialidadId}",
+            null,
+            "No fue posible quitar la especialidad.",
+            ct);
+
+    public Task<ResultadoOperacion<HorarioDto>> CrearHorarioAsync(
         Guid medicoId,
         CrearHorarioRequest request,
         CancellationToken ct = default)
-        => await EnviarConRespuestaAsync<CrearHorarioRequest, HorarioDto>(
+        => EnviarConRespuestaAsync<CrearHorarioRequest, HorarioDto>(
             HttpMethod.Post, $"api/admin/medicos/{medicoId}/horarios", request, "No fue posible crear el horario.", ct);
 
-    public async Task<ResultadoOperacion<bool>> EliminarHorarioAsync(Guid horarioId, CancellationToken ct = default)
-        => await EnviarSinRespuestaAsync(
+    public Task<ResultadoOperacion<HorarioDto>> ActualizarHorarioAsync(
+        Guid medicoId,
+        Guid horarioId,
+        ActualizarHorarioRequest request,
+        CancellationToken ct = default)
+        => EnviarConRespuestaAsync<ActualizarHorarioRequest, HorarioDto>(
+            HttpMethod.Put,
+            $"api/admin/medicos/{medicoId}/horarios/{horarioId}",
+            request,
+            "No fue posible actualizar el horario.",
+            ct);
+
+    public Task<ResultadoOperacion<bool>> EliminarHorarioAsync(Guid horarioId, CancellationToken ct = default)
+        => EnviarSinRespuestaAsync(
             HttpMethod.Delete, $"api/admin/horarios/{horarioId}", null, "No fue posible eliminar el horario.", ct);
 
-    public async Task<ResultadoOperacion<bool>> ActualizarUsuarioAsync(
+    public Task<ResultadoOperacion<UsuarioAdminDto>> CrearUsuarioAsync(
+        CrearUsuarioStaffRequest request,
+        CancellationToken ct = default)
+        => EnviarConRespuestaAsync<CrearUsuarioStaffRequest, UsuarioAdminDto>(
+            HttpMethod.Post, "api/admin/usuarios", request, "No fue posible crear el usuario.", ct);
+
+    public Task<ResultadoOperacion<UsuarioAdminDto>> ActualizarRolesAsync(
+        Guid usuarioId,
+        IReadOnlyList<string> roles,
+        CancellationToken ct = default)
+        => EnviarConRespuestaAsync<ActualizarRolesUsuarioRequest, UsuarioAdminDto>(
+            HttpMethod.Put,
+            $"api/admin/usuarios/{usuarioId}/roles",
+            new ActualizarRolesUsuarioRequest(roles),
+            "No fue posible actualizar los roles.",
+            ct);
+
+    public Task<ResultadoOperacion<bool>> ActualizarUsuarioAsync(
         Guid usuarioId,
         bool isActive,
         CancellationToken ct = default)
-        => await EnviarSinRespuestaAsync(
+        => EnviarSinRespuestaAsync(
             HttpMethod.Put,
             $"api/admin/usuarios/{usuarioId}",
             new ActualizarUsuarioRequest(isActive),
             "No fue posible actualizar el usuario.",
             ct);
 
-    public async Task<ResultadoOperacion<bool>> ActualizarParametroAsync(
+    public Task<ResultadoOperacion<AutorizacionReprogramacionDto>> AprobarAutorizacionAsync(
+        Guid autorizacionId,
+        string? motivo,
+        CancellationToken ct = default)
+        => EnviarConRespuestaAsync<MotivoCitaRequest, AutorizacionReprogramacionDto>(
+            HttpMethod.Post,
+            $"api/admin/autorizaciones-reprogramacion/{autorizacionId}/aprobar",
+            new MotivoCitaRequest(motivo ?? string.Empty),
+            "No fue posible aprobar la autorización.",
+            ct);
+
+    public Task<ResultadoOperacion<AutorizacionReprogramacionDto>> RechazarAutorizacionAsync(
+        Guid autorizacionId,
+        string? motivo,
+        CancellationToken ct = default)
+        => EnviarConRespuestaAsync<MotivoCitaRequest, AutorizacionReprogramacionDto>(
+            HttpMethod.Post,
+            $"api/admin/autorizaciones-reprogramacion/{autorizacionId}/rechazar",
+            new MotivoCitaRequest(motivo ?? string.Empty),
+            "No fue posible rechazar la autorización.",
+            ct);
+
+    public Task<ResultadoOperacion<bool>> ActualizarParametroAsync(
         string clave,
         string valor,
         CancellationToken ct = default)
-        => await EnviarSinRespuestaAsync(
+        => EnviarSinRespuestaAsync(
             HttpMethod.Put,
             $"api/admin/parametros/{Uri.EscapeDataString(clave)}",
             new ActualizarParametroRequest(valor),

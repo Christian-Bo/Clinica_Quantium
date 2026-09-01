@@ -20,13 +20,13 @@
             <div class="space-y-4">
                 <div>
                     <label class="text-sm font-medium text-ink" for="login-email">Correo electrónico</label>
-                    <input id="login-email" type="email" required
+                    <input id="login-email" type="email" required autocomplete="username"
                            class="mt-1 w-full rounded-control border border-border px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
                            @bind="modelo.Email" @bind:event="oninput" />
                 </div>
                 <div>
                     <label class="text-sm font-medium text-ink" for="login-password">Contraseña</label>
-                    <input id="login-password" type="password" required
+                    <input id="login-password" type="password" required autocomplete="current-password"
                            class="mt-1 w-full rounded-control border border-border px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
                            @bind="modelo.Password" @bind:event="oninput" />
                 </div>
@@ -55,12 +55,13 @@
         cargando = true;
 
         var resultado = await AuthApi.IniciarSesionAsync(modelo.Email, modelo.Password);
-
         cargando = false;
 
         if (resultado.Exito && resultado.Valor is not null)
         {
-            var destino = RoleRoutes.Inicio(resultado.Valor.Roles);
+            var destino = resultado.Valor.MustChangePassword
+                ? "/cambiar-contrasena"
+                : RoleRoutes.Inicio(resultado.Valor.Roles);
             Navigation.NavigateTo(destino, replace: true);
         }
         else

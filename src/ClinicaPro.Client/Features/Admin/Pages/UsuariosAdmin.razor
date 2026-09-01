@@ -4,13 +4,23 @@
 @inject ConfirmDialogService Confirmar
 @inject ToastService Toast
 
-<PageTitle>Usuarios · Administración</PageTitle>
+<PageTitle>Usuarios y roles · Administración</PageTitle>
 
 <div class="space-y-5">
-    <div>
-        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">Seguridad y acceso</p>
-        <h1 class="mt-1 text-xl font-semibold text-ink">Usuarios</h1>
-        <p class="mt-1 text-sm text-ink-muted">Consulta cuentas y controla su acceso sin modificar datos clínicos.</p>
+    <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+        <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">Seguridad y acceso</p>
+            <h1 class="mt-1 text-xl font-semibold text-ink">Usuarios y roles</h1>
+            <p class="mt-1 text-sm text-ink-muted">Crea personal administrativo, asigna roles y controla el acceso al sistema.</p>
+        </div>
+        <Button Variant="ButtonVariant.Primary" IconName="user-plus" OnClick="NuevoUsuario">Nuevo usuario</Button>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <TarjetaKpi Titulo="Usuarios" Valor="TotalUsuarios" IconName="users" />
+        <TarjetaKpi Titulo="Activos" Valor="UsuariosActivos" IconName="user-check" />
+        <TarjetaKpi Titulo="Administradores" Valor="Administradores" IconName="shield" />
+        <TarjetaKpi Titulo="Secretaría" Valor="Secretarias" IconName="clipboard-list" />
     </div>
 
     <Card BodyPadding="p-0">
@@ -25,6 +35,11 @@
                 <option value="Secretaria">Secretaría</option>
                 <option value="Medico">Médico</option>
                 <option value="Paciente">Paciente</option>
+            </select>
+            <select class="rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink" @bind="estadoFiltro">
+                <option value="">Todos</option>
+                <option value="activo">Activos</option>
+                <option value="inactivo">Inactivos</option>
             </select>
         </div>
 
@@ -43,14 +58,16 @@
         else
         {
             <div class="overflow-x-auto">
-                <table class="w-full min-w-[720px] text-left text-sm">
-                    <thead class="bg-surface-muted text-xs uppercase tracking-wide text-ink-muted"><tr><th class="px-5 py-3 font-medium">Usuario</th><th class="px-5 py-3 font-medium">Rol</th><th class="px-5 py-3 font-medium">Estado</th><th class="px-5 py-3 text-right font-medium">Acceso</th></tr></thead>
+                <table class="w-full min-w-[780px] text-left text-sm">
+                    <thead class="bg-surface-muted text-xs uppercase tracking-wide text-ink-muted">
+                        <tr><th class="px-5 py-3 font-medium">Usuario</th><th class="px-5 py-3 font-medium">Roles</th><th class="px-5 py-3 font-medium">Estado</th><th class="px-5 py-3 text-right font-medium">Acciones</th></tr>
+                    </thead>
                     <tbody class="divide-y divide-border">
                         @foreach (var usuario in Filtrados)
                         {
-                            var esAdmin = usuario.Roles.Contains(Roles.Administrador);
+                            var esStaffEditable = EsStaffEditable(usuario);
                             <tr class="hover:bg-surface-muted/60">
-                                <td class="px-5 py-3"><p class="font-medium text-ink">@usuario.Email</p><p class="mt-0.5 text-xs text-ink-muted">@(usuario.UsuarioId.ToString()[..8])</p></td>
+                                <td class="px-5 py-3"><p class="font-medium text-ink">@usuario.Email</p><p class="mt-0.5 text-xs text-ink-muted">ID: @Corto(usuario.UsuarioId)</p></td>
                                 <td class="px-5 py-3">
                                     <div class="flex flex-wrap gap-1">
                                         @foreach (var rol in usuario.Roles)
@@ -60,8 +77,14 @@
                                     </div>
                                 </td>
                                 <td class="px-5 py-3"><span class="inline-flex rounded-pill px-2.5 py-1 text-xs font-medium @(usuario.IsActive ? "bg-brand-100 text-brand-700" : "bg-state-rechazada/10 text-state-rechazada")">@(usuario.IsActive ? "Activo" : "Inactivo")</span></td>
-                                <td class="px-5 py-3 text-right">
-                                    <Button Variant="ButtonVariant.Ghost" Size="sm" IconName="@(usuario.IsActive ? "lock" : "unlock")" Disabled="@(esAdmin && usuario.IsActive)" OnClick="() => CambiarEstadoAsync(usuario)">@(usuario.IsActive ? "Desactivar" : "Activar")</Button>
+                                <td class="px-5 py-3">
+                                    <div class="flex justify-end gap-1">
+                                        @if (esStaffEditable)
+                                        {
+                                            <Button Variant="ButtonVariant.Ghost" Size="sm" IconName="key" OnClick="() => EditarRoles(usuario)">Roles</Button>
+                                        }
+                                        <Button Variant="ButtonVariant.Ghost" Size="sm" IconName="@(usuario.IsActive ? "lock" : "unlock")" Disabled="@NoPuedeDesactivar(usuario)" OnClick="() => CambiarEstadoAsync(usuario)">@(usuario.IsActive ? "Desactivar" : "Activar")</Button>
+                                    </div>
                                 </td>
                             </tr>
                         }
@@ -72,16 +95,27 @@
     </Card>
 </div>
 
+<UsuarioAdminModal IsOpen="modalAbierto" IsOpenChanged="@(v => modalAbierto = v)" Usuario="usuarioEdicion" OnGuardado="CargarAsync" />
+
 @code {
     private bool cargando = true;
     private string? error;
     private string busqueda = string.Empty;
     private string rolFiltro = string.Empty;
+    private string estadoFiltro = string.Empty;
     private IReadOnlyList<UsuarioAdminDto> usuarios = [];
+    private bool modalAbierto;
+    private UsuarioAdminDto? usuarioEdicion;
+
+    private int TotalUsuarios => usuarios.Count;
+    private int UsuariosActivos => usuarios.Count(x => x.IsActive);
+    private int Administradores => usuarios.Count(x => x.Roles.Contains(Roles.Administrador));
+    private int Secretarias => usuarios.Count(x => x.Roles.Contains(Roles.Secretaria));
 
     private IReadOnlyList<UsuarioAdminDto> Filtrados => usuarios
         .Where(x => string.IsNullOrWhiteSpace(busqueda) || x.Email.Contains(busqueda, StringComparison.OrdinalIgnoreCase))
         .Where(x => string.IsNullOrWhiteSpace(rolFiltro) || x.Roles.Contains(rolFiltro))
+        .Where(x => estadoFiltro switch { "activo" => x.IsActive, "inactivo" => !x.IsActive, _ => true })
         .OrderByDescending(x => x.IsActive)
         .ThenBy(x => x.Email)
         .ToList();
@@ -90,19 +124,17 @@
 
     private async Task CargarAsync()
     {
+        cargando = usuarios.Count == 0;
         try { usuarios = await AdminApi.ListarUsuariosAsync(); error = null; }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { error = "No se pudo contactar a la API."; }
         finally { cargando = false; }
     }
 
+    private void NuevoUsuario() { usuarioEdicion = null; modalAbierto = true; }
+    private void EditarRoles(UsuarioAdminDto usuario) { usuarioEdicion = usuario; modalAbierto = true; }
+
     private async Task CambiarEstadoAsync(UsuarioAdminDto usuario)
     {
-        if (usuario.Roles.Contains(Roles.Administrador) && usuario.IsActive)
-        {
-            Toast.Info("Los administradores activos están protegidos contra desactivación.");
-            return;
-        }
-
         var activar = !usuario.IsActive;
         var ok = await Confirmar.ConfirmarAsync(
             $"¿Deseas {(activar ? "activar" : "desactivar")} el acceso de {usuario.Email}?",
@@ -115,5 +147,13 @@
         await CargarAsync();
     }
 
+    private static bool EsStaffEditable(UsuarioAdminDto usuario) =>
+        usuario.Roles.Any(r => r == Roles.Administrador || r == Roles.Secretaria)
+        && !usuario.Roles.Any(r => r == Roles.Medico || r == Roles.Paciente);
+
+    private static bool NoPuedeDesactivar(UsuarioAdminDto usuario) =>
+        usuario.IsActive && usuario.Roles.Contains(Roles.Administrador);
+
+    private static string Corto(Guid id) => id.ToString()[..8];
     private static string EtiquetaRol(string rol) => rol switch { "Secretaria" => "Secretaría", "Medico" => "Médico", _ => rol };
 }

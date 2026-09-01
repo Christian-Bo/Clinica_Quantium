@@ -46,6 +46,11 @@
             </Authorized>
         </AuthorizeView>
         <button type="button" class="mt-3 flex items-center gap-2 text-sm text-white/70 hover:text-white"
+                @onclick="CambiarContrasena">
+            <Icon Name="key" Size="16" />
+            Cambiar contraseña
+        </button>
+        <button type="button" class="mt-2 flex items-center gap-2 text-sm text-white/70 hover:text-white"
                 @onclick="CerrarSesion">
             <Icon Name="log-out" Size="16" />
             Cerrar sesión
@@ -70,6 +75,8 @@
         esSecretaria = estado.User.IsInRole(Roles.Secretaria);
         rolCargado = true;
     }
+
+    private void CambiarContrasena() => Navigation.NavigateTo("/cambiar-contrasena");
 
     private async Task CerrarSesion()
     {
