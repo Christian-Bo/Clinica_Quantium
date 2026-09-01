@@ -8,7 +8,7 @@ using ClinicaPro.Domain.Exceptions;
 
 namespace ClinicaPro.Application.Citas;
 
-public sealed record SolicitarCitaInput(Guid EspecialidadId, DateTime FechaHoraInicio, string MotivoConsulta);
+public sealed record SolicitarCitaInput(Guid EspecialidadId, DateTime FechaHoraInicio, string MotivoConsulta, Guid? MedicoId = null);
 
 public sealed class SolicitarCitaService(
     IPacienteRepository pacientes,
@@ -18,6 +18,31 @@ public sealed class SolicitarCitaService(
     IUnitOfWork unitOfWork,
     EncolarNotificacionCitaService encolarNotificacion)
 {
+    private async Task<Medico> ResolverMedicoAsync(
+        SolicitarCitaInput input,
+        CancellationToken cancellationToken)
+    {
+        if (input.MedicoId is null)
+        {
+            return await medicos.ObtenerPrimarioPorEspecialidadAsync(input.EspecialidadId, cancellationToken)
+                ?? throw new DomainException("La especialidad no tiene un médico primario activo.");
+        }
+
+        var elegido = await medicos.ObtenerPorIdAsync(input.MedicoId.Value, cancellationToken)
+            ?? throw new DomainException("El médico seleccionado no existe o no está activo.");
+
+        var especialidades = await medicos.ListarEspecialidadesDeMedicoAsync(elegido.Id, cancellationToken);
+        var atiende = especialidades.Any(
+            relacion => relacion.EspecialidadId == input.EspecialidadId && relacion.IsActive);
+
+        if (!atiende)
+        {
+            throw new DomainException("El médico seleccionado no atiende la especialidad indicada.");
+        }
+
+        return elegido;
+    }
+
     public async Task<Cita> ExecuteAsync(
         Guid usuarioId,
         SolicitarCitaInput input,
@@ -26,8 +51,7 @@ public sealed class SolicitarCitaService(
         var paciente = await pacientes.ObtenerPorUsuarioIdAsync(usuarioId, cancellationToken)
             ?? throw new DomainException("El usuario no tiene un perfil de paciente.");
 
-        var medico = await medicos.ObtenerPrimarioPorEspecialidadAsync(input.EspecialidadId, cancellationToken)
-            ?? throw new DomainException("La especialidad no tiene un médico primario activo. Pida a un administrador ejecutar POST /api/demo/preparar-agenda.");
+        var medico = await ResolverMedicoAsync(input, cancellationToken);
 
         var duracion = await parametros.ObtenerEnteroAsync(
             "Citas.DuracionPredeterminadaMinutos",
@@ -58,8 +82,7 @@ public sealed class SolicitarCitaService(
         var paciente = await pacientes.ObtenerPorIdAsync(pacienteId, cancellationToken)
             ?? throw new DomainException("El paciente no existe.");
 
-        var medico = await medicos.ObtenerPrimarioPorEspecialidadAsync(input.EspecialidadId, cancellationToken)
-            ?? throw new DomainException("La especialidad no tiene un médico primario activo.");
+        var medico = await ResolverMedicoAsync(input, cancellationToken);
 
         var duracion = await parametros.ObtenerEnteroAsync(
             "Citas.DuracionPredeterminadaMinutos",
