@@ -44,7 +44,7 @@ public sealed class CitasController(
 
         var cita = await solicitarCita.ExecuteAsync(
             usuarioId.Value,
-            new SolicitarCitaInput(request.EspecialidadId, request.FechaHoraInicio, request.MotivoConsulta),
+            new SolicitarCitaInput(request.EspecialidadId, request.FechaHoraInicio, request.MotivoConsulta, request.MedicoId),
             cancellationToken);
 
         return Created($"/api/citas/{cita.Id}", await MapAsync(cita, cancellationToken));
@@ -66,7 +66,7 @@ public sealed class CitasController(
         var cita = await solicitarCita.ExecuteParaPacienteAsync(
             usuarioId.Value,
             request.PacienteId,
-            new SolicitarCitaInput(request.EspecialidadId, request.FechaHoraInicio, request.MotivoConsulta),
+            new SolicitarCitaInput(request.EspecialidadId, request.FechaHoraInicio, request.MotivoConsulta, request.MedicoId),
             cancellationToken);
 
         return Created($"/api/citas/{cita.Id}", await MapAsync(cita, cancellationToken));
