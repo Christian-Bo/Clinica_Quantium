@@ -1,0 +1,100 @@
+@inject AuthApiService AuthApi
+@inject PerfilPacienteApiService PerfilApi
+@inject NavigationManager Navigation
+
+<div class="flex h-full flex-col">
+    <div class="flex items-center gap-2 px-5 py-5">
+        <div class="flex h-9 w-9 items-center justify-center rounded-control bg-brand-500">
+            <Icon Name="leaf" Size="18" />
+        </div>
+        <div>
+            <p class="text-sm font-semibold leading-tight">Clínica Pro</p>
+            <p class="text-xs text-white/50">Portal del paciente</p>
+        </div>
+    </div>
+
+    <PacienteNavMenu />
+
+    <div class="mt-auto border-t border-white/10 px-4 py-4">
+        <div class="flex items-center gap-3 rounded-control px-1 py-1">
+            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-500/20 text-sm font-semibold text-brand-500">
+                @Iniciales
+            </div>
+            <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-medium capitalize" title="@Correo">@NombreVisible</p>
+                <p class="text-xs text-white/50">Paciente</p>
+            </div>
+        </div>
+
+        <button type="button"
+                class="mt-3 flex w-full items-center gap-2 rounded-control px-1 py-1 text-sm text-white/70 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                @onclick="CerrarSesion">
+            <Icon Name="log-out" Size="16" />
+            Cerrar sesión
+        </button>
+    </div>
+</div>
+
+@code {
+    private PacienteDto? ficha;
+    private string correoSesion = string.Empty;
+
+    [CascadingParameter] private Task<AuthenticationState>? EstadoAutenticacion { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (EstadoAutenticacion is not null)
+        {
+            var estado = await EstadoAutenticacion;
+            correoSesion = estado.User.Identity?.Name ?? string.Empty;
+        }
+
+        // El nombre no viaja en el token, así que se lee de la ficha. El layout
+        // vive mientras dure la navegación por el portal: es una sola llamada.
+        var resultado = await PerfilApi.ObtenerMiFichaAsync();
+        if (resultado.Exito)
+        {
+            ficha = resultado.Valor;
+        }
+    }
+
+    private string Correo => correoSesion;
+
+    private string NombreVisible => string.IsNullOrWhiteSpace(ficha?.NombreCompleto)
+        ? correoSesion
+        : ficha!.NombreCompleto;
+
+    /// <summary>
+    /// Primera letra del nombre y del apellido. Si todavía no cargó la ficha,
+    /// se usa la inicial del correo para no dejar el círculo vacío.
+    /// </summary>
+    private string Iniciales
+    {
+        get
+        {
+            if (ficha is not null)
+            {
+                var nombre = Primera(ficha.Nombres);
+                var apellido = Primera(ficha.Apellidos);
+                var iniciales = $"{nombre}{apellido}".Trim();
+                if (iniciales.Length > 0)
+                {
+                    return iniciales.ToUpperInvariant();
+                }
+            }
+
+            return correoSesion.Length > 0
+                ? correoSesion[..1].ToUpperInvariant()
+                : "·";
+        }
+    }
+
+    private static string Primera(string? texto)
+        => string.IsNullOrWhiteSpace(texto) ? string.Empty : texto.Trim()[..1];
+
+    private async Task CerrarSesion()
+    {
+        await AuthApi.CerrarSesionAsync();
+        Navigation.NavigateTo("/login", replace: true);
+    }
+}

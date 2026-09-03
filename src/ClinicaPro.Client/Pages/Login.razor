@@ -6,66 +6,212 @@
 
 <PageTitle>Iniciar sesión · Clínica Pro</PageTitle>
 
-<div class="flex min-h-screen items-center justify-center bg-surface-muted px-4">
-    <div class="w-full max-w-sm rounded-card bg-surface p-8 shadow-card">
-        <div class="mb-6 text-center">
-            <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-control bg-brand-500 text-white">
-                <Icon Name="leaf" Size="24" />
-            </div>
-            <h1 class="text-lg font-semibold text-ink">Clínica Pro</h1>
-            <p class="text-sm text-ink-muted">Ingresa con tu cuenta de personal</p>
+<AuthShell Titulo="Bienvenido de vuelta"
+           Subtitulo="Ingresa con tu correo y contraseña para continuar.">
+
+    @if (sesionVencida)
+    {
+        <div role="status" class="mb-5 flex items-start gap-2.5 rounded-card border border-state-solicitada/30 bg-state-solicitada/10 px-4 py-3">
+            <span class="mt-0.5 text-state-solicitada"><Icon Name="clock" Size="17" /></span>
+            <p class="text-sm leading-relaxed text-ink">
+                Tu sesión venció por seguridad. Vuelve a ingresar para continuar.
+            </p>
         </div>
+    }
 
-        <EditForm Model="modelo" OnValidSubmit="Ingresar">
-            <div class="space-y-4">
-                <div>
-                    <label class="text-sm font-medium text-ink" for="login-email">Correo electrónico</label>
-                    <input id="login-email" type="email" required
-                           class="mt-1 w-full rounded-control border border-border px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                           @bind="modelo.Email" @bind:event="oninput" />
-                </div>
-                <div>
-                    <label class="text-sm font-medium text-ink" for="login-password">Contraseña</label>
-                    <input id="login-password" type="password" required
-                           class="mt-1 w-full rounded-control border border-border px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                           @bind="modelo.Password" @bind:event="oninput" />
-                </div>
+    <EditForm Model="modelo" OnValidSubmit="Ingresar">
+        <div class="space-y-4">
 
-                @if (!string.IsNullOrEmpty(error))
+            <!-- Correo -->
+            <div>
+                <div class="@ClaseCampo(emailActivo, emailInvalido)">
+                    <span class="@ClaseIcono(emailActivo)"><Icon Name="mail" Size="18" /></span>
+                    <input id="login-email" type="email" autocomplete="username" required
+                           placeholder="Correo electrónico"
+                           class="w-full bg-transparent text-sm text-ink placeholder:text-ink-muted/70 focus:outline-none"
+                           @bind="modelo.Email" @bind:event="oninput"
+                           @onfocus="() => emailActivo = true"
+                           @onblur="SalirDeEmail" />
+                </div>
+                @if (emailInvalido)
                 {
-                    <p class="rounded-control bg-state-rechazada/10 px-3 py-2 text-sm text-state-rechazada">@error</p>
+                    <p role="alert" class="mt-1.5 pl-4 text-xs text-state-rechazada">
+                        Ese correo no tiene un formato válido.
+                    </p>
                 }
-
-                <Button Type="submit" Variant="ButtonVariant.Primary" FullWidth="true" Loading="cargando">
-                    Ingresar
-                </Button>
             </div>
-        </EditForm>
+
+            <!-- Contraseña -->
+            <div>
+                <div class="@ClaseCampo(passwordActivo, false)">
+                    <span class="@ClaseIcono(passwordActivo)"><Icon Name="lock" Size="18" /></span>
+                    <input id="login-password" type="@(verPassword ? "text" : "password")"
+                           autocomplete="current-password" required placeholder="Contraseña"
+                           class="w-full bg-transparent text-sm text-ink placeholder:text-ink-muted/70 focus:outline-none"
+                           @bind="modelo.Password" @bind:event="oninput"
+                           @onfocus="() => passwordActivo = true"
+                           @onblur="() => passwordActivo = false" />
+                    <button type="button"
+                            class="shrink-0 rounded-pill p-1 text-ink-muted transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                            @onclick="() => verPassword = !verPassword"
+                            aria-label="@(verPassword ? "Ocultar contraseña" : "Mostrar contraseña")">
+                        <Icon Name="@(verPassword ? "eye-off" : "eye")" Size="18" />
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mantener sesión + recuperar -->
+            <div class="flex flex-wrap items-center justify-between gap-3 pl-1">
+                <label class="flex cursor-pointer select-none items-center gap-2.5 text-sm text-ink-muted">
+                    <input type="checkbox" class="h-4 w-4 cursor-pointer rounded border-border text-brand-500 accent-brand-500 focus:ring-brand-500"
+                           @bind="recordarme" />
+                    Mantener sesión iniciada
+                </label>
+
+                <button type="button"
+                        class="text-sm font-medium text-brand-600 transition-colors hover:text-brand-700"
+                        @onclick="() => modalRecuperarAbierto = true">
+                    ¿Olvidaste tu contraseña?
+                </button>
+            </div>
+
+            @if (!string.IsNullOrEmpty(error))
+            {
+                <div role="alert" class="flex items-start gap-2.5 rounded-card border border-state-rechazada/25 bg-state-rechazada/10 px-4 py-3">
+                    <span class="mt-0.5 text-state-rechazada"><Icon Name="alert-triangle" Size="17" /></span>
+                    <p class="text-sm leading-relaxed text-state-rechazada">@error</p>
+                </div>
+            }
+
+            <button type="submit" disabled="@cargando"
+                    class="mt-1 inline-flex w-full items-center justify-center gap-2 rounded-pill bg-brand-500 px-5 py-3.5 text-sm font-semibold text-white shadow-card transition-colors hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70">
+                @if (cargando)
+                {
+                    <Icon Name="loader" Size="17" CssClass="animate-spin" />
+                    <span>Verificando...</span>
+                }
+                else
+                {
+                    <span>Ingresar</span>
+                }
+            </button>
+        </div>
+    </EditForm>
+
+    <!-- Separador -->
+    <div class="my-7 flex items-center gap-4">
+        <span class="h-px flex-1 bg-border"></span>
+        <span class="text-xs font-medium uppercase tracking-wider text-ink-muted">¿aún no eres paciente?</span>
+        <span class="h-px flex-1 bg-border"></span>
     </div>
-</div>
+
+    <a href="/registro"
+       class="inline-flex w-full items-center justify-center gap-2 rounded-pill border border-border bg-surface px-5 py-3.5 text-sm font-semibold text-ink transition-colors hover:border-brand-500 hover:text-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2">
+        <Icon Name="user-plus" Size="18" />
+        Crear mi cuenta de paciente
+    </a>
+
+    <p class="mt-7 text-center text-xs leading-relaxed text-ink-muted">
+        ¿Eres parte del personal? Usa este mismo formulario:<br class="hidden sm:block" />
+        el sistema te lleva a tu panel según tu rol.
+    </p>
+
+</AuthShell>
+
+<RecuperarPasswordModal @bind-IsOpen="modalRecuperarAbierto" EmailInicial="@modelo.Email" />
+
+@* EmptyLayout no monta ToastHost, y el modal avisa por toast al terminar. *@
+<ToastHost />
 
 @code {
     private readonly ModeloLogin modelo = new();
     private string? error;
+    private bool emailActivo;
+    private bool passwordActivo;
     private bool cargando;
+    private bool verPassword;
+    private bool emailInvalido;
+    private bool recordarme = true;
+    private bool modalRecuperarAbierto;
+    private bool sesionVencida;
+
+    protected override void OnInitialized()
+    {
+        // El BearerTokenHandler manda aquí con ?sesion=vencida cuando la API
+        // rechaza un token que ya no sirve.
+        var consulta = new Uri(Navigation.Uri).Query;
+        sesionVencida = consulta.Contains("sesion=vencida", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// El campo entero se ilumina al enfocar, no solo el input: así el usuario
+    /// ve dónde está parado aunque el borde sea sutil.
+    /// </summary>
+    private static string ClaseCampo(bool activo, bool conError)
+    {
+        const string Base =
+            "flex items-center gap-3 rounded-pill border bg-surface-muted px-4 py-3 transition-all duration-150";
+
+        if (conError)
+        {
+            return $"{Base} border-state-rechazada bg-state-rechazada/5";
+        }
+
+        return activo
+            ? $"{Base} border-brand-500 bg-surface ring-4 ring-brand-100"
+            : $"{Base} border-border";
+    }
+
+    private static string ClaseIcono(bool activo)
+        => activo ? "shrink-0 text-brand-600 transition-colors" : "shrink-0 text-ink-muted transition-colors";
+
+    private void SalirDeEmail()
+    {
+        emailActivo = false;
+        RevisarEmail();
+    }
+
+    /// <summary>
+    /// Avisa del formato del correo al salir del campo, no mientras se escribe:
+    /// marcar en rojo a la tercera letra es hostil.
+    /// </summary>
+    private void RevisarEmail()
+    {
+        var email = modelo.Email.Trim();
+        emailInvalido = email.Length > 0
+            && !System.Text.RegularExpressions.Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$");
+    }
 
     private async Task Ingresar()
     {
         error = null;
+        RevisarEmail();
+
+        if (emailInvalido)
+        {
+            return;
+        }
+
         cargando = true;
 
-        var resultado = await AuthApi.IniciarSesionAsync(modelo.Email, modelo.Password);
+        var resultado = await AuthApi.IniciarSesionAsync(modelo.Email, modelo.Password, recordarme);
 
         cargando = false;
 
-        if (resultado.Exito)
-        {
-            Navigation.NavigateTo("/dashboard", replace: true);
-        }
-        else
+        if (!resultado.Exito || resultado.Valor is null)
         {
             error = resultado.Error;
+            return;
         }
+
+        // Cada rol entra a su propio panel. Antes todos caían en /dashboard,
+        // que es el de Secretaría, y un paciente quedaba en una pantalla vacía.
+        var sesion = resultado.Valor;
+        var destino = sesion.MustChangePassword
+            ? RutasPorRol.CambioPasswordObligatorio
+            : RutasPorRol.InicioPara(sesion.Roles);
+
+        Navigation.NavigateTo(destino, replace: true);
     }
 
     private sealed class ModeloLogin

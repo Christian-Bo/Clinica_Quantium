@@ -1,0 +1,126 @@
+@* Una cita vista por el paciente: qué, cuándo, con quién y en qué estado.
+   Las acciones las decide la pantalla contenedora, porque dependen del
+   estado y de quién está viendo. *@
+
+<div class="rounded-card border border-border bg-surface p-4 shadow-card transition-shadow hover:shadow-modal/20">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0">
+            <p class="text-sm font-semibold text-ink">@Cita.EspecialidadNombre</p>
+            <p class="mt-0.5 text-sm capitalize text-ink-muted">@Cita.MedicoNombre</p>
+        </div>
+        <CitaStatusBadge Estado="@Cita.Estado" />
+    </div>
+
+    @if (CuentaRegresiva is not null)
+    {
+        <div class="@ClaseCuentaRegresiva">
+            <Icon Name="clock" Size="15" />
+            <span>@CuentaRegresiva</span>
+        </div>
+    }
+
+    <div class="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-ink">
+        <span class="inline-flex items-center gap-1.5">
+            <Icon Name="calendar" Size="16" CssClass="text-ink-muted" />
+            <span class="first-letter:uppercase">@FechaLarga</span>
+        </span>
+        <span class="inline-flex items-center gap-1.5">
+            <Icon Name="clock" Size="16" CssClass="text-ink-muted" />
+            @Cita.FechaHoraInicio.ToString("HH:mm") – @Cita.FechaHoraFin.ToString("HH:mm")
+        </span>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Cita.MotivoConsulta))
+    {
+        <p class="mt-3 border-t border-border pt-3 text-sm text-ink-muted">
+            <span class="font-medium text-ink">Motivo:</span> @Cita.MotivoConsulta
+        </p>
+    }
+
+    @if (Cita.NumeroReprogramaciones > 0)
+    {
+        <p class="mt-2 text-xs text-ink-muted">
+            Esta cita se reprogramó @Cita.NumeroReprogramaciones @(Cita.NumeroReprogramaciones == 1 ? "vez" : "veces").
+        </p>
+    }
+
+    @if (Acciones is not null)
+    {
+        <div class="mt-4 flex flex-wrap gap-2">
+            @Acciones
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public CitaDto Cita { get; set; } = default!;
+    [Parameter] public RenderFragment? Acciones { get; set; }
+
+    private static readonly System.Globalization.CultureInfo Guatemala = new("es-GT");
+
+    private static readonly string[] EstadosVigentes =
+    [
+        CitaEstados.Solicitada,
+        CitaEstados.Programada,
+        CitaEstados.Confirmada
+    ];
+
+    private string FechaLarga => Cita.FechaHoraInicio.ToString("dddd d 'de' MMMM", Guatemala);
+
+    /// <summary>
+    /// "faltan 3 días", "es mañana a las 09:00", "es hoy a las 15:30".
+    /// La API entrega y recibe la hora de Guatemala sin zona horaria, y el
+    /// sistema entero asume esa hora, así que se compara contra DateTime.Now.
+    /// Solo aplica a citas vigentes y futuras: en el historial no aporta nada.
+    /// </summary>
+    private string? CuentaRegresiva
+    {
+        get
+        {
+            if (!EstadosVigentes.Contains(Cita.Estado))
+            {
+                return null;
+            }
+
+            var ahora = DateTime.Now;
+            var falta = Cita.FechaHoraInicio - ahora;
+
+            if (falta <= TimeSpan.Zero)
+            {
+                return null;
+            }
+
+            if (falta.TotalMinutes < 60)
+            {
+                var minutos = Math.Max(1, (int)Math.Round(falta.TotalMinutes));
+                return minutos == 1 ? "Es en 1 minuto" : $"Es en {minutos} minutos";
+            }
+
+            var dias = Cita.FechaHoraInicio.Date.Subtract(ahora.Date).Days;
+            var hora = Cita.FechaHoraInicio.ToString("HH:mm");
+
+            return dias switch
+            {
+                0 => $"Es hoy a las {hora}",
+                1 => $"Es mañana a las {hora}",
+                _ => $"Faltan {dias} días"
+            };
+        }
+    }
+
+    /// <summary>El aviso se pone urgente cuando la cita es hoy o mañana.</summary>
+    private string ClaseCuentaRegresiva
+    {
+        get
+        {
+            const string Base =
+                "mt-3 inline-flex items-center gap-1.5 rounded-pill px-3 py-1 text-xs font-semibold";
+
+            var dias = Cita.FechaHoraInicio.Date.Subtract(DateTime.Now.Date).Days;
+
+            return dias <= 1
+                ? $"{Base} bg-state-solicitada/15 text-state-solicitada"
+                : $"{Base} bg-brand-50 text-brand-700";
+        }
+    }
+}

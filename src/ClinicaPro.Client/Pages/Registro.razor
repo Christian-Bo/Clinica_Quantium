@@ -1,0 +1,193 @@
+@page "/registro"
+@attribute [AllowAnonymous]
+@layout Layout.EmptyLayout
+@inject AuthApiService AuthApi
+@inject NavigationManager Navigation
+
+@* Registro en tres pasos. Un formulario de trece campos de un solo golpe
+   ahuyenta: partirlo baja el costo percibido y permite validar por tramos,
+   así el usuario corrige de a poco en vez de recibir seis errores juntos. *@
+
+<PageTitle>Crear cuenta · Clínica Pro</PageTitle>
+
+<AuthShell Titulo="@TituloPaso" Subtitulo="@SubtituloPaso" AnchoCard="max-w-xl">
+
+    <!-- Progreso -->
+    <div class="mb-6">
+        <div class="flex items-center gap-2">
+            @for (var i = 1; i <= TotalPasos; i++)
+            {
+                var indice = i;
+                <div class="@ClaseBarraPaso(indice)"></div>
+            }
+        </div>
+        <p class="mt-2 text-xs font-medium text-ink-muted">
+            Paso @paso de @TotalPasos · @NombrePaso
+        </p>
+    </div>
+
+    <div class="rounded-card border border-border bg-surface p-6 shadow-card sm:p-7">
+        <EditForm Model="modelo" OnValidSubmit="Continuar">
+
+            <DatosPacienteForm Modelo="modelo" Errores="errores"
+                               MostrarCredenciales="true" Seccion="@SeccionActual" />
+
+            @if (paso == TotalPasos)
+            {
+                <p class="mt-5 rounded-control bg-surface-muted px-3.5 py-3 text-xs leading-relaxed text-ink-muted">
+                    Estos datos son opcionales, pero le sirven al médico para atenderte mejor.
+                    Puedes completarlos después desde tu perfil.
+                </p>
+            }
+
+            @if (!string.IsNullOrEmpty(errorGeneral))
+            {
+                <div role="alert" class="mt-5 flex items-start gap-2.5 rounded-card border border-state-rechazada/25 bg-state-rechazada/10 px-4 py-3">
+                    <span class="mt-0.5 text-state-rechazada"><Icon Name="alert-triangle" Size="17" /></span>
+                    <p class="text-sm leading-relaxed text-state-rechazada">@errorGeneral</p>
+                </div>
+            }
+
+            <div class="mt-7 flex flex-col-reverse gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
+                @if (paso == 1)
+                {
+                    <a href="/login" class="text-sm text-ink-muted transition-colors hover:text-ink">
+                        Ya tengo cuenta, quiero ingresar
+                    </a>
+                }
+                else
+                {
+                    <Button Variant="ButtonVariant.Ghost" IconName="chevron-left" OnClick="Retroceder">
+                        Atrás
+                    </Button>
+                }
+
+                <Button Type="submit" Variant="ButtonVariant.Primary" Loading="guardando">
+                    @TextoBotonPrincipal
+                </Button>
+            </div>
+        </EditForm>
+    </div>
+
+    <p class="mt-5 text-center text-xs leading-relaxed text-ink-muted">
+        Al terminar entras directo a tu portal, sin volver a escribir la contraseña.
+    </p>
+
+</AuthShell>
+
+@code {
+    private const int TotalPasos = 3;
+
+    private readonly ModeloDatosPaciente modelo = new();
+    private Dictionary<string, string> errores = [];
+    private string? errorGeneral;
+    private int paso = 1;
+    private bool guardando;
+
+    /// <summary>
+    /// Qué campos pertenecen a cada paso. Se usa para filtrar los errores:
+    /// el paso 1 no debe reclamar que falta el nombre.
+    /// </summary>
+    private static readonly Dictionary<int, string[]> CamposPorPaso = new()
+    {
+        [1] = ["Email", "Password", "PasswordConfirmacion"],
+        [2] = ["Nombres", "Apellidos", "Documento", "FechaNacimiento", "Sexo", "Telefono", "Direccion"],
+        [3] = ["Alergias", "ContactoEmergenciaNombre", "ContactoEmergenciaTelefono"]
+    };
+
+    private SeccionFormulario SeccionActual => paso switch
+    {
+        1 => SeccionFormulario.Cuenta,
+        2 => SeccionFormulario.DatosPersonales,
+        _ => SeccionFormulario.Salud
+    };
+
+    private string NombrePaso => paso switch
+    {
+        1 => "Tu cuenta",
+        2 => "Tus datos",
+        _ => "Tu salud"
+    };
+
+    private string TituloPaso => paso switch
+    {
+        1 => "Crea tu cuenta",
+        2 => "Cuéntanos quién eres",
+        _ => "Un último detalle"
+    };
+
+    private string SubtituloPaso => paso switch
+    {
+        1 => "Con este correo y contraseña vas a entrar al portal.",
+        2 => "Estos datos identifican tu expediente en la clínica.",
+        _ => "Información que el médico revisa antes de atenderte."
+    };
+
+    private string TextoBotonPrincipal => paso < TotalPasos
+        ? "Continuar"
+        : guardando ? "Creando cuenta..." : "Crear mi cuenta";
+
+    private string ClaseBarraPaso(int indice)
+    {
+        const string Base = "h-1.5 flex-1 rounded-pill transition-colors duration-300";
+
+        if (indice < paso)
+        {
+            return $"{Base} bg-brand-500";
+        }
+
+        return indice == paso ? $"{Base} bg-brand-500" : $"{Base} bg-border";
+    }
+
+    private void Retroceder()
+    {
+        errorGeneral = null;
+        errores = [];
+        paso = Math.Max(1, paso - 1);
+    }
+
+    private async Task Continuar()
+    {
+        errorGeneral = null;
+
+        // Se valida el modelo completo, pero solo se muestran los errores del
+        // paso actual: los campos que aún no ha visto no deben salir en rojo.
+        var todos = modelo.Validar(incluyeCredenciales: true);
+        var delPaso = CamposPorPaso[paso];
+        errores = todos
+            .Where(par => delPaso.Contains(par.Key))
+            .ToDictionary(par => par.Key, par => par.Value);
+
+        if (errores.Count > 0)
+        {
+            return;
+        }
+
+        if (paso < TotalPasos)
+        {
+            paso++;
+            return;
+        }
+
+        // Último paso: por si acaso, nada del modelo entero puede quedar mal.
+        if (todos.Count > 0)
+        {
+            errores = todos;
+            paso = CamposPorPaso.First(par => par.Value.Any(todos.ContainsKey)).Key;
+            return;
+        }
+
+        guardando = true;
+        var resultado = await AuthApi.RegistrarPacienteAsync(modelo.ConstruirRegistro());
+        guardando = false;
+
+        if (resultado.Exito && resultado.Valor is not null)
+        {
+            // La API ya devolvió la sesión iniciada: entra directo a su portal.
+            Navigation.NavigateTo(RutasPorRol.PortalPaciente, replace: true);
+            return;
+        }
+
+        errorGeneral = resultado.Error ?? "No fue posible crear la cuenta.";
+    }
+}

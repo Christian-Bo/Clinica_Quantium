@@ -1,0 +1,147 @@
+@* Armazón de las pantallas públicas (login, registro, recuperación).
+
+   La forma viene de las apps móviles: un hero de color arriba y una "hoja"
+   blanca de esquinas redondeadas montada encima. En escritorio esa misma
+   idea se gira 90 grados y queda pantalla partida, para no dejar una columna
+   de 400px perdida en medio de un monitor de 27 pulgadas. *@
+
+<style>
+    /* Namespaced con cp-auth- para no chocar con nada del resto del proyecto. */
+    .cp-auth-hero {
+        background:
+            radial-gradient(120% 90% at 15% 10%, rgba(47, 143, 111, .55) 0%, transparent 55%),
+            radial-gradient(90% 80% at 95% 95%, rgba(47, 143, 111, .30) 0%, transparent 60%),
+            linear-gradient(160deg, #1c5844 0%, #16303f 45%, #10161d 100%);
+    }
+
+    /* Latido: la línea se dibuja sola y vuelve a empezar. */
+    .cp-auth-pulso {
+        stroke-dasharray: 340;
+        stroke-dashoffset: 340;
+        animation: cp-auth-latido 4.5s ease-in-out infinite;
+    }
+
+    @@keyframes cp-auth-latido {
+        0%   { stroke-dashoffset: 340; opacity: 0; }
+        12%  { opacity: 1; }
+        55%  { stroke-dashoffset: 0; opacity: 1; }
+        85%  { stroke-dashoffset: 0; opacity: 0; }
+        100% { stroke-dashoffset: 0; opacity: 0; }
+    }
+
+    /* La hoja entra deslizándose una sola vez, al cargar. */
+    .cp-auth-hoja { animation: cp-auth-subir .45s cubic-bezier(.22, 1, .36, 1) both; }
+
+    @@keyframes cp-auth-subir {
+        from { transform: translateY(14px); opacity: 0; }
+        to   { transform: translateY(0);    opacity: 1; }
+    }
+
+    @@media (prefers-reduced-motion: reduce) {
+        .cp-auth-pulso { animation: none; stroke-dashoffset: 0; }
+        .cp-auth-hoja  { animation: none; }
+    }
+</style>
+
+<div class="flex min-h-screen flex-col bg-ink lg:flex-row">
+
+    <!-- ── Hero ─────────────────────────────────────────────────────
+         Móvil: banda superior. Escritorio: columna izquierda completa. -->
+    <div class="cp-auth-hero relative flex shrink-0 items-center overflow-hidden
+                px-7 pb-16 pt-12 lg:min-h-screen lg:w-[52%] lg:px-16 lg:pb-16 lg:pt-16">
+
+        <!-- Latido de fondo -->
+        <svg class="pointer-events-none absolute inset-x-0 bottom-10 h-24 w-full opacity-[.18] lg:bottom-24 lg:h-40"
+             viewBox="0 0 340 60" fill="none" preserveAspectRatio="none" aria-hidden="true">
+            <path class="cp-auth-pulso"
+                  d="M0 30h60l10-16 12 32 11-24 9 8h40l10-12 12 24 10-20 8 8h58l10-14 11 28 10-22 8 8h51"
+                  stroke="#7ee0b5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+
+        <div class="relative z-10 w-full lg:max-w-lg">
+            <div class="flex items-center gap-3">
+                <div class="flex h-11 w-11 items-center justify-center rounded-control bg-brand-500 text-white lg:h-14 lg:w-14 lg:rounded-card"
+                     style="box-shadow: 0 16px 34px rgba(47,143,111,.45);">
+                    <Icon Name="leaf" Size="24" />
+                </div>
+                <div>
+                    <p class="text-base font-bold leading-tight text-white lg:text-lg">Clínica Pro</p>
+                    <p class="text-xs text-white/45">Portal del paciente</p>
+                </div>
+            </div>
+
+            <h2 class="mt-7 text-2xl font-bold leading-[1.15] text-white lg:mt-12 lg:text-[2.6rem]">
+                Tu salud,<br class="hidden lg:block" />
+                <span class="text-brand-500">sin hacer fila</span>
+            </h2>
+
+            <p class="mt-3 max-w-md text-sm leading-relaxed text-white/55 lg:mt-5 lg:text-[15px]">
+                Agenda tus citas, revisa tu historial y mantén tus datos al día
+                desde donde estés.
+            </p>
+
+            <!-- Beneficios: chips en móvil, tarjetas en escritorio -->
+            <div class="mt-7 hidden flex-col gap-3 lg:mt-12 lg:flex">
+                <div class="flex items-center gap-4 rounded-card border border-white/10 bg-white/[.06] px-5 py-4 backdrop-blur-sm">
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-brand-500/20 text-brand-500">
+                        <Icon Name="calendar" Size="18" />
+                    </div>
+                    <div class="text-[13.5px] leading-snug text-white/65">
+                        <strong class="block text-sm font-semibold text-white">Citas cuando te sirva</strong>
+                        Elige tú el horario libre que más te convenga.
+                    </div>
+                </div>
+                <div class="flex items-center gap-4 rounded-card border border-white/10 bg-white/[.06] px-5 py-4 backdrop-blur-sm">
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-brand-500/20 text-brand-500">
+                        <Icon Name="bell" Size="18" />
+                    </div>
+                    <div class="text-[13.5px] leading-snug text-white/65">
+                        <strong class="block text-sm font-semibold text-white">Avisos a tiempo</strong>
+                        Te escribimos cuando tu cita se programa o cambia.
+                    </div>
+                </div>
+                <div class="flex items-center gap-4 rounded-card border border-white/10 bg-white/[.06] px-5 py-4 backdrop-blur-sm">
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-brand-500/20 text-brand-500">
+                        <Icon Name="shield-check" Size="18" />
+                    </div>
+                    <div class="text-[13.5px] leading-snug text-white/65">
+                        <strong class="block text-sm font-semibold text-white">Tu expediente es tuyo</strong>
+                        Solo tú y tu médico ven tu información clínica.
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 flex flex-wrap gap-2 lg:hidden">
+                <span class="rounded-pill border border-white/10 bg-white/[.08] px-3 py-1.5 text-xs text-white/70">Citas en línea</span>
+                <span class="rounded-pill border border-white/10 bg-white/[.08] px-3 py-1.5 text-xs text-white/70">Avisos por correo</span>
+                <span class="rounded-pill border border-white/10 bg-white/[.08] px-3 py-1.5 text-xs text-white/70">Historial privado</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Hoja del formulario ─────────────────────────────────────── -->
+    <div class="cp-auth-hoja relative z-10 -mt-8 flex flex-1 justify-center rounded-t-[28px] bg-surface
+                px-6 pb-12 pt-9 sm:px-10 lg:mt-0 lg:items-center lg:rounded-none lg:px-12 lg:py-14">
+        <div class="w-full @AnchoCard">
+
+            <div class="mb-7">
+                <h1 class="text-[26px] font-bold leading-tight tracking-tight text-ink">@Titulo</h1>
+                @if (!string.IsNullOrEmpty(Subtitulo))
+                {
+                    <p class="mt-2 text-sm leading-relaxed text-ink-muted">@Subtitulo</p>
+                }
+            </div>
+
+            @ChildContent
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Titulo { get; set; } = string.Empty;
+    [Parameter] public string? Subtitulo { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Ancho de la columna del formulario. El registro necesita más que el login.</summary>
+    [Parameter] public string AnchoCard { get; set; } = "max-w-sm";
+}

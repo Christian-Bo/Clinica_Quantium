@@ -1,0 +1,51 @@
+@implements IDisposable
+@inject NavigationManager Navigation
+
+<a href="@Href" class="@Clases">
+    <Icon Name="@IconName" Size="18" />
+    <span>@Label</span>
+</a>
+
+@code {
+    [Parameter, EditorRequired] public string Href { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string IconName { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += ManejarNavegacion;
+    }
+
+    private void ManejarNavegacion(object? remitente, LocationChangedEventArgs e)
+        => InvokeAsync(StateHasChanged);
+
+    /// <summary>
+    /// "/portal" solo se marca activo en la ruta exacta; las demás también
+    /// se marcan cuando la ruta actual cuelga de ellas.
+    /// </summary>
+    private bool EsActivo
+    {
+        get
+        {
+            var rutaActual = new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/');
+            var rutaItem = Href.TrimEnd('/');
+
+            if (rutaItem.Equals("/portal", StringComparison.OrdinalIgnoreCase))
+            {
+                return rutaActual.Equals(rutaItem, StringComparison.OrdinalIgnoreCase);
+            }
+
+            return rutaActual.Equals(rutaItem, StringComparison.OrdinalIgnoreCase)
+                || rutaActual.StartsWith(rutaItem + "/", StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    private string Clases => EsActivo
+        ? "flex items-center gap-3 rounded-control bg-white/10 px-3 py-2 text-sm font-medium text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+        : "flex items-center gap-3 rounded-control px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500";
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= ManejarNavegacion;
+    }
+}

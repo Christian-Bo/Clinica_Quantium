@@ -1,7 +1,8 @@
 @if (IsOpen)
 {
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @onclick="ManejarBackdrop">
-        <div class="flex max-h-[90vh] w-full @MaxWidthClass flex-col rounded-card bg-surface shadow-modal"
+        <div role="dialog" aria-modal="true" aria-label="@Title"
+             class="flex max-h-[90vh] w-full @MaxWidthClass flex-col rounded-card bg-surface shadow-modal"
              @onclick:stopPropagation="true">
 
             <div class="flex items-center justify-between border-b border-border px-5 py-4">
@@ -12,7 +13,7 @@
                     }
                     <h2 class="text-base font-semibold text-ink">@Title</h2>
                 </div>
-                <button type="button" class="rounded-control p-1 text-ink-muted hover:bg-surface-muted hover:text-ink"
+                <button type="button" class="rounded-control p-1 text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                         @onclick="Cerrar" aria-label="Cerrar">
                     <Icon Name="x" Size="20" />
                 </button>

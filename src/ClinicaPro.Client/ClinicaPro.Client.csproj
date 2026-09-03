@@ -7,6 +7,9 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="8.0.24" PrivateAssets="all" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="8.0.24" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
+    <!-- Genera el QR de la cita como SVG, sin salir del cliente ni mandar
+         el identificador a ningún servicio externo. -->
+    <PackageReference Include="QRCoder" Version="1.6.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ClinicaPro.Contracts\ClinicaPro.Contracts.csproj" />

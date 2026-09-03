@@ -1,0 +1,241 @@
+@inject EspecialidadesApiService EspecialidadesApi
+@inject CitasPacienteApiService CitasApi
+
+@* Flujo de tres pasos en una sola pantalla: especialidad, día y horario.
+   El paciente no elige médico: la API lo asigna según la especialidad. *@
+
+<Modal IsOpen="IsOpen" IsOpenChanged="IsOpenChanged" Title="Solicitar una cita"
+       IconName="calendar" MaxWidthClass="max-w-lg">
+    <Body>
+        <div class="space-y-4">
+
+            <div>
+                <label class="text-sm font-medium text-ink" for="sc-especialidad">Especialidad *</label>
+                <select id="sc-especialidad" class="@ClaseInput" value="@especialidadId"
+                        @onchange="CambiarEspecialidad">
+                    <option value="">Elige una especialidad</option>
+                    @foreach (var especialidad in especialidades)
+                    {
+                        <option value="@especialidad.EspecialidadId">@especialidad.Nombre</option>
+                    }
+                </select>
+            </div>
+
+            <div>
+                <label class="text-sm font-medium text-ink" for="sc-fecha">Día *</label>
+                <input id="sc-fecha" type="date" min="@MananaIso" class="@ClaseInput"
+                       value="@fecha.ToString("yyyy-MM-dd")" @onchange="CambiarFecha" />
+            </div>
+
+            <div>
+                <p class="text-sm font-medium text-ink">Horarios disponibles *</p>
+
+                @if (string.IsNullOrEmpty(especialidadId))
+                {
+                    <p class="mt-2 text-sm text-ink-muted">Elige una especialidad para ver los horarios libres.</p>
+                }
+                else if (buscandoSlots)
+                {
+                    <div class="mt-2">
+                        <Skeleton Filas="2" HeightClass="h-9" />
+                    </div>
+                }
+                else if (!string.IsNullOrEmpty(errorDisponibilidad))
+                {
+                    <p role="alert" class="mt-2 rounded-control bg-state-solicitada/10 px-3 py-2 text-sm text-state-solicitada">
+                        @errorDisponibilidad
+                    </p>
+                }
+                else if (slots.Count == 0)
+                {
+                    <p class="mt-2 rounded-control bg-surface-muted px-3 py-2 text-sm text-ink-muted">
+                        No hay horarios libres ese día. Prueba con otra fecha.
+                    </p>
+                }
+                else
+                {
+                    <div class="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                        @foreach (var slot in slots)
+                        {
+                            <button type="button" class="@ClaseSlot(slot)" @onclick="() => slotElegido = slot"
+                                    aria-pressed="@EsSlotElegido(slot)" title="@slot.MedicoNombre">
+                                @slot.FechaHoraInicio.ToString("HH:mm")
+                            </button>
+                        }
+                    </div>
+
+                    @if (slotElegido is not null)
+                    {
+                        <p class="mt-2 text-xs text-ink-muted">
+                            Te atenderá @slotElegido.MedicoNombre.
+                        </p>
+                    }
+                }
+            </div>
+
+            <div>
+                <label class="text-sm font-medium text-ink" for="sc-motivo">Motivo de la consulta *</label>
+                <textarea id="sc-motivo" rows="3" class="@ClaseInput"
+                          placeholder="Cuéntanos brevemente qué te trae a consulta"
+                          @bind="motivo" @bind:event="oninput"></textarea>
+            </div>
+
+            @if (!string.IsNullOrEmpty(error))
+            {
+                <p role="alert" class="rounded-control bg-state-rechazada/10 px-3 py-2 text-sm text-state-rechazada">
+                    @error
+                </p>
+            }
+        </div>
+    </Body>
+    <Footer>
+        <Button Variant="ButtonVariant.Secondary" OnClick="Cerrar">Cancelar</Button>
+        <Button Variant="ButtonVariant.Primary" Loading="enviando" OnClick="Solicitar">
+            Solicitar cita
+        </Button>
+    </Footer>
+</Modal>
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public EventCallback<CitaDto> OnSolicitada { get; set; }
+
+    private const string ClaseInput =
+        "mt-1 w-full rounded-control border border-border px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100";
+
+    private static readonly string MananaIso = DateTime.Today.AddDays(1).ToString("yyyy-MM-dd");
+
+    private IReadOnlyList<EspecialidadDto> especialidades = [];
+    private List<SlotDisponibleDto> slots = [];
+    private SlotDisponibleDto? slotElegido;
+
+    private string especialidadId = string.Empty;
+    private DateOnly fecha = DateOnly.FromDateTime(DateTime.Today.AddDays(1));
+    private string motivo = string.Empty;
+    private string? error;
+    private string? errorDisponibilidad;
+
+    private bool buscandoSlots;
+    private bool enviando;
+    private bool isOpenAnterior;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsOpen && !isOpenAnterior)
+        {
+            Reiniciar();
+
+            if (especialidades.Count == 0)
+            {
+                especialidades = await EspecialidadesApi.ListarAsync();
+            }
+        }
+
+        isOpenAnterior = IsOpen;
+    }
+
+    private void Reiniciar()
+    {
+        especialidadId = string.Empty;
+        fecha = DateOnly.FromDateTime(DateTime.Today.AddDays(1));
+        motivo = string.Empty;
+        slots = [];
+        slotElegido = null;
+        error = null;
+        errorDisponibilidad = null;
+    }
+
+    private async Task CambiarEspecialidad(ChangeEventArgs e)
+    {
+        especialidadId = e.Value?.ToString() ?? string.Empty;
+        await BuscarSlots();
+    }
+
+    private async Task CambiarFecha(ChangeEventArgs e)
+    {
+        if (DateOnly.TryParse(e.Value?.ToString(), out var nueva))
+        {
+            fecha = nueva;
+            await BuscarSlots();
+        }
+    }
+
+    private async Task BuscarSlots()
+    {
+        slotElegido = null;
+        slots = [];
+        errorDisponibilidad = null;
+
+        if (!Guid.TryParse(especialidadId, out var id))
+        {
+            return;
+        }
+
+        buscandoSlots = true;
+        var resultado = await CitasApi.ListarDisponibilidadAsync(id, fecha);
+        buscandoSlots = false;
+
+        if (resultado.Exito && resultado.Valor is not null)
+        {
+            slots = [.. resultado.Valor];
+            return;
+        }
+
+        errorDisponibilidad = resultado.Error;
+    }
+
+    private bool EsSlotElegido(SlotDisponibleDto slot)
+        => slotElegido is not null
+            && slotElegido.FechaHoraInicio == slot.FechaHoraInicio
+            && slotElegido.MedicoId == slot.MedicoId;
+
+    private string ClaseSlot(SlotDisponibleDto slot)
+    {
+        return EsSlotElegido(slot)
+            ? "rounded-control border border-brand-500 bg-brand-500 px-2 py-2 text-sm font-medium text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+            : "rounded-control border border-border bg-surface px-2 py-2 text-sm text-ink transition-colors hover:border-brand-500 hover:text-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2";
+    }
+
+    private async Task Solicitar()
+    {
+        error = null;
+
+        if (!Guid.TryParse(especialidadId, out var id))
+        {
+            error = "Elige una especialidad.";
+            return;
+        }
+
+        if (slotElegido is null)
+        {
+            error = "Elige uno de los horarios disponibles.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(motivo))
+        {
+            error = "Cuéntanos el motivo de la consulta.";
+            return;
+        }
+
+        enviando = true;
+        var resultado = await CitasApi.SolicitarAsync(id, slotElegido.FechaHoraInicio, motivo.Trim());
+        enviando = false;
+
+        if (resultado.Exito && resultado.Valor is not null)
+        {
+            await OnSolicitada.InvokeAsync(resultado.Valor);
+            await Cerrar();
+            return;
+        }
+
+        error = resultado.Error ?? "No fue posible solicitar la cita.";
+    }
+
+    private async Task Cerrar()
+    {
+        error = null;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+}

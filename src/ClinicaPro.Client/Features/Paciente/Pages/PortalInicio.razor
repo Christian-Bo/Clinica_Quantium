@@ -1,0 +1,207 @@
+@page "/portal"
+@attribute [Authorize(Roles = RolNombres.Paciente)]
+@layout PacienteLayout
+@inject PerfilPacienteApiService PerfilApi
+@inject CitasPacienteApiService CitasApi
+@inject NavigationManager Navigation
+@inject ToastService Toasts
+
+<PageTitle>Mi portal · Clínica Pro</PageTitle>
+
+<h1 class="text-xl font-semibold capitalize text-ink">@Saludo</h1>
+<p class="mt-1 text-sm text-ink-muted">Este es el resumen de tu atención en la clínica.</p>
+
+@if (cargando)
+{
+    <div class="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div class="lg:col-span-2">
+            <EsqueletoCita Cantidad="1" />
+        </div>
+        <div class="space-y-4">
+            <Skeleton Filas="2" HeightClass="h-32" />
+        </div>
+    </div>
+}
+else if (!string.IsNullOrEmpty(error))
+{
+    <div class="mt-6">
+        <Card>
+            <EmptyState IconName="alert-triangle" Title="No pudimos cargar tu información"
+                        Description="@error">
+                <Action>
+                    <Button Variant="ButtonVariant.Secondary" OnClick="Cargar">Reintentar</Button>
+                </Action>
+            </EmptyState>
+        </Card>
+    </div>
+}
+else
+{
+    <div class="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+
+        <div class="lg:col-span-2">
+            <Card Title="Tu próxima cita" IconName="calendar">
+                @if (proximaCita is null)
+                {
+                    <SinCitas Titulo="No tienes citas próximas"
+                              Descripcion="Solicita una cita y aparecerá aquí en cuanto la clínica la programe.">
+                        <Accion>
+                            <Button Variant="ButtonVariant.Primary" IconName="plus"
+                                    OnClick="() => modalAbierto = true">
+                                Solicitar cita
+                            </Button>
+                        </Accion>
+                    </SinCitas>
+                }
+                else
+                {
+                    <TarjetaCita Cita="proximaCita" />
+
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        <Button Variant="ButtonVariant.Secondary" IconName="clipboard-list"
+                                OnClick="() => modalCodigoAbierto = true">
+                            Mi código
+                        </Button>
+                        <Button Variant="ButtonVariant.Secondary" IconName="calendar"
+                                OnClick="@(() => Navigation.NavigateTo("/portal/citas"))">
+                            Ver todas mis citas
+                        </Button>
+                        <Button Variant="ButtonVariant.Primary" IconName="plus"
+                                OnClick="() => modalAbierto = true">
+                            Solicitar otra
+                        </Button>
+                    </div>
+                }
+            </Card>
+        </div>
+
+        <div class="space-y-4">
+            <Card Title="Mis datos" IconName="user">
+                <p class="text-sm font-medium capitalize text-ink">@(ficha?.NombreCompleto ?? "—")</p>
+                <dl class="mt-3 space-y-2 text-sm">
+                    <div class="flex justify-between gap-3">
+                        <dt class="text-ink-muted">Documento</dt>
+                        <dd class="text-right text-ink">@Mostrar(ficha?.Documento)</dd>
+                    </div>
+                    <div class="flex justify-between gap-3">
+                        <dt class="text-ink-muted">Teléfono</dt>
+                        <dd class="text-right text-ink">@Mostrar(ficha?.Telefono)</dd>
+                    </div>
+                    <div class="flex justify-between gap-3">
+                        <dt class="text-ink-muted">Alergias</dt>
+                        <dd class="text-right text-ink">@Mostrar(ficha?.Alergias)</dd>
+                    </div>
+                </dl>
+
+                @if (DatosIncompletos)
+                {
+                    <p class="mt-3 rounded-control bg-state-solicitada/10 px-3 py-2 text-xs text-state-solicitada">
+                        Completa tu teléfono y tus alergias: el médico los necesita antes de atenderte.
+                    </p>
+                }
+
+                <div class="mt-4">
+                    <Button Variant="ButtonVariant.Secondary" IconName="edit" FullWidth="true"
+                            OnClick="@(() => Navigation.NavigateTo("/portal/perfil"))">
+                        Actualizar mis datos
+                    </Button>
+                </div>
+            </Card>
+
+            <Card Title="Resumen" IconName="clipboard-list">
+                <dl class="space-y-2 text-sm">
+                    <div class="flex justify-between gap-3">
+                        <dt class="text-ink-muted">Citas activas</dt>
+                        <dd class="font-medium text-ink">@citasActivas</dd>
+                    </div>
+                    <div class="flex justify-between gap-3">
+                        <dt class="text-ink-muted">Consultas atendidas</dt>
+                        <dd class="font-medium text-ink">@citasAtendidas</dd>
+                    </div>
+                </dl>
+            </Card>
+        </div>
+    </div>
+}
+
+<SolicitarCitaModal @bind-IsOpen="modalAbierto" OnSolicitada="CitaSolicitada" />
+<CodigoCitaModal @bind-IsOpen="modalCodigoAbierto" Cita="proximaCita" />
+
+@code {
+    private PacienteDto? ficha;
+    private IReadOnlyList<CitaDto> citas = [];
+    private CitaDto? proximaCita;
+    private int citasActivas;
+    private int citasAtendidas;
+
+    private bool cargando = true;
+    private bool modalAbierto;
+    private bool modalCodigoAbierto;
+    private string? error;
+
+    protected override Task OnInitializedAsync() => Cargar();
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        error = null;
+
+        var resultadoFicha = await PerfilApi.ObtenerMiFichaAsync();
+        if (!resultadoFicha.Exito)
+        {
+            error = resultadoFicha.Error;
+            cargando = false;
+            return;
+        }
+
+        ficha = resultadoFicha.Valor;
+        citas = await CitasApi.ListarMisCitasAsync();
+        Resumir();
+
+        cargando = false;
+    }
+
+    private void Resumir()
+    {
+        var activas = citas.Where(cita => EstadosActivos.Contains(cita.Estado)).ToList();
+
+        citasActivas = activas.Count;
+        citasAtendidas = citas.Count(cita => cita.Estado == CitaEstados.Atendida);
+
+        proximaCita = activas
+            .Where(cita => cita.FechaHoraInicio >= DateTime.Now)
+            .OrderBy(cita => cita.FechaHoraInicio)
+            .FirstOrDefault();
+    }
+
+    private async Task CitaSolicitada(CitaDto cita)
+    {
+        Toasts.Exito("Tu solicitud quedó registrada. La clínica confirmará el horario.");
+        await Cargar();
+    }
+
+    private static readonly string[] EstadosActivos =
+    [
+        CitaEstados.Solicitada,
+        CitaEstados.Programada,
+        CitaEstados.Confirmada,
+        CitaEstados.EnEspera,
+        CitaEstados.EnAtencion
+    ];
+
+    private bool DatosIncompletos => ficha is not null
+        && (string.IsNullOrWhiteSpace(ficha.Telefono) || string.IsNullOrWhiteSpace(ficha.Alergias));
+
+    private string Saludo
+    {
+        get
+        {
+            var hora = DateTime.Now.Hour;
+            var momento = hora < 12 ? "Buenos días" : hora < 19 ? "Buenas tardes" : "Buenas noches";
+            var nombre = ficha?.Nombres.Split(' ').FirstOrDefault();
+            return string.IsNullOrWhiteSpace(nombre) ? momento : $"{momento}, {nombre}";
+        }
+    }
+
+    private static string Mostrar(string? valor) => string.IsNullOrWhiteSpace(valor) ? "—" : valor;
+}

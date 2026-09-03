@@ -1,0 +1,148 @@
+@* Campos de datos del paciente. Se usa en dos lugares con la misma pinta:
+   el registro público (por pasos) y "Mi perfil" (completo).
+   El componente solo pinta y enlaza; validar y guardar es del contenedor. *@
+
+<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+
+    @if (Muestra(SeccionFormulario.Cuenta) && MostrarCredenciales)
+    {
+        <div class="sm:col-span-2">
+            <label class="text-sm font-medium text-ink" for="dp-email">Correo electrónico *</label>
+            <input id="dp-email" type="email" autocomplete="email" class="@ClaseInput("Email")"
+                   placeholder="tucorreo@ejemplo.com"
+                   @bind="Modelo.Email" @bind:event="oninput" />
+            <MensajeCampo Mensaje='@Error("Email")' />
+            <p class="mt-1 text-xs text-ink-muted">Con este correo vas a entrar al portal.</p>
+        </div>
+
+        <div>
+            <label class="text-sm font-medium text-ink" for="dp-password">Contraseña *</label>
+            <input id="dp-password" type="password" autocomplete="new-password" class="@ClaseInput("Password")"
+                   @bind="Modelo.Password" @bind:event="oninput" />
+            <MensajeCampo Mensaje='@Error("Password")' />
+            <MedidorPassword Password="@Modelo.Password" />
+        </div>
+
+        <div>
+            <label class="text-sm font-medium text-ink" for="dp-password-confirmacion">Repetir contraseña *</label>
+            <input id="dp-password-confirmacion" type="password" autocomplete="new-password"
+                   class="@ClaseInput("PasswordConfirmacion")"
+                   @bind="Modelo.PasswordConfirmacion" @bind:event="oninput" />
+            <MensajeCampo Mensaje='@Error("PasswordConfirmacion")' />
+        </div>
+    }
+
+    @if (Muestra(SeccionFormulario.DatosPersonales))
+    {
+        <div>
+            <label class="text-sm font-medium text-ink" for="dp-nombres">Nombres *</label>
+            <input id="dp-nombres" autocomplete="given-name" class="@ClaseInput("Nombres")"
+                   @bind="Modelo.Nombres" @bind:event="oninput" />
+            <MensajeCampo Mensaje='@Error("Nombres")' />
+        </div>
+
+        <div>
+            <label class="text-sm font-medium text-ink" for="dp-apellidos">Apellidos *</label>
+            <input id="dp-apellidos" autocomplete="family-name" class="@ClaseInput("Apellidos")"
+                   @bind="Modelo.Apellidos" @bind:event="oninput" />
+            <MensajeCampo Mensaje='@Error("Apellidos")' />
+        </div>
+
+        <div>
+            <label class="text-sm font-medium text-ink" for="dp-documento">Documento (DPI)</label>
+            <input id="dp-documento" inputmode="numeric" class="@ClaseInput("Documento")"
+                   @bind="Modelo.Documento" @bind:event="oninput" />
+            <MensajeCampo Mensaje='@Error("Documento")' />
+        </div>
+
+        <div>
+            <label class="text-sm font-medium text-ink" for="dp-nacimiento">Fecha de nacimiento</label>
+            <input id="dp-nacimiento" type="date" max="@HoyIso" class="@ClaseInput("FechaNacimiento")"
+                   @bind="Modelo.FechaNacimiento" />
+            <MensajeCampo Mensaje='@Error("FechaNacimiento")' />
+        </div>
+
+        <div>
+            <label class="text-sm font-medium text-ink" for="dp-sexo">Sexo</label>
+            <select id="dp-sexo" class="@ClaseInput("Sexo")" @bind="Modelo.Sexo">
+                <option value="">Sin especificar</option>
+                <option value="F">Femenino</option>
+                <option value="M">Masculino</option>
+                <option value="X">Otro</option>
+            </select>
+            <MensajeCampo Mensaje='@Error("Sexo")' />
+        </div>
+
+        <div>
+            <label class="text-sm font-medium text-ink" for="dp-telefono">Teléfono</label>
+            <input id="dp-telefono" type="tel" autocomplete="tel" class="@ClaseInput("Telefono")"
+                   @bind="Modelo.Telefono" @bind:event="oninput" />
+            <MensajeCampo Mensaje='@Error("Telefono")' />
+        </div>
+
+        <div class="sm:col-span-2">
+            <label class="text-sm font-medium text-ink" for="dp-direccion">Dirección</label>
+            <input id="dp-direccion" autocomplete="street-address" class="@ClaseInput("Direccion")"
+                   @bind="Modelo.Direccion" @bind:event="oninput" />
+            <MensajeCampo Mensaje='@Error("Direccion")' />
+        </div>
+    }
+
+    @if (Muestra(SeccionFormulario.Salud))
+    {
+        <div class="sm:col-span-2">
+            <label class="text-sm font-medium text-ink" for="dp-alergias">Alergias conocidas</label>
+            <textarea id="dp-alergias" rows="2" class="@ClaseInput("Alergias")"
+                      placeholder="Ej. penicilina, mariscos, ninguna conocida..."
+                      @bind="Modelo.Alergias" @bind:event="oninput"></textarea>
+            <MensajeCampo Mensaje='@Error("Alergias")' />
+            <p class="mt-1 text-xs text-ink-muted">Este dato lo ve el médico antes de atenderte.</p>
+        </div>
+
+        <div>
+            <label class="text-sm font-medium text-ink" for="dp-contacto-nombre">Contacto de emergencia</label>
+            <input id="dp-contacto-nombre" class="@ClaseInput("ContactoEmergenciaNombre")"
+                   @bind="Modelo.ContactoEmergenciaNombre" @bind:event="oninput" />
+            <MensajeCampo Mensaje='@Error("ContactoEmergenciaNombre")' />
+        </div>
+
+        <div>
+            <label class="text-sm font-medium text-ink" for="dp-contacto-telefono">Teléfono de emergencia</label>
+            <input id="dp-contacto-telefono" type="tel" class="@ClaseInput("ContactoEmergenciaTelefono")"
+                   @bind="Modelo.ContactoEmergenciaTelefono" @bind:event="oninput" />
+            <MensajeCampo Mensaje='@Error("ContactoEmergenciaTelefono")' />
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ModeloDatosPaciente Modelo { get; set; } = new();
+
+    /// <summary>Errores por campo que devolvió <see cref="ModeloDatosPaciente.Validar"/>.</summary>
+    [Parameter] public IReadOnlyDictionary<string, string> Errores { get; set; } =
+        new Dictionary<string, string>();
+
+    /// <summary>true en el registro público; false al editar el propio perfil.</summary>
+    [Parameter] public bool MostrarCredenciales { get; set; }
+
+    /// <summary>Qué parte del formulario pintar. Completo por defecto.</summary>
+    [Parameter] public SeccionFormulario Seccion { get; set; } = SeccionFormulario.Completo;
+
+    private const string ClaseBase =
+        "mt-1 w-full rounded-control border px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2";
+
+    private const string ClaseNormal = "border-border focus:border-brand-500 focus:ring-brand-100";
+
+    private const string ClaseConError =
+        "border-state-rechazada focus:border-state-rechazada focus:ring-state-rechazada/20";
+
+    private static readonly string HoyIso = DateTime.Today.ToString("yyyy-MM-dd");
+
+    private bool Muestra(SeccionFormulario cual)
+        => Seccion == SeccionFormulario.Completo || Seccion == cual;
+
+    private string ClaseInput(string campo)
+        => $"{ClaseBase} {(Errores.ContainsKey(campo) ? ClaseConError : ClaseNormal)}";
+
+    private string? Error(string campo) => Errores.TryGetValue(campo, out var mensaje) ? mensaje : null;
+}

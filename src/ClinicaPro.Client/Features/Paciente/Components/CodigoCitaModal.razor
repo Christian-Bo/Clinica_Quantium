@@ -1,0 +1,103 @@
+@inject IJSRuntime JS
+
+@* Lo que el paciente enseña en recepción. Recepción escanea y marca la
+   llegada, en vez de buscarlo a mano en la agenda. *@
+
+<Modal IsOpen="IsOpen" IsOpenChanged="IsOpenChanged" Title="Tu código de cita"
+       IconName="calendar" MaxWidthClass="max-w-sm">
+    <Body>
+        @if (Cita is not null)
+        {
+            <div id="cp-codigo-cita">
+                <CodigoQrCita CitaId="@Cita.CitaId" />
+
+                <div class="mt-5 space-y-2 rounded-card bg-surface-muted px-4 py-3.5 text-sm">
+                    <div class="flex justify-between gap-3">
+                        <span class="text-ink-muted">Paciente</span>
+                        <span class="text-right font-medium capitalize text-ink">@Cita.PacienteNombre</span>
+                    </div>
+                    <div class="flex justify-between gap-3">
+                        <span class="text-ink-muted">Especialidad</span>
+                        <span class="text-right font-medium text-ink">@Cita.EspecialidadNombre</span>
+                    </div>
+                    <div class="flex justify-between gap-3">
+                        <span class="text-ink-muted">Médico</span>
+                        <span class="text-right font-medium capitalize text-ink">@Cita.MedicoNombre</span>
+                    </div>
+                    <div class="flex justify-between gap-3">
+                        <span class="text-ink-muted">Fecha</span>
+                        <span class="text-right font-medium text-ink first-letter:uppercase">@FechaLarga</span>
+                    </div>
+                    <div class="flex justify-between gap-3">
+                        <span class="text-ink-muted">Hora</span>
+                        <span class="text-right font-medium tabular-nums text-ink">
+                            @Cita.FechaHoraInicio.ToString("HH:mm")
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <p class="mt-4 text-center text-xs leading-relaxed text-ink-muted">
+                Enséñalo en recepción al llegar. También puedes imprimirlo o compartirlo.
+            </p>
+        }
+    </Body>
+    <Footer>
+        <Button Variant="ButtonVariant.Secondary" IconName="file-text" OnClick="Imprimir">
+            Imprimir
+        </Button>
+        <a href="@EnlaceWhatsApp" target="_blank" rel="noopener noreferrer"
+           class="inline-flex items-center justify-center gap-2 rounded-control bg-brand-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2">
+            <Icon Name="phone" Size="16" />
+            Compartir
+        </a>
+    </Footer>
+</Modal>
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public CitaDto? Cita { get; set; }
+
+    private static readonly System.Globalization.CultureInfo Guatemala = new("es-GT");
+
+    private string FechaLarga => Cita is null
+        ? string.Empty
+        : Cita.FechaHoraInicio.ToString("dddd d 'de' MMMM 'de' yyyy", Guatemala);
+
+    /// <summary>
+    /// wa.me abre WhatsApp con el mensaje ya escrito, sin número de destino:
+    /// el paciente elige a quién se lo manda. No requiere nada del backend.
+    /// </summary>
+    private string EnlaceWhatsApp
+    {
+        get
+        {
+            if (Cita is null)
+            {
+                return "#";
+            }
+
+            var texto =
+                $"Mi cita en Clínica Pro\n" +
+                $"{Cita.EspecialidadNombre} con {Cita.MedicoNombre}\n" +
+                $"{FechaLarga} a las {Cita.FechaHoraInicio:HH:mm}\n" +
+                $"Código: {Cita.CitaId}";
+
+            return $"https://wa.me/?text={Uri.EscapeDataString(texto)}";
+        }
+    }
+
+    private async Task Imprimir()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("clinicaProImpresion.imprimirElemento", "cp-codigo-cita");
+        }
+        catch (JSException)
+        {
+            // Si el navegador bloquea la ventana de impresión no hay nada que
+            // hacer desde aquí; el usuario siempre puede usar Ctrl+P.
+        }
+    }
+}

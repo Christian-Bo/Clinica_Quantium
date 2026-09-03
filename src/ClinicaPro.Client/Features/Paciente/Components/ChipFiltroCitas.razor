@@ -1,0 +1,34 @@
+@* Chip de filtro del portal. Es un botón de verdad, no un div con onclick:
+   así entra en el orden de tabulación y un lector de pantalla anuncia
+   cuál está activo gracias a aria-pressed. *@
+
+<button type="button" class="@Clases" aria-pressed="@Activo" @onclick="OnClick">
+    @Etiqueta
+    <span class="@ClaseConteo">@Conteo</span>
+</button>
+
+@code {
+    [Parameter, EditorRequired] public string Etiqueta { get; set; } = string.Empty;
+    [Parameter] public int Conteo { get; set; }
+    [Parameter] public bool Activo { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+
+    private string Clases
+    {
+        get
+        {
+            const string Base =
+                "inline-flex items-center gap-2 rounded-pill border px-3.5 py-1.5 text-sm font-medium " +
+                "transition-colors focus-visible:outline-none focus-visible:ring-2 " +
+                "focus-visible:ring-brand-500 focus-visible:ring-offset-2";
+
+            return Activo
+                ? $"{Base} border-brand-500 bg-brand-500 text-white"
+                : $"{Base} border-border bg-surface text-ink-muted hover:border-brand-500 hover:text-brand-600";
+        }
+    }
+
+    private string ClaseConteo => Activo
+        ? "rounded-pill bg-white/20 px-1.5 text-xs tabular-nums"
+        : "rounded-pill bg-surface-muted px-1.5 text-xs tabular-nums";
+}

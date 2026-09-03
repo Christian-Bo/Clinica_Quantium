@@ -1,0 +1,128 @@
+@page "/portal/perfil"
+@attribute [Authorize(Roles = RolNombres.Paciente)]
+@layout PacienteLayout
+@inject PerfilPacienteApiService PerfilApi
+@inject ToastService Toasts
+
+<PageTitle>Mi perfil · Clínica Pro</PageTitle>
+
+<h1 class="text-xl font-semibold text-ink">Mi perfil</h1>
+<p class="mt-1 text-sm text-ink-muted">
+    Mantén tus datos al día: la clínica los usa para contactarte y el médico los revisa antes de atenderte.
+</p>
+
+<div class="mt-6 max-w-2xl">
+    @if (cargando)
+    {
+        <Card>
+            <Skeleton Filas="4" HeightClass="h-10" />
+        </Card>
+    }
+    else if (!string.IsNullOrEmpty(errorCarga))
+    {
+        <Card>
+            <EmptyState IconName="alert-triangle" Title="No pudimos cargar tu perfil" Description="@errorCarga">
+                <Action>
+                    <Button Variant="ButtonVariant.Secondary" OnClick="Cargar">Reintentar</Button>
+                </Action>
+            </EmptyState>
+        </Card>
+    }
+    else
+    {
+        <Card>
+            <EditForm Model="modelo" OnValidSubmit="Guardar">
+                <DatosPacienteForm Modelo="modelo" Errores="errores" MostrarCredenciales="false" />
+
+                @if (!string.IsNullOrEmpty(errorGuardado))
+                {
+                    <p role="alert" class="mt-5 rounded-control bg-state-rechazada/10 px-3 py-2 text-sm text-state-rechazada">
+                        @errorGuardado
+                    </p>
+                }
+
+                <div class="mt-6 flex justify-end gap-2">
+                    <Button Variant="ButtonVariant.Secondary" OnClick="Descartar" Disabled="guardando">
+                        Descartar cambios
+                    </Button>
+                    <Button Type="submit" Variant="ButtonVariant.Primary" Loading="guardando">
+                        Guardar cambios
+                    </Button>
+                </div>
+            </EditForm>
+        </Card>
+
+        <p class="mt-3 text-xs text-ink-muted">
+            Tu correo de acceso no se cambia desde aquí. Si necesitas cambiarlo, comunícate con la clínica.
+        </p>
+    }
+</div>
+
+@code {
+    private ModeloDatosPaciente modelo = new();
+    private PacienteDto? fichaOriginal;
+    private Dictionary<string, string> errores = [];
+
+    private bool cargando = true;
+    private bool guardando;
+    private string? errorCarga;
+    private string? errorGuardado;
+
+    protected override Task OnInitializedAsync() => Cargar();
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        errorCarga = null;
+
+        var resultado = await PerfilApi.ObtenerMiFichaAsync();
+
+        if (resultado.Exito && resultado.Valor is not null)
+        {
+            fichaOriginal = resultado.Valor;
+            modelo = ModeloDatosPaciente.DesdeFicha(resultado.Valor);
+        }
+        else
+        {
+            errorCarga = resultado.Error;
+        }
+
+        cargando = false;
+    }
+
+    private void Descartar()
+    {
+        if (fichaOriginal is not null)
+        {
+            modelo = ModeloDatosPaciente.DesdeFicha(fichaOriginal);
+        }
+
+        errores = [];
+        errorGuardado = null;
+    }
+
+    private async Task Guardar()
+    {
+        errorGuardado = null;
+        errores = modelo.Validar(incluyeCredenciales: false);
+
+        if (errores.Count > 0)
+        {
+            return;
+        }
+
+        guardando = true;
+        var resultado = await PerfilApi.ActualizarMiFichaAsync(modelo.ConstruirActualizacion());
+        guardando = false;
+
+        if (resultado.Exito && resultado.Valor is not null)
+        {
+            fichaOriginal = resultado.Valor;
+            modelo = ModeloDatosPaciente.DesdeFicha(resultado.Valor);
+            Toasts.Exito("Tus datos quedaron actualizados.");
+            return;
+        }
+
+        errorGuardado = resultado.Error ?? "No fue posible guardar tus datos.";
+    }
+}
