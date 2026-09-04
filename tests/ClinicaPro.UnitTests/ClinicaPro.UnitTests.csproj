@@ -15,5 +15,15 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\ClinicaPro.Application\ClinicaPro.Application.csproj" />
     <ProjectReference Include="..\..\src\ClinicaPro.Domain\ClinicaPro.Domain.csproj" />
+    <ProjectReference Include="..\..\src\ClinicaPro.Contracts\ClinicaPro.Contracts.csproj" />
+  </ItemGroup>
+  <!-- ClinicaPro.Client usa el SDK de Blazor WebAssembly y no se puede
+       referenciar desde un proyecto de pruebas net8.0. ModeloDatosPaciente
+       es C# puro (sin Razor ni JSInterop), asi que se enlaza el archivo
+       directamente y se prueba la misma fuente que compila el cliente. -->
+  <ItemGroup>
+    <Compile Include="..\..\src\ClinicaPro.Client\Features\Paciente\Components\ModeloDatosPaciente.cs" Link="Paciente\ModeloDatosPaciente.cs" />
+    <Using Include="ClinicaPro.Contracts.Auth" />
+    <Using Include="ClinicaPro.Contracts.Pacientes" />
   </ItemGroup>
 </Project>

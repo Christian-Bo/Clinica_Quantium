@@ -85,9 +85,13 @@
             var ahora = DateTime.Now;
             var falta = Cita.FechaHoraInicio - ahora;
 
+            // La cita sigue en un estado activo pero su horario ya pasó: la
+            // clínica nunca la marcó como atendida ni la canceló. Decirlo es
+            // mejor que dejar la tarjeta muda, porque el paciente todavía
+            // puede anularla o preguntar en recepción.
             if (falta <= TimeSpan.Zero)
             {
-                return null;
+                return "Esta fecha ya pasó";
             }
 
             if (falta.TotalMinutes < 60)
@@ -108,13 +112,18 @@
         }
     }
 
-    /// <summary>El aviso se pone urgente cuando la cita es hoy o mañana.</summary>
+    /// <summary>Urgente si la cita es hoy o mañana; apagado si ya pasó.</summary>
     private string ClaseCuentaRegresiva
     {
         get
         {
             const string Base =
                 "mt-3 inline-flex items-center gap-1.5 rounded-pill px-3 py-1 text-xs font-semibold";
+
+            if (Cita.FechaHoraInicio <= DateTime.Now)
+            {
+                return $"{Base} bg-ink-muted/10 text-ink-muted";
+            }
 
             var dias = Cita.FechaHoraInicio.Date.Subtract(DateTime.Now.Date).Days;
 

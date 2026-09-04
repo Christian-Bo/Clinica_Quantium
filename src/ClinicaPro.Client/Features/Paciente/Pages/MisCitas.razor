@@ -1,5 +1,5 @@
 @page "/portal/citas"
-@attribute [Authorize(Roles = RolNombres.Paciente)]
+@attribute [Authorize(Roles = Roles.Paciente)]
 @layout PacienteLayout
 @inject CitasPacienteApiService CitasApi
 @inject ToastService Toasts
@@ -26,8 +26,8 @@
 else
 {
     <div class="mt-6 flex flex-wrap gap-2" role="group" aria-label="Filtrar mis citas">
-        <ChipFiltroCitas Etiqueta="Próximas" Conteo="@Contar(Filtro.Proximas)"
-                         Activo="@(filtro == Filtro.Proximas)" OnClick="() => CambiarFiltro(Filtro.Proximas)" />
+        <ChipFiltroCitas Etiqueta="Activas" Conteo="@Contar(Filtro.Activas)"
+                         Activo="@(filtro == Filtro.Activas)" OnClick="() => CambiarFiltro(Filtro.Activas)" />
         <ChipFiltroCitas Etiqueta="Atendidas" Conteo="@Contar(Filtro.Atendidas)"
                          Activo="@(filtro == Filtro.Atendidas)" OnClick="() => CambiarFiltro(Filtro.Atendidas)" />
         <ChipFiltroCitas Etiqueta="Canceladas" Conteo="@Contar(Filtro.Canceladas)"
@@ -42,7 +42,7 @@ else
             <Card>
                 <SinCitas Titulo="@TituloVacio" Descripcion="@DescripcionVacio">
                     <Accion>
-                        @if (filtro == Filtro.Proximas)
+                        @if (filtro == Filtro.Activas)
                         {
                             <Button Variant="ButtonVariant.Primary" IconName="plus" OnClick="() => modalAbierto = true">
                                 Solicitar cita
@@ -104,10 +104,10 @@ else
 <CodigoCitaModal @bind-IsOpen="modalCodigoAbierto" Cita="citaDelCodigo" />
 
 @code {
-    private enum Filtro { Proximas, Atendidas, Canceladas, Todas }
+    private enum Filtro { Activas, Atendidas, Canceladas, Todas }
 
     private List<CitaDto> todas = [];
-    private Filtro filtro = Filtro.Proximas;
+    private Filtro filtro = Filtro.Activas;
 
     private bool cargando = true;
     private bool modalAbierto;
@@ -147,7 +147,7 @@ else
 
     private List<CitaDto> Visibles => filtro switch
     {
-        Filtro.Proximas => [.. todas.Where(EsVigente)],
+        Filtro.Activas => [.. todas.Where(EsVigente)],
         Filtro.Atendidas => [.. todas.Where(cita => cita.Estado == CitaEstados.Atendida)],
         Filtro.Canceladas => [.. todas.Where(EsCancelada)],
         _ => todas
@@ -155,7 +155,7 @@ else
 
     private int Contar(Filtro cual) => cual switch
     {
-        Filtro.Proximas => todas.Count(EsVigente),
+        Filtro.Activas => todas.Count(EsVigente),
         Filtro.Atendidas => todas.Count(cita => cita.Estado == CitaEstados.Atendida),
         Filtro.Canceladas => todas.Count(EsCancelada),
         _ => todas.Count
@@ -170,7 +170,7 @@ else
 
     private string TituloVacio => filtro switch
     {
-        Filtro.Proximas => "No tienes citas activas",
+        Filtro.Activas => "No tienes citas activas",
         Filtro.Atendidas => "Todavía no tienes consultas atendidas",
         Filtro.Canceladas => "No tienes citas canceladas",
         _ => "Todavía no tienes citas"
@@ -178,7 +178,7 @@ else
 
     private string DescripcionVacio => filtro switch
     {
-        Filtro.Proximas => "Cuando solicites una cita aparecerá aquí mientras esté vigente.",
+        Filtro.Activas => "Cuando solicites una cita aparecerá aquí mientras esté vigente.",
         Filtro.Atendidas => "Aquí van a quedar las consultas después de que el médico te atienda.",
         Filtro.Canceladas => "Aquí aparecerían las citas que se cancelaron o no se presentaron.",
         _ => "Solicita tu primera cita y aparecerá en esta lista."
@@ -274,7 +274,7 @@ else
 
     private async Task CitaSolicitada(CitaDto cita)
     {
-        filtro = Filtro.Proximas;
+        filtro = Filtro.Activas;
         Toasts.Exito("Tu solicitud quedó registrada. La clínica confirmará el horario.");
         await Cargar();
     }

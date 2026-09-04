@@ -1,5 +1,5 @@
 @page "/portal"
-@attribute [Authorize(Roles = RolNombres.Paciente)]
+@attribute [Authorize(Roles = Roles.Paciente)]
 @layout PacienteLayout
 @inject PerfilPacienteApiService PerfilApi
 @inject CitasPacienteApiService CitasApi
@@ -8,7 +8,7 @@
 
 <PageTitle>Mi portal · Clínica Pro</PageTitle>
 
-<h1 class="text-xl font-semibold capitalize text-ink">@Saludo</h1>
+<h1 class="text-xl font-semibold text-ink">@Saludo</h1>
 <p class="mt-1 text-sm text-ink-muted">Este es el resumen de tu atención en la clínica.</p>
 
 @if (cargando)
@@ -199,7 +199,13 @@ else
             var hora = DateTime.Now.Hour;
             var momento = hora < 12 ? "Buenos días" : hora < 19 ? "Buenas tardes" : "Buenas noches";
             var nombre = ficha?.Nombres.Split(' ').FirstOrDefault();
-            return string.IsNullOrWhiteSpace(nombre) ? momento : $"{momento}, {nombre}";
+
+            // El nombre viene tal cual lo escribió quien registró la ficha
+            // ("sergio"), así que se capitaliza aquí. No se usa la clase
+            // capitalize de CSS porque también tocaría "noches".
+            return string.IsNullOrWhiteSpace(nombre)
+                ? momento
+                : $"{momento}, {char.ToUpperInvariant(nombre[0])}{nombre[1..]}";
         }
     }
 

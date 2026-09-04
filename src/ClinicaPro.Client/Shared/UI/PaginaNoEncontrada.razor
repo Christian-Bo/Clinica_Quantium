@@ -38,7 +38,7 @@
             var estado = await EstadoAutenticacion;
             if (estado.User.Identity?.IsAuthenticated == true)
             {
-                destino = RutasPorRol.InicioPara(estado.User);
+                destino = RoleRoutes.Inicio(estado.User);
             }
         }
 

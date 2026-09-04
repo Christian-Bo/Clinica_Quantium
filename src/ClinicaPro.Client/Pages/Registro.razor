@@ -184,7 +184,7 @@
         if (resultado.Exito && resultado.Valor is not null)
         {
             // La API ya devolvió la sesión iniciada: entra directo a su portal.
-            Navigation.NavigateTo(RutasPorRol.PortalPaciente, replace: true);
+            Navigation.NavigateTo(RoleRoutes.PortalPaciente, replace: true);
             return;
         }
 

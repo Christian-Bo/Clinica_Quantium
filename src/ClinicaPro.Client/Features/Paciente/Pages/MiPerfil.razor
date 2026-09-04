@@ -1,5 +1,5 @@
 @page "/portal/perfil"
-@attribute [Authorize(Roles = RolNombres.Paciente)]
+@attribute [Authorize(Roles = Roles.Paciente)]
 @layout PacienteLayout
 @inject PerfilPacienteApiService PerfilApi
 @inject ToastService Toasts
