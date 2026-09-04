@@ -26,6 +26,7 @@ public sealed class ActualizarPerfilPacienteService(
             () => pacientes.ObtenerRastreadoPorUsuarioIdAsync(usuarioId, cancellationToken),
             usuarioId,
             "ActualizarPerfil",
+            permitirCambiarDocumento: false,
             nombres,
             apellidos,
             documento,
@@ -56,6 +57,7 @@ public sealed class ActualizarPerfilPacienteService(
             () => pacientes.ObtenerRastreadoPorIdAsync(pacienteId, cancellationToken),
             actorUsuarioId,
             "ActualizarPacienteStaff",
+            permitirCambiarDocumento: true,
             nombres,
             apellidos,
             documento,
@@ -72,6 +74,7 @@ public sealed class ActualizarPerfilPacienteService(
         Func<Task<Paciente?>> obtener,
         Guid actorUsuarioId,
         string accion,
+        bool permitirCambiarDocumento,
         string nombres,
         string apellidos,
         string? documento,
@@ -87,8 +90,10 @@ public sealed class ActualizarPerfilPacienteService(
         var paciente = await obtener()
             ?? throw new DomainException("El paciente no existe.");
 
-        if (!string.IsNullOrWhiteSpace(documento)
-            && await pacientes.ExisteDocumentoAsync(documento, paciente.Id, cancellationToken))
+        var documentoFinal = ResolverDocumento(paciente.Documento, documento, permitirCambiarDocumento);
+
+        if (!string.IsNullOrWhiteSpace(documentoFinal)
+            && await pacientes.ExisteDocumentoAsync(documentoFinal, paciente.Id, cancellationToken))
         {
             throw new DomainException("Ya existe un paciente con ese documento.");
         }
@@ -96,7 +101,7 @@ public sealed class ActualizarPerfilPacienteService(
         paciente.Actualizar(
             nombres,
             apellidos,
-            documento,
+            documentoFinal,
             fechaNacimiento,
             telefono,
             direccion,
@@ -113,5 +118,27 @@ public sealed class ActualizarPerfilPacienteService(
             null,
             cancellationToken);
         return paciente;
+    }
+
+    private static string? ResolverDocumento(string? actual, string? propuesto, bool permitirCambiarDocumento)
+    {
+        if (permitirCambiarDocumento)
+        {
+            return propuesto;
+        }
+
+        if (string.IsNullOrWhiteSpace(actual))
+        {
+            return propuesto;
+        }
+
+        if (!string.IsNullOrWhiteSpace(propuesto)
+            && !string.Equals(propuesto.Trim(), actual.Trim(), StringComparison.Ordinal))
+        {
+            throw new DomainException(
+                "El documento de identidad no se puede cambiar desde el portal. Solicite la corrección en recepción.");
+        }
+
+        return actual;
     }
 }

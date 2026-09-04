@@ -1,5 +1,7 @@
 namespace ClinicaPro.Application.Auth;
 
+public sealed record PrimeraCitaRegistro(Guid MedicoId, DateTime FechaHoraInicio, string MotivoConsulta);
+
 public sealed record RegisterPacienteInput(
     string Email,
     string Password,
@@ -12,7 +14,16 @@ public sealed record RegisterPacienteInput(
     string? Sexo = null,
     string? Alergias = null,
     string? ContactoEmergenciaNombre = null,
-    string? ContactoEmergenciaTelefono = null);
+    string? ContactoEmergenciaTelefono = null,
+    PrimeraCitaRegistro? PrimeraCita = null);
+
+public sealed record AuthOperationResult(bool Succeeded, string? ErrorCode, AuthSession? Session, string? ErrorDetail = null)
+{
+    public static AuthOperationResult Ok(AuthSession session) => new(true, null, session);
+
+    public static AuthOperationResult Fail(string errorCode, string? errorDetail = null)
+        => new(false, errorCode, null, errorDetail);
+}
 
 public sealed record AuthSession(
     string AccessToken,
@@ -30,13 +41,6 @@ public sealed record AuthUserInfo(
     bool MustChangePassword,
     Guid? PacienteId,
     string? NombreCompleto);
-
-public sealed record AuthOperationResult(bool Succeeded, string? ErrorCode, AuthSession? Session)
-{
-    public static AuthOperationResult Ok(AuthSession session) => new(true, null, session);
-
-    public static AuthOperationResult Fail(string errorCode) => new(false, errorCode, null);
-}
 
 public sealed record PacienteStaffResult(bool Succeeded, string? ErrorCode, Guid? PacienteId, Guid? UsuarioId);
 

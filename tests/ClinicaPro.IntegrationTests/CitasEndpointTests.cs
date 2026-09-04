@@ -43,14 +43,13 @@ public sealed class CitasEndpointTests : IClassFixture<WebApplicationFactory<Pro
     }
 
     [Fact]
-    public async Task Disponibilidad_WithoutToken_ReturnsUnauthorized()
+    public async Task Disponibilidad_WithoutToken_ReturnsOk()
     {
         using var client = _factory.CreateClient();
 
-        var response = await client.GetAsync(
-            "/api/citas/disponibilidad?especialidadId=20000000-0000-0000-0000-000000000001&fecha=2026-09-11");
+        var response = await client.GetAsync("/api/citas/disponibilidad?fecha=2026-09-11");
 
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     [Fact]

@@ -13,14 +13,14 @@ Header: `Authorization: Bearer {accessToken}`. En Swagger pegar solo el token.
 | Método | Ruta | Auth |
 |---|---|---|
 | POST | `/api/auth/login` | no |
-| POST | `/api/auth/register/paciente` | no (201). 409 si correo o DPI repetido |
-| POST | `/api/auth/forgot-password` | no. Body: `email`. Siempre 200. Envía código por correo |
+| POST | `/api/auth/register/paciente` | no (201). Body incluye primera cita: `medicoId`, `fechaHoraInicio` (Guatemala, sin Z), `motivoConsulta`. 400 si faltan. 409 si correo o DPI repetido |
+| POST | `/api/auth/forgot-password` | no. Body: `email`. Siempre 200 (o 429 si hay abuso). Envía código por correo |
 | POST | `/api/auth/reset-password` | no. Body: `email`, `token`, `newPassword` |
-| POST | `/api/auth/change-password` | sí |
+| POST | `/api/auth/change-password` | sí. Si `mustChangePassword`, es el único POST permitido junto con `GET /api/auth/me` |
 | GET | `/api/auth/me` | sí |
 | GET | `/api/pacientes/me` | sí |
-| PUT | `/api/pacientes/me` | Paciente. Perfil + sexo, alergias, contactoEmergenciaNombre, contactoEmergenciaTelefono |
-| PUT | `/api/pacientes/{pacienteId}` | Secretaria / Admin. Mismo body |
+| PUT | `/api/pacientes/me` | Paciente. Perfil + sexo, alergias, contactoEmergencia. **No cambia DPI** (sí recepción/admin) |
+| PUT | `/api/pacientes/{pacienteId}` | Secretaria / Admin. Mismo body; sí puede corregir DPI |
 | GET | `/api/pacientes?q=&page=1&pageSize=20` | Secretaria / Admin. `{ items, total, page, pageSize }`. pageSize máx. 50 |
 | POST | `/api/pacientes` | Secretaria / Admin |
 
@@ -28,15 +28,15 @@ Password: 8+, mayúscula, minúscula, dígito y símbolo. `sexo`: `M`, `F`, `X` 
 
 ## Citas
 
-El paciente pide con `especialidadId` + `fechaHoraInicio` (Guatemala, **sin Z**) + `motivoConsulta` (≥ 5). El API asigna el médico primario.
+El paciente pide con `medicoId` + `fechaHoraInicio` (Guatemala, **sin Z**) + `motivoConsulta` (≥ 5). Al **registrarse** (`POST /api/auth/register/paciente`) esos tres campos van en el mismo body: no se crea la cuenta si no agenda la primera cita.
 
-Secretaria/Admin también: `POST /api/citas/para-paciente` con `pacienteId` extra.
+Secretaria/Admin también: `POST /api/citas/para-paciente` con `pacienteId` extra. `POST /api/pacientes` crea el paciente **sin** exigir cita (mostrador).
 
-`GET /api/citas?pacienteId=` (Secretaria/Admin): citas de ese paciente.
+`CitaDto` incluye `pacienteNombre` y `medicoNombre`.
 
-`CitaDto` incluye `pacienteNombre`, `medicoNombre`, `especialidadNombre`.
+`GET /api/citas/disponibilidad?fecha=2026-09-11` (público, sin token). Slots de todos los médicos activos: hora + nombre del médico, sin datos de pacientes.
 
-`GET /api/citas/disponibilidad?especialidadId=&fecha=2026-09-11`
+Un paciente no puede tener dos citas activas que se solapen (cualquier médico) ni más de **3** citas activas futuras.
 
 Estados: Solicitada → Programada → Confirmada → En Espera → En Atencion → Atendida. Alternativas: Rechazada, Cancelada, No presentada.
 

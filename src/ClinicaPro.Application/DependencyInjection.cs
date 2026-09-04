@@ -15,6 +15,7 @@ public static class DependencyInjection
     
         services.AddScoped<ListarMedicosActivosService>();
         services.AddScoped<SolicitarCitaService>();
+        services.AddScoped<ValidarAgendaPacienteService>();
         services.AddScoped<OperarCitaService>();
         services.AddScoped<ListarCitasPacienteService>();
         services.AddScoped<ListarCitasMedicoService>();

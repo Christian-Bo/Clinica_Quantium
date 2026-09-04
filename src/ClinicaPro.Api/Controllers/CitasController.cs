@@ -201,6 +201,7 @@ public sealed class CitasController(
     }
 
     [HttpGet("disponibilidad")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(IReadOnlyList<SlotDisponibleDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<SlotDisponibleDto>>> Disponibilidad(
         [FromQuery] DateOnly fecha,

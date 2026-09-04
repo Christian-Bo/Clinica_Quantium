@@ -36,6 +36,17 @@ public interface ICitaRepository
         DateTime desde,
         DateTime hasta,
         CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Cita>> ListarQueBloqueanPacienteEnRangoAsync(
+        Guid pacienteId,
+        DateTime desde,
+        DateTime hasta,
+        Guid? exceptoCitaId,
+        CancellationToken cancellationToken = default);
+    Task<int> ContarActivasFuturasAsync(
+        Guid pacienteId,
+        DateTime ahoraClinica,
+        Guid? exceptoCitaId,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Cita>> ListarParaRecordatorioAsync(
         DateTime desdeInicio,
         DateTime hastaInicio,
