@@ -23,6 +23,19 @@
         <EsqueletoCita Cantidad="2" />
     </div>
 }
+else if (!string.IsNullOrEmpty(error))
+{
+    <div class="mt-6">
+        <Card>
+            <EmptyState IconName="alert-triangle" Title="No pudimos cargar tus citas"
+                        Description="@error">
+                <Action>
+                    <Button Variant="ButtonVariant.Secondary" OnClick="Cargar">Reintentar</Button>
+                </Action>
+            </EmptyState>
+        </Card>
+    </div>
+}
 else
 {
     <div class="mt-6 flex flex-wrap gap-2" role="group" aria-label="Filtrar mis citas">
@@ -110,6 +123,7 @@ else
     private Filtro filtro = Filtro.Activas;
 
     private bool cargando = true;
+    private string? error;
     private bool modalAbierto;
     private bool modalCodigoAbierto;
     private CitaDto? citaDelCodigo;
@@ -120,8 +134,17 @@ else
     private async Task Cargar()
     {
         cargando = true;
-        var citas = await CitasApi.ListarMisCitasAsync();
-        todas = [.. citas];
+        error = null;
+
+        var resultado = await CitasApi.ListarMisCitasAsync();
+        if (!resultado.Exito)
+        {
+            error = resultado.Error;
+            cargando = false;
+            return;
+        }
+
+        todas = [.. resultado.Valor!];
         Ordenar();
         cargando = false;
     }

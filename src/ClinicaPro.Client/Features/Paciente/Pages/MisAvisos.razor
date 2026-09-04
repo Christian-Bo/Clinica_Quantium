@@ -15,6 +15,17 @@
     {
         <Skeleton Filas="3" HeightClass="h-24" />
     }
+    else if (!string.IsNullOrEmpty(error))
+    {
+        <Card>
+            <EmptyState IconName="alert-triangle" Title="No pudimos cargar tus avisos"
+                        Description="@error">
+                <Action>
+                    <Button Variant="ButtonVariant.Secondary" OnClick="Cargar">Reintentar</Button>
+                </Action>
+            </EmptyState>
+        </Card>
+    }
     else if (avisos.Count == 0)
     {
         <Card>
@@ -51,11 +62,24 @@
 @code {
     private List<NotificacionDto> avisos = [];
     private bool cargando = true;
+    private string? error;
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync() => Cargar();
+
+    private async Task Cargar()
     {
-        var lista = await NotificacionesApi.ListarMisNotificacionesAsync();
-        avisos = [.. lista.OrderByDescending(aviso => aviso.CreatedAtUtc)];
+        cargando = true;
+        error = null;
+
+        var resultado = await NotificacionesApi.ListarMisNotificacionesAsync();
+        if (!resultado.Exito)
+        {
+            error = resultado.Error;
+            cargando = false;
+            return;
+        }
+
+        avisos = [.. resultado.Valor!.OrderByDescending(aviso => aviso.CreatedAtUtc)];
         cargando = false;
     }
 

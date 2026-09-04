@@ -13,16 +13,33 @@ public sealed class CitasPacienteApiService(HttpClient http)
     /// </summary>
     private const string FormatoFechaHora = "yyyy-MM-ddTHH:mm:ss";
 
-    public async Task<IReadOnlyList<CitaDto>> ListarMisCitasAsync(CancellationToken ct = default)
+    /// <summary>
+    /// Las citas del paciente autenticado. Devolver una lista vacía cuando la
+    /// API falla haría que un error de red se vea igual que "no tienes citas",
+    /// y el paciente creería que su solicitud nunca se registró.
+    /// </summary>
+    public async Task<ResultadoOperacion<IReadOnlyList<CitaDto>>> ListarMisCitasAsync(
+        CancellationToken ct = default)
     {
+        HttpResponseMessage respuesta;
         try
         {
-            return await http.GetFromJsonAsync<List<CitaDto>>("api/citas/mias", ct) ?? [];
+            respuesta = await http.GetAsync("api/citas/mias", ct);
         }
         catch (HttpRequestException)
         {
-            return [];
+            return ResultadoOperacion<IReadOnlyList<CitaDto>>.Fallo(
+                "No se pudo contactar al servidor. Verifica tu conexión y vuelve a intentar.");
         }
+
+        if (!respuesta.IsSuccessStatusCode)
+        {
+            return ResultadoOperacion<IReadOnlyList<CitaDto>>.Fallo(
+                await ApiErrorReader.LeerAsync(respuesta, "No pudimos leer tus citas.", ct));
+        }
+
+        var citas = await respuesta.Content.ReadFromJsonAsync<List<CitaDto>>(cancellationToken: ct);
+        return ResultadoOperacion<IReadOnlyList<CitaDto>>.Ok(citas ?? []);
     }
 
     /// <summary>

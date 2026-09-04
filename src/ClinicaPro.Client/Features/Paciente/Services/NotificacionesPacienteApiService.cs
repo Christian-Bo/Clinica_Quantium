@@ -6,15 +6,32 @@ namespace ClinicaPro.Client.Features.Paciente.Services;
 /// </summary>
 public sealed class NotificacionesPacienteApiService(HttpClient http)
 {
-    public async Task<IReadOnlyList<NotificacionDto>> ListarMisNotificacionesAsync(CancellationToken ct = default)
+    /// <summary>
+    /// Mismo criterio que en las citas: una lista vacía significa "no hay
+    /// avisos", nunca "la consulta falló". Confundirlos ocultaría avisos que
+    /// el paciente sí tiene.
+    /// </summary>
+    public async Task<ResultadoOperacion<IReadOnlyList<NotificacionDto>>> ListarMisNotificacionesAsync(
+        CancellationToken ct = default)
     {
+        HttpResponseMessage respuesta;
         try
         {
-            return await http.GetFromJsonAsync<List<NotificacionDto>>("api/notificaciones/mias", ct) ?? [];
+            respuesta = await http.GetAsync("api/notificaciones/mias", ct);
         }
         catch (HttpRequestException)
         {
-            return [];
+            return ResultadoOperacion<IReadOnlyList<NotificacionDto>>.Fallo(
+                "No se pudo contactar al servidor. Verifica tu conexión y vuelve a intentar.");
         }
+
+        if (!respuesta.IsSuccessStatusCode)
+        {
+            return ResultadoOperacion<IReadOnlyList<NotificacionDto>>.Fallo(
+                await ApiErrorReader.LeerAsync(respuesta, "No pudimos leer tus avisos.", ct));
+        }
+
+        var avisos = await respuesta.Content.ReadFromJsonAsync<List<NotificacionDto>>(cancellationToken: ct);
+        return ResultadoOperacion<IReadOnlyList<NotificacionDto>>.Ok(avisos ?? []);
     }
 }

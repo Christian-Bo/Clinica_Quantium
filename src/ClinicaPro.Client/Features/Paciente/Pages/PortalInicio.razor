@@ -155,7 +155,16 @@ else
         }
 
         ficha = resultadoFicha.Valor;
-        citas = await CitasApi.ListarMisCitasAsync();
+
+        var resultadoCitas = await CitasApi.ListarMisCitasAsync();
+        if (!resultadoCitas.Exito)
+        {
+            error = resultadoCitas.Error;
+            cargando = false;
+            return;
+        }
+
+        citas = [.. resultadoCitas.Valor!];
         Resumir();
 
         cargando = false;
