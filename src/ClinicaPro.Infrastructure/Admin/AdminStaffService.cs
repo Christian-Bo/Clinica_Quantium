@@ -1,7 +1,7 @@
 using ClinicaPro.Application;
 using ClinicaPro.Application.Agenda;
 using ClinicaPro.Application.Admin;
-using ClinicaPro.Application.Especialidades;
+
 using ClinicaPro.Domain;
 using ClinicaPro.Domain.Entities;
 using ClinicaPro.Domain.Exceptions;
@@ -16,7 +16,7 @@ public sealed class AdminStaffService(
     UserManager<ApplicationUser> userManager,
     RoleManager<ApplicationRole> roleManager,
     IMedicoRepository medicos,
-    IEspecialidadRepository especialidades,
+   
     IUnitOfWork unitOfWork,
     IAuditoriaWriter auditoria,
     ClinicaProDbContext dbContext) : IAdminStaffService
@@ -29,8 +29,7 @@ public sealed class AdminStaffService(
             throw new DomainException("El correo ya está registrado.");
         }
 
-        var especialidad = await especialidades.ObtenerPorIdAsync(input.EspecialidadId, cancellationToken)
-            ?? throw new DomainException("La especialidad no existe o no está activa.");
+    
 
         var rol = await roleManager.FindByNameAsync(RolNombres.Medico)
             ?? throw new DomainException("No existe el rol Médico.");
@@ -58,9 +57,7 @@ public sealed class AdminStaffService(
 
         var medico = Medico.Create(Guid.NewGuid(), user.Id, input.Nombres, input.Apellidos, input.NumeroColegiado, input.Telefono);
         await medicos.AgregarAsync(medico, cancellationToken);
-        await medicos.AgregarEspecialidadAsync(
-            MedicoEspecialidad.Create(medico.Id, especialidad.Id, input.EsPrimario),
-            cancellationToken);
+        
         await unitOfWork.SaveChangesAsync(cancellationToken);
         await auditoria.RegistrarAsync(adminId, "Crear", "Medico", medico.Id.ToString(), email, cancellationToken);
         return medico;
@@ -117,12 +114,9 @@ public sealed class AdminStaffService(
         return resultado;
     }
 
-    public async Task<IReadOnlyList<AdminMedicoInfo>> ListarMedicosAsync(CancellationToken cancellationToken)
+        public async Task<IReadOnlyList<AdminMedicoInfo>> ListarMedicosAsync(CancellationToken cancellationToken)
     {
         var lista = await medicos.ListarTodosAsync(cancellationToken);
-        var relaciones = (await medicos.ListarEspecialidadesActivasAsync(cancellationToken))
-            .GroupBy(item => item.MedicoId)
-            .ToDictionary(grupo => grupo.Key, grupo => grupo.ToList());
 
         var usuarioIds = lista.Select(item => item.UsuarioId).ToList();
         var correos = await dbContext.Users.AsNoTracking()
@@ -131,23 +125,16 @@ public sealed class AdminStaffService(
             .ToListAsync(cancellationToken);
         var porUsuario = correos.ToDictionary(item => item.Id, item => item.Email ?? string.Empty);
 
-        return lista.Select(medico =>
-        {
-            relaciones.TryGetValue(medico.Id, out var especialidades);
-            especialidades ??= [];
-            return new AdminMedicoInfo(
-                medico.Id,
-                medico.UsuarioId,
-                porUsuario.GetValueOrDefault(medico.UsuarioId, string.Empty),
-                medico.Nombres,
-                medico.Apellidos,
-                medico.NombreCompleto,
-                medico.NumeroColegiado,
-                medico.Telefono,
-                medico.IsActive,
-                especialidades.Select(item => item.EspecialidadId).ToList(),
-                especialidades.FirstOrDefault(item => item.EsPrimario)?.EspecialidadId);
-        }).ToList();
+        return lista.Select(medico => new AdminMedicoInfo(
+            medico.Id,
+            medico.UsuarioId,
+            porUsuario.GetValueOrDefault(medico.UsuarioId, string.Empty),
+            medico.Nombres,
+            medico.Apellidos,
+            medico.NombreCompleto,
+            medico.NumeroColegiado,
+            medico.Telefono,
+            medico.IsActive)).ToList();
     }
 
     public async Task CambiarActivoUsuarioAsync(Guid usuarioId, bool isActive, Guid adminId, CancellationToken cancellationToken)

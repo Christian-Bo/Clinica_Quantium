@@ -24,34 +24,12 @@ public sealed class MedicoRepository(ClinicaProDbContext dbContext) : IMedicoRep
             .FirstOrDefaultAsync(medico => medico.UsuarioId == usuarioId && medico.IsActive, cancellationToken);
     }
 
-    public async Task<Medico?> ObtenerPrimarioPorEspecialidadAsync(
-        Guid especialidadId,
-        CancellationToken cancellationToken = default)
-    {
-        return await (
-            from relacion in dbContext.MedicoEspecialidades.AsNoTracking()
-            join medico in dbContext.Medicos.AsNoTracking() on relacion.MedicoId equals medico.Id
-            where relacion.EspecialidadId == especialidadId
-                  && relacion.EsPrimario
-                  && relacion.IsActive
-                  && medico.IsActive
-            select medico).FirstOrDefaultAsync(cancellationToken);
-    }
-
     public async Task<IReadOnlyList<Medico>> ListarActivosAsync(CancellationToken cancellationToken = default)
     {
         return await dbContext.Medicos.AsNoTracking()
             .Where(medico => medico.IsActive)
             .OrderBy(medico => medico.Apellidos)
             .ThenBy(medico => medico.Nombres)
-            .ToListAsync(cancellationToken);
-    }
-
-    public async Task<IReadOnlyList<MedicoEspecialidad>> ListarEspecialidadesActivasAsync(
-        CancellationToken cancellationToken = default)
-    {
-        return await dbContext.MedicoEspecialidades.AsNoTracking()
-            .Where(relacion => relacion.IsActive)
             .ToListAsync(cancellationToken);
     }
 
@@ -66,44 +44,6 @@ public sealed class MedicoRepository(ClinicaProDbContext dbContext) : IMedicoRep
     public async Task AgregarAsync(Medico medico, CancellationToken cancellationToken = default)
     {
         await dbContext.Medicos.AddAsync(medico, cancellationToken);
-    }
-
-    public async Task AgregarEspecialidadAsync(MedicoEspecialidad relacion, CancellationToken cancellationToken = default)
-    {
-        await dbContext.MedicoEspecialidades.AddAsync(relacion, cancellationToken);
-    }
-
-    public async Task<IReadOnlyList<MedicoEspecialidad>> ListarEspecialidadesDeMedicoAsync(
-        Guid medicoId,
-        CancellationToken cancellationToken = default)
-    {
-        return await dbContext.MedicoEspecialidades.AsNoTracking()
-            .Where(relacion => relacion.MedicoId == medicoId)
-            .ToListAsync(cancellationToken);
-    }
-
-    public Task<MedicoEspecialidad?> ObtenerEspecialidadRastreadaAsync(
-        Guid medicoId,
-        Guid especialidadId,
-        CancellationToken cancellationToken = default)
-    {
-        return dbContext.MedicoEspecialidades.FirstOrDefaultAsync(
-            relacion => relacion.MedicoId == medicoId && relacion.EspecialidadId == especialidadId,
-            cancellationToken);
-    }
-
-    public Task<bool> ExisteOtroPrimarioActivoAsync(
-        Guid especialidadId,
-        Guid medicoId,
-        CancellationToken cancellationToken = default)
-    {
-        return dbContext.MedicoEspecialidades.AsNoTracking().AnyAsync(
-            relacion =>
-                relacion.EspecialidadId == especialidadId
-                && relacion.MedicoId != medicoId
-                && relacion.EsPrimario
-                && relacion.IsActive,
-            cancellationToken);
     }
 }
 

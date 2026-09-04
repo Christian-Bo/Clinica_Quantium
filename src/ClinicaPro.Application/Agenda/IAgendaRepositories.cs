@@ -7,15 +7,10 @@ public interface IMedicoRepository
     Task<Medico?> ObtenerPorIdAsync(Guid medicoId, CancellationToken cancellationToken = default);
     Task<Medico?> ObtenerRastreadoAsync(Guid medicoId, CancellationToken cancellationToken = default);
     Task<Medico?> ObtenerPorUsuarioIdAsync(Guid usuarioId, CancellationToken cancellationToken = default);
-    Task<Medico?> ObtenerPrimarioPorEspecialidadAsync(Guid especialidadId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Medico>> ListarActivosAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Medico>> ListarTodosAsync(CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<MedicoEspecialidad>> ListarEspecialidadesActivasAsync(CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<MedicoEspecialidad>> ListarEspecialidadesDeMedicoAsync(Guid medicoId, CancellationToken cancellationToken = default);
-    Task<MedicoEspecialidad?> ObtenerEspecialidadRastreadaAsync(Guid medicoId, Guid especialidadId, CancellationToken cancellationToken = default);
-    Task<bool> ExisteOtroPrimarioActivoAsync(Guid especialidadId, Guid medicoId, CancellationToken cancellationToken = default);
     Task AgregarAsync(Medico medico, CancellationToken cancellationToken = default);
-    Task AgregarEspecialidadAsync(MedicoEspecialidad relacion, CancellationToken cancellationToken = default);
+    
 }
 
 public interface IHorarioRepository

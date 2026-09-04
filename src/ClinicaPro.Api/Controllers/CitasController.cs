@@ -44,7 +44,7 @@ public sealed class CitasController(
 
         var cita = await solicitarCita.ExecuteAsync(
             usuarioId.Value,
-            new SolicitarCitaInput(request.EspecialidadId, request.FechaHoraInicio, request.MotivoConsulta, request.MedicoId),
+            new SolicitarCitaInput(request.MedicoId, request.FechaHoraInicio, request.MotivoConsulta),
             cancellationToken);
 
         return Created($"/api/citas/{cita.Id}", await MapAsync(cita, cancellationToken));
@@ -66,7 +66,7 @@ public sealed class CitasController(
         var cita = await solicitarCita.ExecuteParaPacienteAsync(
             usuarioId.Value,
             request.PacienteId,
-            new SolicitarCitaInput(request.EspecialidadId, request.FechaHoraInicio, request.MotivoConsulta, request.MedicoId),
+            new SolicitarCitaInput(request.MedicoId, request.FechaHoraInicio, request.MotivoConsulta),
             cancellationToken);
 
         return Created($"/api/citas/{cita.Id}", await MapAsync(cita, cancellationToken));
@@ -203,16 +203,10 @@ public sealed class CitasController(
     [HttpGet("disponibilidad")]
     [ProducesResponseType(typeof(IReadOnlyList<SlotDisponibleDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<SlotDisponibleDto>>> Disponibilidad(
-        [FromQuery] Guid especialidadId,
         [FromQuery] DateOnly fecha,
         CancellationToken cancellationToken)
     {
-        if (especialidadId == Guid.Empty)
-        {
-            return BadRequest();
-        }
-
-        var slots = await listarDisponibilidad.ExecuteAsync(especialidadId, fecha, cancellationToken);
+        var slots = await listarDisponibilidad.ExecuteAsync(fecha, cancellationToken);
         return Ok(slots.Select(slot => new SlotDisponibleDto(
             slot.FechaHoraInicio,
             slot.FechaHoraFin,
@@ -456,15 +450,13 @@ public sealed class CitasController(
         var nombres = await resolverNombres.ExecuteAsync(citas, cancellationToken);
         return citas.Select(cita =>
         {
-            var extra = nombres.GetValueOrDefault(cita.Id, new NombresCita(string.Empty, string.Empty, string.Empty));
+            var extra = nombres.GetValueOrDefault(cita.Id, new NombresCita(string.Empty, string.Empty));
             return new CitaDto(
                 cita.Id,
                 cita.PacienteId,
                 extra.PacienteNombre,
                 cita.MedicoId,
                 extra.MedicoNombre,
-                cita.EspecialidadId,
-                extra.EspecialidadNombre,
                 cita.FechaHoraInicio,
                 cita.FechaHoraFin,
                 cita.MotivoConsulta,

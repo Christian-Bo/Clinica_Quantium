@@ -9,15 +9,14 @@ namespace ClinicaPro.UnitTests;
 
 public sealed class SolicitarCitaServiceTests
 {
-    private static readonly Guid EspecialidadId = Guid.NewGuid();
     private static readonly DateTime FechaFutura = new(2027, 3, 15, 9, 0, 0);
 
-    private static SolicitarCitaService Construir(Medico? medico, MedicoEspecialidad? relacion, Medico? primario = null)
+    private static SolicitarCitaService Construir(Medico? medico)
     {
         var paciente = Paciente.Create(Guid.NewGuid(), "Ana", "Lopez");
         return new SolicitarCitaService(
             new PacientesFalso(paciente),
-            new MedicosFalso(medico, relacion, primario),
+            new MedicosFalso(medico),
             new CitasFalso(),
             new ParametrosFalso(),
             new UnitOfWorkFalso(),
@@ -25,56 +24,36 @@ public sealed class SolicitarCitaServiceTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_MedicoElegidoNoExiste_LanzaDomainException()
+    public async Task ExecuteAsync_MedicoNoExiste_LanzaDomainException()
     {
-        var servicio = Construir(medico: null, relacion: null);
+        var servicio = Construir(medico: null);
 
         var error = await Assert.ThrowsAsync<DomainException>(
             () => servicio.ExecuteAsync(
                 Guid.NewGuid(),
-                new SolicitarCitaInput(EspecialidadId, FechaFutura, "Dolor de cabeza", Guid.NewGuid())));
+                new SolicitarCitaInput(Guid.NewGuid(), FechaFutura, "Dolor de cabeza")));
 
         Assert.Contains("no existe", error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public async Task ExecuteAsync_MedicoElegidoNoAtiendeLaEspecialidad_LanzaDomainException()
+    public async Task ExecuteAsync_MedicoInactivo_LanzaDomainException()
     {
         var medico = Medico.Create(Guid.NewGuid(), Guid.NewGuid(), "Carlos", "Hernandez");
-        var otraEspecialidad = MedicoEspecialidad.Create(medico.Id, Guid.NewGuid(), esPrimario: true);
-        var servicio = Construir(medico, otraEspecialidad);
+        var servicio = Construir(medico: null);
 
         var error = await Assert.ThrowsAsync<DomainException>(
             () => servicio.ExecuteAsync(
                 Guid.NewGuid(),
-                new SolicitarCitaInput(EspecialidadId, FechaFutura, "Dolor de cabeza", medico.Id)));
+                new SolicitarCitaInput(medico.Id, FechaFutura, "Dolor de cabeza")));
 
-        Assert.Contains("no atiende", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("activo", error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
-    public async Task ExecuteAsync_SinMedicoIdYSinPrimario_LanzaDomainException()
-    {
-        var servicio = Construir(medico: null, relacion: null, primario: null);
-
-        var error = await Assert.ThrowsAsync<DomainException>(
-            () => servicio.ExecuteAsync(
-                Guid.NewGuid(),
-                new SolicitarCitaInput(EspecialidadId, FechaFutura, "Dolor de cabeza")));
-
-        Assert.Contains("primario", error.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private sealed class MedicosFalso(Medico? medico, MedicoEspecialidad? relacion, Medico? primario) : IMedicoRepository
+    private sealed class MedicosFalso(Medico? medico) : IMedicoRepository
     {
         public Task<Medico?> ObtenerPorIdAsync(Guid medicoId, CancellationToken cancellationToken = default)
             => Task.FromResult(medico is not null && medico.Id == medicoId ? medico : null);
-
-        public Task<Medico?> ObtenerPrimarioPorEspecialidadAsync(Guid especialidadId, CancellationToken cancellationToken = default)
-            => Task.FromResult(primario);
-
-        public Task<IReadOnlyList<MedicoEspecialidad>> ListarEspecialidadesDeMedicoAsync(Guid medicoId, CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<MedicoEspecialidad>>(relacion is null ? [] : [relacion]);
 
         public Task<Medico?> ObtenerRastreadoAsync(Guid medicoId, CancellationToken cancellationToken = default)
             => Task.FromResult<Medico?>(null);
@@ -88,19 +67,7 @@ public sealed class SolicitarCitaServiceTests
         public Task<IReadOnlyList<Medico>> ListarTodosAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<Medico>>([]);
 
-        public Task<IReadOnlyList<MedicoEspecialidad>> ListarEspecialidadesActivasAsync(CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<MedicoEspecialidad>>([]);
-
-        public Task<MedicoEspecialidad?> ObtenerEspecialidadRastreadaAsync(Guid medicoId, Guid especialidadId, CancellationToken cancellationToken = default)
-            => Task.FromResult<MedicoEspecialidad?>(null);
-
-        public Task<bool> ExisteOtroPrimarioActivoAsync(Guid especialidadId, Guid medicoId, CancellationToken cancellationToken = default)
-            => Task.FromResult(false);
-
         public Task AgregarAsync(Medico item, CancellationToken cancellationToken = default)
-            => Task.CompletedTask;
-
-        public Task AgregarEspecialidadAsync(MedicoEspecialidad item, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
     }
 

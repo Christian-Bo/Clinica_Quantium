@@ -1,7 +1,7 @@
 using ClinicaPro.Application.Admin;
 using ClinicaPro.Application.Agenda;
 using ClinicaPro.Application.Citas;
-using ClinicaPro.Application.Especialidades;
+
 using ClinicaPro.Application.Notificaciones;
 using ClinicaPro.Application.Pacientes;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,7 +12,7 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
-        services.AddScoped<ListarEspecialidadesActivasService>();
+    
         services.AddScoped<ListarMedicosActivosService>();
         services.AddScoped<SolicitarCitaService>();
         services.AddScoped<OperarCitaService>();
@@ -32,7 +32,7 @@ public static class DependencyInjection
         services.AddScoped<SolicitarAutorizacionReprogramacionService>();
         services.AddScoped<ListarAutorizacionesReprogramacionService>();
         services.AddScoped<ResolverAutorizacionReprogramacionService>();
-        services.AddScoped<AdministrarMedicoEspecialidadesService>();
+    
         services.AddScoped<BuscarPacientesService>();
         services.AddScoped<ListarReporteCitasService>();
         services.AddScoped<EncolarNotificacionCitaService>();
@@ -40,7 +40,7 @@ public static class DependencyInjection
         services.AddScoped<ListarNotificacionesPacienteService>();
         services.AddScoped<ListarNotificacionesStaffService>();
         services.AddScoped<ActualizarPerfilPacienteService>();
-        services.AddScoped<AdministrarEspecialidadesService>();
+        
         services.AddScoped<AdministrarHorariosService>();
         services.AddScoped<AdministrarParametrosService>();
         return services;

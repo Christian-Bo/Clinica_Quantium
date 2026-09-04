@@ -3,7 +3,7 @@ using ClinicaPro.Application.Agenda;
 using ClinicaPro.Application.Admin;
 using ClinicaPro.Application.Auth;
 using ClinicaPro.Application.Citas;
-using ClinicaPro.Application.Especialidades;
+
 using ClinicaPro.Application.Notificaciones;
 using ClinicaPro.Application.Pacientes;
 using ClinicaPro.Infrastructure.Admin;
@@ -71,7 +71,7 @@ public static class DependencyInjection
         services.AddSingleton<JwtTokenGenerator>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
-        services.AddScoped<IEspecialidadRepository, EspecialidadRepository>();
+      
         services.AddScoped<IPacienteRepository, PacienteRepository>();
         services.AddScoped<IMedicoRepository, MedicoRepository>();
         services.AddScoped<IHorarioRepository, HorarioRepository>();

@@ -33,7 +33,6 @@ public sealed class HistorialMedicoPacienteServiceTests
             paciente.Id,
             Guid.NewGuid(),
             Guid.NewGuid(),
-            Guid.NewGuid(),
             new DateTime(2026, 9, 7, 9, 0, 0),
             "Control de presión arterial");
         var servicio = new HistorialMedicoPacienteService(
@@ -56,7 +55,6 @@ public sealed class HistorialMedicoPacienteServiceTests
         var cita = Cita.Solicitar(
             paciente.Id,
             medico.Id,
-            Guid.NewGuid(),
             Guid.NewGuid(),
             new DateTime(2026, 9, 7, 9, 0, 0),
             "Control de presión arterial");
@@ -84,43 +82,14 @@ public sealed class HistorialMedicoPacienteServiceTests
         public Task<Medico?> ObtenerPorUsuarioIdAsync(Guid usuarioId, CancellationToken cancellationToken = default)
             => Task.FromResult(usuarioId == medico.UsuarioId ? medico : null);
 
-        public Task<Medico?> ObtenerPrimarioPorEspecialidadAsync(
-            Guid especialidadId,
-            CancellationToken cancellationToken = default)
-            => Task.FromResult<Medico?>(null);
-
         public Task<IReadOnlyList<Medico>> ListarActivosAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<Medico>>([]);
 
         public Task<IReadOnlyList<Medico>> ListarTodosAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<Medico>>([]);
 
-        public Task<IReadOnlyList<MedicoEspecialidad>> ListarEspecialidadesActivasAsync(
-            CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<MedicoEspecialidad>>([]);
-
         public Task AgregarAsync(Medico item, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
-
-        public Task AgregarEspecialidadAsync(MedicoEspecialidad relacion, CancellationToken cancellationToken = default)
-            => Task.CompletedTask;
-
-        public Task<IReadOnlyList<MedicoEspecialidad>> ListarEspecialidadesDeMedicoAsync(
-            Guid medicoId,
-            CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<MedicoEspecialidad>>([]);
-
-        public Task<MedicoEspecialidad?> ObtenerEspecialidadRastreadaAsync(
-            Guid medicoId,
-            Guid especialidadId,
-            CancellationToken cancellationToken = default)
-            => Task.FromResult<MedicoEspecialidad?>(null);
-
-        public Task<bool> ExisteOtroPrimarioActivoAsync(
-            Guid especialidadId,
-            Guid medicoId,
-            CancellationToken cancellationToken = default)
-            => Task.FromResult(false);
     }
 
     private sealed class PacientesFalso(Paciente? paciente) : IPacienteRepository

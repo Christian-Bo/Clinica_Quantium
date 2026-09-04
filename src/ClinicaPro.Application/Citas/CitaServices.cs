@@ -8,7 +8,7 @@ using ClinicaPro.Domain.Exceptions;
 
 namespace ClinicaPro.Application.Citas;
 
-public sealed record SolicitarCitaInput(Guid EspecialidadId, DateTime FechaHoraInicio, string MotivoConsulta, Guid? MedicoId = null);
+public sealed record SolicitarCitaInput(Guid MedicoId, DateTime FechaHoraInicio, string MotivoConsulta);
 
 public sealed class SolicitarCitaService(
     IPacienteRepository pacientes,
@@ -22,25 +22,8 @@ public sealed class SolicitarCitaService(
         SolicitarCitaInput input,
         CancellationToken cancellationToken)
     {
-        if (input.MedicoId is null)
-        {
-            return await medicos.ObtenerPrimarioPorEspecialidadAsync(input.EspecialidadId, cancellationToken)
-                ?? throw new DomainException("La especialidad no tiene un médico primario activo.");
-        }
-
-        var elegido = await medicos.ObtenerPorIdAsync(input.MedicoId.Value, cancellationToken)
+        return await medicos.ObtenerPorIdAsync(input.MedicoId, cancellationToken)
             ?? throw new DomainException("El médico seleccionado no existe o no está activo.");
-
-        var especialidades = await medicos.ListarEspecialidadesDeMedicoAsync(elegido.Id, cancellationToken);
-        var atiende = especialidades.Any(
-            relacion => relacion.EspecialidadId == input.EspecialidadId && relacion.IsActive);
-
-        if (!atiende)
-        {
-            throw new DomainException("El médico seleccionado no atiende la especialidad indicada.");
-        }
-
-        return elegido;
     }
 
     public async Task<Cita> ExecuteAsync(
@@ -61,7 +44,6 @@ public sealed class SolicitarCitaService(
         var cita = Cita.Solicitar(
             paciente.Id,
             medico.Id,
-            input.EspecialidadId,
             usuarioId,
             input.FechaHoraInicio,
             input.MotivoConsulta,
@@ -92,7 +74,6 @@ public sealed class SolicitarCitaService(
         var cita = Cita.Solicitar(
             paciente.Id,
             medico.Id,
-            input.EspecialidadId,
             staffUsuarioId,
             input.FechaHoraInicio,
             input.MotivoConsulta,

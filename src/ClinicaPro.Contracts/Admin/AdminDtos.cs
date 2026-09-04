@@ -1,18 +1,12 @@
 namespace ClinicaPro.Contracts.Admin;
 
-public sealed record CrearEspecialidadRequest(string Nombre, string? Descripcion);
-
-public sealed record ActualizarEspecialidadRequest(string Nombre, string? Descripcion, bool IsActive);
-
 public sealed record CrearMedicoRequest(
     string Email,
     string Password,
     string Nombres,
     string Apellidos,
     string? NumeroColegiado,
-    string? Telefono,
-    Guid EspecialidadId,
-    bool EsPrimario);
+    string? Telefono);
 
 public sealed record ActualizarMedicoRequest(
     string Nombres,
@@ -36,16 +30,6 @@ public sealed record ActualizarHorarioRequest(
     DateOnly? VigenteHasta,
     bool IsActive);
 
-public sealed record AsignarEspecialidadMedicoRequest(Guid EspecialidadId, bool EsPrimario);
-
-public sealed record ActualizarEspecialidadMedicoRequest(bool EsPrimario, bool IsActive);
-
-public sealed record MedicoEspecialidadAdminDto(
-    Guid EspecialidadId,
-    string Nombre,
-    bool EsPrimario,
-    bool IsActive);
-
 public sealed record AdminMedicoDto(
     Guid MedicoId,
     Guid UsuarioId,
@@ -55,9 +39,7 @@ public sealed record AdminMedicoDto(
     string NombreCompleto,
     string? NumeroColegiado,
     string? Telefono,
-    bool IsActive,
-    IReadOnlyList<Guid> EspecialidadIds,
-    Guid? EspecialidadPrimariaId);
+    bool IsActive);
 
 public sealed record AutorizacionReprogramacionDto(
     Guid AutorizacionId,

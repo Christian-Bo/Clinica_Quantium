@@ -19,7 +19,7 @@ public sealed class MedicosController(
     public async Task<ActionResult<IReadOnlyList<MedicoDto>>> Get(CancellationToken cancellationToken)
     {
         var lista = await listarMedicos.ExecuteAsync(cancellationToken);
-        return Ok(lista.Select(item => Map(item.Medico, item.Especialidades)).ToList());
+        return Ok(lista.Select(Map).ToList());
     }
 
     [AllowAnonymous]
@@ -34,11 +34,7 @@ public sealed class MedicosController(
             return NotFound();
         }
 
-        var especialidades = (await medicos.ListarEspecialidadesActivasAsync(cancellationToken))
-            .Where(relacion => relacion.MedicoId == medicoId)
-            .ToList();
-
-        return Ok(Map(medico, especialidades));
+        return Ok(Map(medico));
     }
 
     [AllowAnonymous]
@@ -60,7 +56,7 @@ public sealed class MedicosController(
             horario.IsActive)).ToList());
     }
 
-    private static MedicoDto Map(Medico medico, IReadOnlyList<MedicoEspecialidad> especialidades)
+    private static MedicoDto Map(Medico medico)
     {
         return new MedicoDto(
             medico.Id,
@@ -68,8 +64,6 @@ public sealed class MedicosController(
             medico.Apellidos,
             medico.NombreCompleto,
             medico.NumeroColegiado,
-            medico.Telefono,
-            especialidades.Select(relacion => relacion.EspecialidadId).ToList(),
-            especialidades.FirstOrDefault(relacion => relacion.EsPrimario)?.EspecialidadId);
+            medico.Telefono);
     }
 }
