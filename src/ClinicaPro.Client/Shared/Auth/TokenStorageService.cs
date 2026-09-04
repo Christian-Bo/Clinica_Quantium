@@ -48,12 +48,17 @@ public sealed class TokenStorageService(IJSRuntime jsRuntime)
         return _sesionEnCache;
     }
 
-    public async Task GuardarAsync(AuthResponse sesion)
+    /// <summary>
+    /// Guarda la sesión. Con <paramref name="persistente"/> en false la sesión
+    /// vive solo en la pestaña actual y muere al cerrarla; es lo que pide el
+    /// usuario cuando desmarca "mantener sesión iniciada" en el login.
+    /// </summary>
+    public async Task GuardarAsync(AuthResponse sesion, bool persistente = true)
     {
         _sesionEnCache = sesion;
         _yaCargada = true;
         var json = JsonSerializer.Serialize(sesion, OpcionesJson);
-        await jsRuntime.InvokeVoidAsync("clinicaProStorage.set", Clave, json);
+        await jsRuntime.InvokeVoidAsync("clinicaProStorage.set", Clave, json, persistente);
     }
 
     public async Task LimpiarAsync()

@@ -1,0 +1,51 @@
+@using QRCoder
+
+@* Código QR de la cita, generado en el navegador con QRCoder.
+   El QR lleva ÚNICAMENTE el identificador de la cita: ningún dato clínico,
+   ningún documento de identidad. Quien lo escanee sin acceso al sistema no
+   obtiene nada útil. *@
+
+<div class="flex flex-col items-center">
+    @if (svg is null)
+    {
+        <div class="flex h-[220px] w-[220px] items-center justify-center rounded-card border border-border bg-surface-muted">
+            <Icon Name="loader" Size="22" CssClass="animate-spin text-ink-muted" />
+        </div>
+    }
+    else
+    {
+        <div class="rounded-card border border-border bg-white p-3 shadow-card">
+            @((MarkupString)svg)
+        </div>
+    }
+
+    <p class="mt-3 text-center text-xs text-ink-muted">Código de la cita</p>
+    <p class="mt-0.5 select-all text-center font-mono text-[11px] leading-tight text-ink">@Codigo</p>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Guid CitaId { get; set; }
+
+    /// <summary>Tamaño de cada módulo del QR. 5 da unos 220 px de lado.</summary>
+    [Parameter] public int Escala { get; set; } = 5;
+
+    private string? svg;
+    private Guid citaGenerada;
+
+    private string Codigo => CitaId.ToString();
+
+    protected override void OnParametersSet()
+    {
+        if (citaGenerada == CitaId && svg is not null)
+        {
+            return;
+        }
+
+        // Nivel Q de corrección de errores: el QR sigue leyéndose aunque la
+        // pantalla tenga reflejos o el papel esté algo maltratado.
+        using var generador = new QRCodeGenerator();
+        var datos = generador.CreateQrCode(Codigo, QRCodeGenerator.ECCLevel.Q);
+        svg = new SvgQRCode(datos).GetGraphic(Escala);
+        citaGenerada = CitaId;
+    }
+}

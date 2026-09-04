@@ -1,0 +1,304 @@
+@page "/portal/citas"
+@attribute [Authorize(Roles = Roles.Paciente)]
+@layout PacienteLayout
+@inject CitasPacienteApiService CitasApi
+@inject ToastService Toasts
+@inject ConfirmDialogService Confirmaciones
+
+<PageTitle>Mis citas · Clínica Pro</PageTitle>
+
+<div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+        <h1 class="text-xl font-semibold text-ink">Mis citas</h1>
+        <p class="mt-1 text-sm text-ink-muted">Aquí ves el estado de cada cita y puedes gestionarla.</p>
+    </div>
+    <Button Variant="ButtonVariant.Primary" IconName="plus" OnClick="() => modalAbierto = true">
+        Solicitar cita
+    </Button>
+</div>
+
+@if (cargando)
+{
+    <div class="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <EsqueletoCita Cantidad="2" />
+    </div>
+}
+else if (!string.IsNullOrEmpty(error))
+{
+    <div class="mt-6">
+        <Card>
+            <EmptyState IconName="alert-triangle" Title="No pudimos cargar tus citas"
+                        Description="@error">
+                <Action>
+                    <Button Variant="ButtonVariant.Secondary" OnClick="Cargar">Reintentar</Button>
+                </Action>
+            </EmptyState>
+        </Card>
+    </div>
+}
+else
+{
+    <div class="mt-6 flex flex-wrap gap-2" role="group" aria-label="Filtrar mis citas">
+        <ChipFiltroCitas Etiqueta="Activas" Conteo="@Contar(Filtro.Activas)"
+                         Activo="@(filtro == Filtro.Activas)" OnClick="() => CambiarFiltro(Filtro.Activas)" />
+        <ChipFiltroCitas Etiqueta="Atendidas" Conteo="@Contar(Filtro.Atendidas)"
+                         Activo="@(filtro == Filtro.Atendidas)" OnClick="() => CambiarFiltro(Filtro.Atendidas)" />
+        <ChipFiltroCitas Etiqueta="Canceladas" Conteo="@Contar(Filtro.Canceladas)"
+                         Activo="@(filtro == Filtro.Canceladas)" OnClick="() => CambiarFiltro(Filtro.Canceladas)" />
+        <ChipFiltroCitas Etiqueta="Todas" Conteo="@todas.Count"
+                         Activo="@(filtro == Filtro.Todas)" OnClick="() => CambiarFiltro(Filtro.Todas)" />
+    </div>
+
+    @if (Visibles.Count == 0)
+    {
+        <div class="mt-4">
+            <Card>
+                <SinCitas Titulo="@TituloVacio" Descripcion="@DescripcionVacio">
+                    <Accion>
+                        @if (filtro == Filtro.Activas)
+                        {
+                            <Button Variant="ButtonVariant.Primary" IconName="plus" OnClick="() => modalAbierto = true">
+                                Solicitar cita
+                            </Button>
+                        }
+                    </Accion>
+                </SinCitas>
+            </Card>
+        </div>
+    }
+    else
+    {
+        <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
+            @foreach (var cita in Visibles)
+            {
+                <TarjetaCita Cita="cita">
+                    <Acciones>
+                        @if (EsVigente(cita))
+                        {
+                            <Button Variant="ButtonVariant.Secondary" Size="sm" IconName="clipboard-list"
+                                    OnClick="() => MostrarCodigo(cita)">
+                                Mi código
+                            </Button>
+                        }
+
+                        @if (cita.Estado == CitaEstados.Programada)
+                        {
+                            <Button Variant="ButtonVariant.Primary" Size="sm" IconName="check"
+                                    Disabled="@(citaEnProceso == cita.CitaId)"
+                                    OnClick="() => ConfirmarAsistencia(cita)">
+                                Confirmar asistencia
+                            </Button>
+                        }
+
+                        @if (cita.Estado == CitaEstados.Solicitada)
+                        {
+                            <Button Variant="ButtonVariant.Secondary" Size="sm"
+                                    Disabled="@(citaEnProceso == cita.CitaId)"
+                                    OnClick="() => AnularSolicitud(cita)">
+                                Anular solicitud
+                            </Button>
+                        }
+                        else if (cita.Estado is CitaEstados.Programada or CitaEstados.Confirmada)
+                        {
+                            <Button Variant="ButtonVariant.Secondary" Size="sm"
+                                    Disabled="@(citaEnProceso == cita.CitaId)"
+                                    OnClick="() => Cancelar(cita)">
+                                Cancelar cita
+                            </Button>
+                        }
+                    </Acciones>
+                </TarjetaCita>
+            }
+        </div>
+    }
+}
+
+<SolicitarCitaModal @bind-IsOpen="modalAbierto" OnSolicitada="CitaSolicitada" />
+<CodigoCitaModal @bind-IsOpen="modalCodigoAbierto" Cita="citaDelCodigo" />
+
+@code {
+    private enum Filtro { Activas, Atendidas, Canceladas, Todas }
+
+    private List<CitaDto> todas = [];
+    private Filtro filtro = Filtro.Activas;
+
+    private bool cargando = true;
+    private string? error;
+    private bool modalAbierto;
+    private bool modalCodigoAbierto;
+    private CitaDto? citaDelCodigo;
+    private Guid? citaEnProceso;
+
+    protected override Task OnInitializedAsync() => Cargar();
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        error = null;
+
+        var resultado = await CitasApi.ListarMisCitasAsync();
+        if (!resultado.Exito)
+        {
+            error = resultado.Error;
+            cargando = false;
+            return;
+        }
+
+        todas = [.. resultado.Valor!];
+        Ordenar();
+        cargando = false;
+    }
+
+    /// <summary>
+    /// Las vigentes se ordenan de la más cercana a la más lejana; el resto, de
+    /// la más reciente hacia atrás. Es como la gente busca cada grupo.
+    /// </summary>
+    private void Ordenar()
+    {
+        var vigentes = todas.Where(EsVigente).OrderBy(cita => cita.FechaHoraInicio);
+        var pasadas = todas.Where(cita => !EsVigente(cita)).OrderByDescending(cita => cita.FechaHoraInicio);
+        todas = [.. vigentes, .. pasadas];
+    }
+
+    private void CambiarFiltro(Filtro nuevo) => filtro = nuevo;
+
+    private void MostrarCodigo(CitaDto cita)
+    {
+        citaDelCodigo = cita;
+        modalCodigoAbierto = true;
+    }
+
+    private List<CitaDto> Visibles => filtro switch
+    {
+        Filtro.Activas => [.. todas.Where(EsVigente)],
+        Filtro.Atendidas => [.. todas.Where(cita => cita.Estado == CitaEstados.Atendida)],
+        Filtro.Canceladas => [.. todas.Where(EsCancelada)],
+        _ => todas
+    };
+
+    private int Contar(Filtro cual) => cual switch
+    {
+        Filtro.Activas => todas.Count(EsVigente),
+        Filtro.Atendidas => todas.Count(cita => cita.Estado == CitaEstados.Atendida),
+        Filtro.Canceladas => todas.Count(EsCancelada),
+        _ => todas.Count
+    };
+
+    private static bool EsVigente(CitaDto cita) => cita.Estado is
+        CitaEstados.Solicitada or CitaEstados.Programada or CitaEstados.Confirmada
+        or CitaEstados.EnEspera or CitaEstados.EnAtencion;
+
+    private static bool EsCancelada(CitaDto cita) => cita.Estado is
+        CitaEstados.Cancelada or CitaEstados.Rechazada or CitaEstados.NoPresentada;
+
+    private string TituloVacio => filtro switch
+    {
+        Filtro.Activas => "No tienes citas activas",
+        Filtro.Atendidas => "Todavía no tienes consultas atendidas",
+        Filtro.Canceladas => "No tienes citas canceladas",
+        _ => "Todavía no tienes citas"
+    };
+
+    private string DescripcionVacio => filtro switch
+    {
+        Filtro.Activas => "Cuando solicites una cita aparecerá aquí mientras esté vigente.",
+        Filtro.Atendidas => "Aquí van a quedar las consultas después de que el médico te atienda.",
+        Filtro.Canceladas => "Aquí aparecerían las citas que se cancelaron o no se presentaron.",
+        _ => "Solicita tu primera cita y aparecerá en esta lista."
+    };
+
+    // ── Acciones ────────────────────────────────────────────────────────────
+
+    private Task ConfirmarAsistencia(CitaDto cita)
+        => EjecutarAsync(
+            cita,
+            CitaEstados.Confirmada,
+            () => CitasApi.ConfirmarAsistenciaAsync(cita.CitaId),
+            "Confirmaste tu asistencia. Te esperamos.");
+
+    private async Task AnularSolicitud(CitaDto cita)
+    {
+        var confirmado = await Confirmaciones.ConfirmarAsync(
+            $"Vas a anular tu solicitud de {cita.EspecialidadNombre} del {cita.FechaHoraInicio:dd/MM/yyyy} a las {cita.FechaHoraInicio:HH:mm}.",
+            titulo: "Anular solicitud",
+            textoConfirmar: "Anular solicitud",
+            esPeligroso: true);
+
+        if (!confirmado)
+        {
+            return;
+        }
+
+        await EjecutarAsync(
+            cita,
+            CitaEstados.Cancelada,
+            () => CitasApi.AnularSolicitudAsync(cita.CitaId),
+            "Tu solicitud quedó anulada.");
+    }
+
+    private async Task Cancelar(CitaDto cita)
+    {
+        var confirmado = await Confirmaciones.ConfirmarAsync(
+            $"Vas a cancelar tu cita de {cita.EspecialidadNombre} del {cita.FechaHoraInicio:dd/MM/yyyy} a las {cita.FechaHoraInicio:HH:mm}.",
+            titulo: "Cancelar cita",
+            textoConfirmar: "Cancelar cita",
+            esPeligroso: true);
+
+        if (!confirmado)
+        {
+            return;
+        }
+
+        await EjecutarAsync(
+            cita,
+            CitaEstados.Cancelada,
+            () => CitasApi.CancelarAsync(cita.CitaId, "Cancelación del paciente desde el portal"),
+            "Tu cita quedó cancelada.");
+    }
+
+    /// <summary>
+    /// Respuesta optimista: el estado cambia en pantalla antes de que la API
+    /// conteste, y si falla se revierte al valor original. Sin esto, el
+    /// paciente ve la tarjeta congelada mientras viaja la petición y vuelve a
+    /// hacer clic pensando que no funcionó.
+    /// </summary>
+    private async Task EjecutarAsync(
+        CitaDto cita,
+        string estadoOptimista,
+        Func<Task<ResultadoOperacion<CitaDto>>> accion,
+        string mensajeExito)
+    {
+        var indice = todas.FindIndex(item => item.CitaId == cita.CitaId);
+        if (indice < 0)
+        {
+            return;
+        }
+
+        var original = todas[indice];
+        citaEnProceso = cita.CitaId;
+        todas[indice] = original with { Estado = estadoOptimista };
+        StateHasChanged();
+
+        var resultado = await accion();
+        citaEnProceso = null;
+
+        if (resultado.Exito && resultado.Valor is not null)
+        {
+            // La respuesta de la API manda sobre la suposición optimista.
+            todas[indice] = resultado.Valor;
+            Ordenar();
+            Toasts.Exito(mensajeExito);
+            return;
+        }
+
+        todas[indice] = original;
+        Toasts.Error(resultado.Error ?? "No fue posible completar la acción.");
+    }
+
+    private async Task CitaSolicitada(CitaDto cita)
+    {
+        filtro = Filtro.Activas;
+        Toasts.Exito("Tu solicitud quedó registrada. La clínica confirmará el horario.");
+        await Cargar();
+    }
+}

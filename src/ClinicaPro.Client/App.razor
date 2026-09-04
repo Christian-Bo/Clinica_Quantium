@@ -14,8 +14,8 @@
             <FocusOnNavigate RouteData="@routeData" Selector="h1" />
         </Found>
         <NotFound>
-            <LayoutView Layout="@typeof(Layout.MainLayout)">
-                <p role="alert" class="p-6 text-sm text-ink">La página solicitada no existe.</p>
+            <LayoutView Layout="@typeof(Layout.EmptyLayout)">
+                <PaginaNoEncontrada />
             </LayoutView>
         </NotFound>
     </Router>

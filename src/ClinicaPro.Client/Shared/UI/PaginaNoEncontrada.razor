@@ -1,0 +1,49 @@
+@inject NavigationManager Navigation
+
+@* Un 404 con salida. Antes era un párrafo suelto sin diseño ni forma de volver. *@
+
+<div class="flex min-h-[70vh] items-center justify-center px-4 py-12">
+    <div class="w-full max-w-md text-center">
+        <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-card bg-surface-muted text-ink-muted">
+            <Icon Name="search" Size="30" />
+        </div>
+
+        <p class="mt-6 text-xs font-semibold uppercase tracking-widest text-ink-muted">Error 404</p>
+        <h1 class="mt-2 text-2xl font-bold tracking-tight text-ink">Esta página no existe</h1>
+        <p class="mt-3 text-sm leading-relaxed text-ink-muted">
+            Puede que el enlace esté mal escrito o que la página haya cambiado de lugar.
+        </p>
+
+        <div class="mt-7 flex flex-wrap justify-center gap-2">
+            <Button Variant="ButtonVariant.Primary" IconName="home" OnClick="Volver">
+                Ir a mi inicio
+            </Button>
+            <Button Variant="ButtonVariant.Secondary" OnClick="Atras">
+                Volver atrás
+            </Button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? EstadoAutenticacion { get; set; }
+
+    /// <summary>Cada quien vuelve a su propio inicio: el paciente al portal, el personal a su panel.</summary>
+    private async Task Volver()
+    {
+        var destino = "/login";
+
+        if (EstadoAutenticacion is not null)
+        {
+            var estado = await EstadoAutenticacion;
+            if (estado.User.Identity?.IsAuthenticated == true)
+            {
+                destino = RoleRoutes.Inicio(estado.User);
+            }
+        }
+
+        Navigation.NavigateTo(destino);
+    }
+
+    private void Atras() => Navigation.NavigateTo(Navigation.BaseUri);
+}

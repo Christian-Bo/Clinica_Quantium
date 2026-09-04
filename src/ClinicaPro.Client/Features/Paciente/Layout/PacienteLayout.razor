@@ -1,0 +1,57 @@
+@inherits LayoutComponentBase
+
+@* Layout exclusivo del portal del paciente. No toca MainLayout ni Sidebar,
+   que pertenecen al panel interno del personal. *@
+
+<div class="flex h-screen overflow-hidden bg-surface-muted">
+
+    <!-- Barra lateral fija (escritorio) -->
+    <aside class="hidden w-64 shrink-0 flex-col bg-ink text-white lg:flex">
+        <PacienteSidebar />
+    </aside>
+
+    <!-- Barra lateral deslizable (móvil) -->
+    @if (menuMovilAbierto)
+    {
+        <div class="fixed inset-0 z-40 flex lg:hidden">
+            <div class="absolute inset-0 bg-black/40" @onclick="() => menuMovilAbierto = false"></div>
+            <aside class="relative z-50 flex w-64 flex-col bg-ink text-white">
+                <PacienteSidebar />
+            </aside>
+        </div>
+    }
+
+    <div class="flex min-w-0 flex-1 flex-col">
+        <header class="sticky top-0 z-30 flex shrink-0 items-center justify-between border-b border-border bg-surface px-4 py-3 lg:px-6">
+            <div class="flex items-center gap-3">
+                <button type="button" class="rounded-control p-2 text-ink-muted transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 lg:hidden"
+                        @onclick="() => menuMovilAbierto = true" aria-label="Abrir menú">
+                    <Icon Name="menu" Size="20" />
+                </button>
+                <span class="hidden text-sm text-ink-muted first-letter:uppercase lg:inline">@FechaHoy</span>
+            </div>
+
+            <div class="flex items-center gap-1">
+                <a href="/portal/notificaciones" class="rounded-control p-2 text-ink-muted transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                   title="Mis avisos">
+                    <Icon Name="bell" Size="20" />
+                </a>
+            </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-4 lg:p-6">
+            @Body
+        </main>
+    </div>
+</div>
+
+<ToastHost />
+<ConfirmDialogHost />
+
+@code {
+    private bool menuMovilAbierto;
+
+    private static string FechaHoy => DateTime.Now.ToString(
+        "dddd, d 'de' MMMM 'de' yyyy",
+        new System.Globalization.CultureInfo("es-GT"));
+}

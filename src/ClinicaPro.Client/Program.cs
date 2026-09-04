@@ -1,3 +1,4 @@
+using ClinicaPro.Client.Features.Paciente.Services;
 using ClinicaPro.Client.Features.Secretaria.Services;
 using ClinicaPro.Client.Features.Admin.Services;
 using ClinicaPro.Client.Features.Medico.Services;
@@ -54,6 +55,11 @@ public static class Program
         builder.Services.AddScoped<CitasApiService>();
         builder.Services.AddScoped<NotificacionesApiService>();
         builder.Services.AddScoped<ReportesApiService>();
+
+        // --- Servicios de API del portal del Paciente ---
+        builder.Services.AddScoped<PerfilPacienteApiService>();
+        builder.Services.AddScoped<CitasPacienteApiService>();
+        builder.Services.AddScoped<NotificacionesPacienteApiService>();
 
         await builder.Build().RunAsync();
     }

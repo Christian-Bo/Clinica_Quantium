@@ -1,0 +1,10 @@
+@* Mensaje de validación bajo un campo. No pinta nada si el campo está bien. *@
+
+@if (!string.IsNullOrEmpty(Mensaje))
+{
+    <p role="alert" class="mt-1 text-xs text-state-rechazada">@Mensaje</p>
+}
+
+@code {
+    [Parameter] public string? Mensaje { get; set; }
+}
