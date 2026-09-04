@@ -249,6 +249,15 @@ public sealed class AuthService(
             }
 
             await pacienteRepository.AgregarAsync(paciente, cancellationToken);
+            try
+            {
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return AuthOperationResult.Fail("invalid_patient");
+            }
 
             if (primeraCita is not null)
             {
@@ -262,26 +271,26 @@ public sealed class AuthService(
                             primeraCita.FechaHoraInicio,
                             primeraCita.MotivoConsulta),
                         cancellationToken);
+                    await dbContext.SaveChangesAsync(cancellationToken);
                 }
                 catch (DomainException ex)
                 {
                     await transaction.RollbackAsync(cancellationToken);
                     return AuthOperationResult.Fail("invalid_appointment", ex.Message);
                 }
+                catch (DbUpdateException ex)
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    var mapped = SqlServerExceptionMapper.Map(ex);
+                    return AuthOperationResult.Fail(
+                        "invalid_appointment",
+                        mapped is DomainException domain
+                            ? domain.Message
+                            : "No fue posible agendar la primera cita. Revise que el médico esté activo y el horario libre.");
+                }
             }
 
-            try
-            {
-                await dbContext.SaveChangesAsync(cancellationToken);
-                await transaction.CommitAsync(cancellationToken);
-            }
-            catch (DbUpdateException)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                return AuthOperationResult.Fail(
-                    "invalid_appointment",
-                    "No fue posible agendar la primera cita. Revise que el médico esté activo y el horario libre.");
-            }
+            await transaction.CommitAsync(cancellationToken);
 
             await auditoria.RegistrarAsync(user.Id, "RegistroPaciente", "Paciente", paciente.Id.ToString(), email, cancellationToken);
 
