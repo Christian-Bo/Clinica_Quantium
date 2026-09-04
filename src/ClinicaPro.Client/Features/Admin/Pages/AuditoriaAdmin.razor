@@ -1,0 +1,90 @@
+@page "/admin/auditoria"
+@attribute [Authorize(Roles = Roles.Administrador)]
+@inject AdminApiService AdminApi
+
+<PageTitle>Auditoría · Administración</PageTitle>
+
+<div class="space-y-5">
+    <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">Trazabilidad</p>
+        <h1 class="mt-1 text-xl font-semibold text-ink">Auditoría administrativa</h1>
+        <p class="mt-1 text-sm text-ink-muted">Últimos cambios registrados por el sistema para facilitar seguimiento y control.</p>
+    </div>
+
+    <Card BodyPadding="p-0">
+        <div class="flex flex-col gap-3 border-b border-border p-4 lg:flex-row">
+            <div class="relative flex-1 lg:max-w-md">
+                <span class="pointer-events-none absolute left-3 top-2.5 text-ink-muted"><Icon Name="search" Size="17" /></span>
+                <input class="w-full rounded-control border border-border py-2 pl-9 pr-3 text-sm text-ink focus:border-brand-500 focus:outline-none" placeholder="Buscar acción, entidad o detalle..." @bind="busqueda" @bind:event="oninput" />
+            </div>
+            <select class="rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink" @bind="entidadFiltro">
+                <option value="">Todas las entidades</option>
+                @foreach (var entidad in Entidades)
+                {
+                    <option value="@entidad">@entidad</option>
+                }
+            </select>
+        </div>
+
+        @if (cargando)
+        {
+            <div class="p-5"><Skeleton Filas="7" /></div>
+        }
+        else if (!string.IsNullOrWhiteSpace(error))
+        {
+            <div class="p-5"><EmptyState IconName="alert-triangle" Title="No se pudo cargar la auditoría" Description="@error" /></div>
+        }
+        else if (Filtrados.Count == 0)
+        {
+            <div class="p-5"><EmptyState IconName="history" Title="Sin registros" Description="No hay eventos que coincidan con los filtros actuales." /></div>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full min-w-[900px] text-left text-sm">
+                    <thead class="bg-surface-muted text-xs uppercase tracking-wide text-ink-muted"><tr><th class="px-5 py-3 font-medium">Fecha</th><th class="px-5 py-3 font-medium">Acción</th><th class="px-5 py-3 font-medium">Entidad</th><th class="px-5 py-3 font-medium">Detalle</th><th class="px-5 py-3 font-medium">Usuario</th></tr></thead>
+                    <tbody class="divide-y divide-border">
+                        @foreach (var item in Filtrados)
+                        {
+                            <tr class="align-top hover:bg-surface-muted/60">
+                                <td class="whitespace-nowrap px-5 py-3 text-ink-muted">@item.FechaUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                                <td class="px-5 py-3"><span class="rounded-pill bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700">@item.Accion</span></td>
+                                <td class="px-5 py-3"><p class="font-medium text-ink">@item.Entidad</p><p class="mt-0.5 max-w-[180px] truncate text-xs text-ink-muted">@(item.EntidadId ?? "—")</p></td>
+                                <td class="max-w-md px-5 py-3 text-ink-muted">@(item.Detalle ?? "—")</td>
+                                <td class="px-5 py-3 font-mono text-xs text-ink-muted">@IdCorto(item.UsuarioId)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </Card>
+</div>
+
+@code {
+    private bool cargando = true;
+    private string? error;
+    private string busqueda = string.Empty;
+    private string entidadFiltro = string.Empty;
+    private IReadOnlyList<AuditoriaDto> auditoria = [];
+
+    private IReadOnlyList<string> Entidades => auditoria.Select(x => x.Entidad).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList();
+    private IReadOnlyList<AuditoriaDto> Filtrados => auditoria
+        .Where(x => string.IsNullOrWhiteSpace(entidadFiltro) || x.Entidad.Equals(entidadFiltro, StringComparison.OrdinalIgnoreCase))
+        .Where(x => string.IsNullOrWhiteSpace(busqueda)
+            || x.Accion.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
+            || x.Entidad.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
+            || (x.Detalle?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false)
+            || (x.EntidadId?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false))
+        .OrderByDescending(x => x.FechaUtc)
+        .ToList();
+
+    private static string IdCorto(Guid? id) => id is null ? "Sistema" : id.Value.ToString()[..8];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { auditoria = await AdminApi.ListarAuditoriaAsync(); }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { error = "No se pudo contactar a la API."; }
+        finally { cargando = false; }
+    }
+}

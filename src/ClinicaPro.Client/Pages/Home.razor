@@ -12,10 +12,13 @@
     {
         var estado = await AuthStateProvider.GetAuthenticationStateAsync();
 
-        var destino = estado.User.Identity?.IsAuthenticated == true
-            ? RutasPorRol.InicioPara(estado.User)
-            : "/login";
+        if (estado.User.Identity?.IsAuthenticated != true)
+        {
+            Navigation.NavigateTo("/login", replace: true);
+            return;
+        }
 
+        var destino = RoleRoutes.Inicio(estado.User);
         Navigation.NavigateTo(destino, replace: true);
     }
 }

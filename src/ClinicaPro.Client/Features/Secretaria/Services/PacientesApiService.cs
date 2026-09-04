@@ -54,15 +54,5 @@ public sealed class PacientesApiService(HttpClient http)
     }
 
     private static async Task<string> LeerErrorAsync(HttpResponseMessage respuesta, CancellationToken ct)
-    {
-        try
-        {
-            var error = await respuesta.Content.ReadFromJsonAsync<ErrorResponse>(cancellationToken: ct);
-            return error?.Error ?? "No fue posible completar la operación.";
-        }
-        catch
-        {
-            return "No fue posible completar la operación.";
-        }
-    }
+        => await ApiErrorReader.LeerAsync(respuesta, "No fue posible completar la operación.", ct);
 }

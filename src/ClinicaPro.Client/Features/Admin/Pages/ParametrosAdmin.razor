@@ -1,0 +1,67 @@
+@page "/admin/parametros"
+@attribute [Authorize(Roles = Roles.Administrador)]
+@inject AdminApiService AdminApi
+
+<PageTitle>Parámetros · Administración</PageTitle>
+
+<div class="space-y-5">
+    <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">Configuración</p>
+        <h1 class="mt-1 text-xl font-semibold text-ink">Parámetros del sistema</h1>
+        <p class="mt-1 text-sm text-ink-muted">Ajusta reglas operativas sin modificar código ni la base de datos manualmente.</p>
+    </div>
+
+    @if (cargando)
+    {
+        <Skeleton Filas="4" HeightClass="h-24" />
+    }
+    else if (!string.IsNullOrWhiteSpace(error))
+    {
+        <Card><EmptyState IconName="alert-triangle" Title="No se pudieron cargar los parámetros" Description="@error" /></Card>
+    }
+    else
+    {
+        <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            @foreach (var parametro in parametros.OrderBy(x => x.Clave))
+            {
+                <Card>
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="min-w-0">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <p class="break-all text-sm font-semibold text-ink">@parametro.Clave</p>
+                                <span class="rounded-pill bg-surface-muted px-2 py-0.5 text-xs font-medium text-ink-muted">@parametro.TipoDato</span>
+                            </div>
+                            <p class="mt-2 text-sm text-ink-muted">@(parametro.Descripcion ?? "Sin descripción")</p>
+                            <div class="mt-4 flex items-baseline gap-2">
+                                <span class="text-xs uppercase tracking-wide text-ink-muted">Valor actual</span>
+                                <span class="rounded-control bg-brand-50 px-2.5 py-1 font-mono text-sm font-semibold text-brand-700">@parametro.Valor</span>
+                            </div>
+                        </div>
+                        <Button Variant="ButtonVariant.Ghost" Size="sm" IconName="edit" OnClick="() => Editar(parametro)">Editar</Button>
+                    </div>
+                </Card>
+            }
+        </div>
+    }
+</div>
+
+<ParametroAdminModal IsOpen="modalAbierto" IsOpenChanged="@(v => modalAbierto = v)" Parametro="seleccionado" OnGuardado="CargarAsync" />
+
+@code {
+    private bool cargando = true;
+    private string? error;
+    private IReadOnlyList<ParametroDto> parametros = [];
+    private ParametroDto? seleccionado;
+    private bool modalAbierto;
+
+    protected override async Task OnInitializedAsync() => await CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        try { parametros = await AdminApi.ListarParametrosAsync(); error = null; }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { error = "No se pudo contactar a la API."; }
+        finally { cargando = false; }
+    }
+
+    private void Editar(ParametroDto parametro) { seleccionado = parametro; modalAbierto = true; }
+}

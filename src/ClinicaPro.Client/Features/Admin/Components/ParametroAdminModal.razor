@@ -1,0 +1,106 @@
+@inject AdminApiService AdminApi
+@inject ToastService Toast
+
+<Modal IsOpen="IsOpen" IsOpenChanged="CambiarApertura" Title="Editar parámetro" IconName="edit" MaxWidthClass="max-w-md" CloseOnBackdrop="false">
+    <Body>
+        @if (Parametro is not null)
+        {
+            <div class="space-y-4">
+                <div>
+                    <p class="text-xs font-medium uppercase tracking-wide text-ink-muted">Clave</p>
+                    <p class="mt-1 break-all text-sm font-semibold text-ink">@Parametro.Clave</p>
+                    @if (!string.IsNullOrWhiteSpace(Parametro.Descripcion))
+                    {
+                        <p class="mt-1 text-xs text-ink-muted">@Parametro.Descripcion</p>
+                    }
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-ink" for="adm-param-valor">Valor *</label>
+                    @if (Parametro.TipoDato.Equals("Bool", StringComparison.OrdinalIgnoreCase))
+                    {
+                        <select id="adm-param-valor" class="@ClaseInput" @bind="valor">
+                            <option value="true">Verdadero</option>
+                            <option value="false">Falso</option>
+                        </select>
+                    }
+                    else
+                    {
+                        <input id="adm-param-valor" type="@TipoInput" step="@(Parametro.TipoDato.Equals("Decimal", StringComparison.OrdinalIgnoreCase) ? "any" : null)"
+                               class="@ClaseInput" @bind="valor" />
+                    }
+                    <p class="mt-1 text-xs text-ink-muted">Tipo esperado: @Parametro.TipoDato</p>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(error))
+                {
+                    <p class="rounded-control bg-state-rechazada/10 px-3 py-2 text-sm text-state-rechazada">@error</p>
+                }
+            </div>
+        }
+    </Body>
+    <Footer>
+        <Button Variant="ButtonVariant.Secondary" Disabled="guardando" OnClick="Cancelar">Cancelar</Button>
+        <Button Variant="ButtonVariant.Primary" Loading="guardando" IconName="check" OnClick="GuardarAsync">Guardar</Button>
+    </Footer>
+</Modal>
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public ParametroDto? Parametro { get; set; }
+    [Parameter] public EventCallback OnGuardado { get; set; }
+
+    private const string ClaseInput = "mt-1 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100";
+    private string valor = string.Empty;
+    private string? error;
+    private bool guardando;
+    private bool aperturaAnterior;
+    private string? claveAnterior;
+
+    private string TipoInput => Parametro?.TipoDato switch
+    {
+        "Int" => "number",
+        "Decimal" => "number",
+        "Time" => "time",
+        _ => "text"
+    };
+
+    protected override void OnParametersSet()
+    {
+        if (IsOpen && (!aperturaAnterior || claveAnterior != Parametro?.Clave))
+        {
+            valor = Parametro?.Valor ?? string.Empty;
+            error = null;
+            claveAnterior = Parametro?.Clave;
+        }
+        aperturaAnterior = IsOpen;
+    }
+
+    private async Task GuardarAsync()
+    {
+        if (Parametro is null) return;
+        if (string.IsNullOrWhiteSpace(valor))
+        {
+            error = "El valor es obligatorio.";
+            return;
+        }
+
+        guardando = true;
+        error = null;
+        try
+        {
+            var resultado = await AdminApi.ActualizarParametroAsync(Parametro.Clave, valor.Trim());
+            if (!resultado.Exito) { error = resultado.Error; return; }
+
+            Toast.Exito("Parámetro actualizado correctamente.");
+            await OnGuardado.InvokeAsync();
+            await IsOpenChanged.InvokeAsync(false);
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private Task Cancelar() => IsOpenChanged.InvokeAsync(false);
+    private Task CambiarApertura(bool valorNuevo) => IsOpenChanged.InvokeAsync(valorNuevo);
+}

@@ -1,4 +1,4 @@
-<div class="rounded-card border border-border bg-surface p-4 shadow-card">
+<div class="@ClaseContenedor" @onclick="ManejarClick">
     <div class="flex items-center gap-3">
         <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-brand-100 text-brand-600">
             <Icon Name="@IconName" Size="20" />
@@ -14,4 +14,11 @@
     [Parameter, EditorRequired] public string Titulo { get; set; } = string.Empty;
     [Parameter] public int Valor { get; set; }
     [Parameter, EditorRequired] public string IconName { get; set; } = string.Empty;
+    [Parameter] public EventCallback OnClick { get; set; }
+
+    private string ClaseContenedor => OnClick.HasDelegate
+        ? "rounded-card border border-border bg-surface p-4 shadow-card cursor-pointer transition-colors hover:border-brand-500 hover:bg-brand-50"
+        : "rounded-card border border-border bg-surface p-4 shadow-card";
+
+    private Task ManejarClick() => OnClick.HasDelegate ? OnClick.InvokeAsync() : Task.CompletedTask;
 }

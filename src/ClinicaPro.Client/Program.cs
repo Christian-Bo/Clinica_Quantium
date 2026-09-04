@@ -1,5 +1,7 @@
 using ClinicaPro.Client.Features.Paciente.Services;
 using ClinicaPro.Client.Features.Secretaria.Services;
+using ClinicaPro.Client.Features.Admin.Services;
+using ClinicaPro.Client.Features.Medico.Services;
 using ClinicaPro.Client.Shared.Auth;
 using ClinicaPro.Client.Shared.UI.ConfirmDialog;
 using ClinicaPro.Client.Shared.UI.Toast;
@@ -41,6 +43,10 @@ public static class Program
         // --- UI transversal (toasts, confirmaciones) ---
         builder.Services.AddScoped<ToastService>();
         builder.Services.AddScoped<ConfirmDialogService>();
+
+        // --- Servicios de API del módulo de Administración ---
+        builder.Services.AddScoped<AdminApiService>();
+        builder.Services.AddScoped<AgendaMedicoRealtimeService>();
 
         // --- Servicios de API del módulo de Secretaría ---
         builder.Services.AddScoped<EspecialidadesApiService>();

@@ -1,0 +1,207 @@
+@inject AdminApiService AdminApi
+@inject ToastService Toast
+
+<Modal IsOpen="IsOpen" IsOpenChanged="CambiarApertura" Title="@Titulo" IconName="stethoscope" MaxWidthClass="max-w-2xl" CloseOnBackdrop="false">
+    <Body>
+        <EditForm EditContext="editContext">
+            <DataAnnotationsValidator />
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                @if (!EsEdicion)
+                {
+                    <div class="sm:col-span-2 rounded-control border border-brand-500 bg-brand-50 px-3 py-2 text-xs text-brand-700">
+                        Se creará una cuenta de acceso para el médico. La contraseña será temporal y deberá cambiarla al iniciar sesión.
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-ink">Correo *</label>
+                        <input type="email" autocomplete="off" class="@ClaseInput" @bind="modelo.Email" />
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-ink">Contraseña temporal *</label>
+                        <input type="password" autocomplete="new-password" class="@ClaseInput" @bind="modelo.Password" />
+                    </div>
+                }
+
+                <div>
+                    <label class="text-sm font-medium text-ink">Nombres *</label>
+                    <InputText class="@ClaseInput" @bind-Value="modelo.Nombres" />
+                    <ValidationMessage For="@(() => modelo.Nombres)" />
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-ink">Apellidos *</label>
+                    <InputText class="@ClaseInput" @bind-Value="modelo.Apellidos" />
+                    <ValidationMessage For="@(() => modelo.Apellidos)" />
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-ink">No. colegiado</label>
+                    <InputText class="@ClaseInput" @bind-Value="modelo.NumeroColegiado" />
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-ink">Teléfono</label>
+                    <InputText class="@ClaseInput" @bind-Value="modelo.Telefono" />
+                </div>
+
+                @if (!EsEdicion)
+                {
+                    <div>
+                        <label class="text-sm font-medium text-ink">Especialidad inicial *</label>
+                        <select class="@ClaseInput" @bind="modelo.EspecialidadId">
+                            <option value="">Selecciona una especialidad</option>
+                            @foreach (var especialidad in Especialidades.Where(x => x.IsActive).OrderBy(x => x.Nombre))
+                            {
+                                <option value="@especialidad.EspecialidadId">@especialidad.Nombre</option>
+                            }
+                        </select>
+                        @if (!string.IsNullOrWhiteSpace(errorEspecialidad))
+                        {
+                            <p class="mt-1 text-xs text-state-rechazada">@errorEspecialidad</p>
+                        }
+                    </div>
+                    <label class="mt-5 flex items-center gap-2 text-sm text-ink">
+                        <input type="checkbox" class="h-4 w-4 rounded border-border" @bind="modelo.EsPrimario" />
+                        Médico primario de la especialidad
+                    </label>
+                }
+                else
+                {
+                    <div class="sm:col-span-2">
+                        <label class="flex items-center gap-2 text-sm text-ink">
+                            <input type="checkbox" class="h-4 w-4 rounded border-border" @bind="modelo.IsActive" />
+                            Médico activo
+                        </label>
+                        <p class="mt-1 text-xs text-ink-muted">Las especialidades y horarios se administran desde sus acciones específicas.</p>
+                    </div>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(error))
+                {
+                    <p class="sm:col-span-2 rounded-control bg-state-rechazada/10 px-3 py-2 text-sm text-state-rechazada">@error</p>
+                }
+            </div>
+        </EditForm>
+    </Body>
+    <Footer>
+        <Button Variant="ButtonVariant.Secondary" Disabled="guardando" OnClick="Cancelar">Cancelar</Button>
+        <Button Variant="ButtonVariant.Primary" Loading="guardando" IconName="check" OnClick="GuardarAsync">Guardar</Button>
+    </Footer>
+</Modal>
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public AdminMedicoDto? Medico { get; set; }
+    [Parameter] public IReadOnlyList<EspecialidadAdminItem> Especialidades { get; set; } = [];
+    [Parameter] public EventCallback OnGuardado { get; set; }
+
+    private const string ClaseInput = "mt-1 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100";
+    private Modelo modelo = new();
+    private EditContext editContext = new(new Modelo());
+    private bool guardando;
+    private string? error;
+    private string? errorEspecialidad;
+    private bool aperturaAnterior;
+    private Guid? idAnterior;
+
+    private bool EsEdicion => Medico is not null;
+    private string Titulo => EsEdicion ? "Editar médico" : "Nuevo médico";
+
+    protected override void OnParametersSet()
+    {
+        if (IsOpen && (!aperturaAnterior || idAnterior != Medico?.MedicoId))
+        {
+            modelo = Medico is null
+                ? new Modelo()
+                : new Modelo
+                {
+                    Nombres = Medico.Nombres,
+                    Apellidos = Medico.Apellidos,
+                    NumeroColegiado = Medico.NumeroColegiado ?? string.Empty,
+                    Telefono = Medico.Telefono ?? string.Empty,
+                    IsActive = Medico.IsActive
+                };
+            editContext = new EditContext(modelo);
+            error = null;
+            errorEspecialidad = null;
+            idAnterior = Medico?.MedicoId;
+        }
+        aperturaAnterior = IsOpen;
+    }
+
+    private async Task GuardarAsync()
+    {
+        if (!editContext.Validate()) return;
+        error = null;
+        errorEspecialidad = null;
+
+        Guid especialidadId = Guid.Empty;
+        if (!EsEdicion)
+        {
+            if (string.IsNullOrWhiteSpace(modelo.Email) || !new EmailAddressAttribute().IsValid(modelo.Email))
+            {
+                error = "Ingresa un correo electrónico válido.";
+                return;
+            }
+            if (!PasswordValida(modelo.Password))
+            {
+                error = "La contraseña temporal debe tener mínimo 8 caracteres e incluir mayúscula, minúscula, número y símbolo.";
+                return;
+            }
+            if (!Guid.TryParse(modelo.EspecialidadId, out especialidadId))
+            {
+                errorEspecialidad = "Selecciona una especialidad.";
+                return;
+            }
+        }
+
+        guardando = true;
+        try
+        {
+            if (EsEdicion)
+            {
+                var resultado = await AdminApi.ActualizarMedicoAsync(
+                    Medico!.MedicoId,
+                    new ActualizarMedicoRequest(
+                        modelo.Nombres.Trim(), modelo.Apellidos.Trim(), Limpio(modelo.NumeroColegiado), Limpio(modelo.Telefono), modelo.IsActive));
+                if (!resultado.Exito) { error = resultado.Error; return; }
+                Toast.Exito("Médico actualizado correctamente.");
+            }
+            else
+            {
+                var resultado = await AdminApi.CrearMedicoAsync(
+                    new CrearMedicoRequest(
+                        modelo.Email.Trim().ToLowerInvariant(), modelo.Password, modelo.Nombres.Trim(), modelo.Apellidos.Trim(),
+                        Limpio(modelo.NumeroColegiado), Limpio(modelo.Telefono), especialidadId, modelo.EsPrimario));
+                if (!resultado.Exito) { error = resultado.Error; return; }
+                Toast.Exito("Médico creado. Deberá cambiar su contraseña temporal al ingresar.");
+            }
+
+            await OnGuardado.InvokeAsync();
+            await IsOpenChanged.InvokeAsync(false);
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private Task Cancelar() => IsOpenChanged.InvokeAsync(false);
+    private Task CambiarApertura(bool valor) => IsOpenChanged.InvokeAsync(valor);
+    private static string? Limpio(string? valor) => string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
+    private static bool PasswordValida(string valor) =>
+        !string.IsNullOrWhiteSpace(valor) && valor.Length >= 8 && valor.Any(char.IsUpper)
+        && valor.Any(char.IsLower) && valor.Any(char.IsDigit) && valor.Any(c => !char.IsLetterOrDigit(c));
+
+    private sealed class Modelo
+    {
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Los nombres son obligatorios.")]
+        [StringLength(100)] public string Nombres { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Los apellidos son obligatorios.")]
+        [StringLength(100)] public string Apellidos { get; set; } = string.Empty;
+        public string NumeroColegiado { get; set; } = string.Empty;
+        public string Telefono { get; set; } = string.Empty;
+        public string EspecialidadId { get; set; } = string.Empty;
+        public bool EsPrimario { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+}

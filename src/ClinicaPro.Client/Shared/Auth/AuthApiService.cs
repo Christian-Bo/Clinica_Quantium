@@ -1,5 +1,3 @@
-using System.Net;
-
 namespace ClinicaPro.Client.Shared.Auth;
 
 public sealed class AuthApiService(
@@ -7,129 +5,106 @@ public sealed class AuthApiService(
     TokenStorageService tokenStorage,
     ApiAuthenticationStateProvider authStateProvider)
 {
+    /// <param name="recordarme">
+    /// false guarda la sesión solo en la pestaña actual: muere al cerrarla.
+    /// Es lo que pide el usuario cuando desmarca "mantener sesión iniciada".
+    /// </param>
     public async Task<ResultadoOperacion<AuthResponse>> IniciarSesionAsync(
         string email,
         string password,
         bool recordarme = true,
         CancellationToken cancellationToken = default)
     {
-        HttpResponseMessage respuesta;
         try
         {
-            respuesta = await http.PostAsJsonAsync(
+            using var respuesta = await http.PostAsJsonAsync(
                 "api/auth/login",
-                new LoginRequest(email, password),
+                new LoginRequest(email.Trim(), password),
                 cancellationToken);
+
+            if (!respuesta.IsSuccessStatusCode)
+            {
+                return ResultadoOperacion<AuthResponse>.Fallo(
+                    await ApiErrorReader.LeerAsync(respuesta, "Correo o contraseña incorrectos.", cancellationToken));
+            }
+
+            var sesion = await respuesta.Content.ReadFromJsonAsync<AuthResponse>(cancellationToken: cancellationToken);
+            return sesion is null
+                ? ResultadoOperacion<AuthResponse>.Fallo("El servidor no devolvió una sesión válida.")
+                : await GuardarSesionAsync(sesion, recordarme);
         }
-        catch (HttpRequestException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
             return ResultadoOperacion<AuthResponse>.Fallo(
                 "No se pudo contactar al servidor. Verifica que la API esté corriendo y vuelve a intentar.");
         }
-
-        if (respuesta.IsSuccessStatusCode)
-        {
-            var sesion = await respuesta.Content.ReadFromJsonAsync<AuthResponse>(cancellationToken: cancellationToken);
-            if (sesion is not null)
-            {
-                await tokenStorage.GuardarAsync(sesion, recordarme);
-                authStateProvider.NotificarSesionIniciada(sesion);
-                return ResultadoOperacion<AuthResponse>.Ok(sesion);
-            }
-        }
-
-        var mensaje = respuesta.StatusCode switch
-        {
-            HttpStatusCode.Locked =>
-                "La cuenta está bloqueada temporalmente por varios intentos fallidos. Intenta de nuevo en unos minutos.",
-            HttpStatusCode.Unauthorized => "Correo o contraseña incorrectos.",
-            _ => "No fue posible iniciar sesión. Intenta de nuevo."
-        };
-
-        return ResultadoOperacion<AuthResponse>.Fallo(mensaje);
     }
 
     /// <summary>
     /// Registro público de un paciente. La API devuelve la sesión ya iniciada,
-    /// así que el paciente entra directo a su portal sin volver a escribir la
-    /// contraseña.
+    /// así que entra directo a su portal sin volver a escribir la contraseña.
     /// </summary>
     public async Task<ResultadoOperacion<AuthResponse>> RegistrarPacienteAsync(
         RegisterPacienteRequest request,
         CancellationToken cancellationToken = default)
     {
-        HttpResponseMessage respuesta;
         try
         {
-            respuesta = await http.PostAsJsonAsync("api/auth/register/paciente", request, cancellationToken);
+            using var respuesta = await http.PostAsJsonAsync(
+                "api/auth/register/paciente", request, cancellationToken);
+
+            if (!respuesta.IsSuccessStatusCode)
+            {
+                return ResultadoOperacion<AuthResponse>.Fallo(
+                    await ApiErrorReader.LeerAsync(respuesta, "No fue posible crear la cuenta.", cancellationToken));
+            }
+
+            var sesion = await respuesta.Content.ReadFromJsonAsync<AuthResponse>(cancellationToken: cancellationToken);
+            return sesion is null
+                ? ResultadoOperacion<AuthResponse>.Fallo(
+                    "La cuenta se creó pero no se pudo iniciar sesión. Ingresa desde la pantalla de acceso.")
+                : await GuardarSesionAsync(sesion);
         }
-        catch (HttpRequestException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
             return ResultadoOperacion<AuthResponse>.Fallo(
                 "No se pudo contactar al servidor. Verifica tu conexión y vuelve a intentar.");
         }
-
-        if (respuesta.IsSuccessStatusCode)
-        {
-            var sesion = await respuesta.Content.ReadFromJsonAsync<AuthResponse>(cancellationToken: cancellationToken);
-            if (sesion is not null)
-            {
-                await tokenStorage.GuardarAsync(sesion);
-                authStateProvider.NotificarSesionIniciada(sesion);
-                return ResultadoOperacion<AuthResponse>.Ok(sesion);
-            }
-
-            return ResultadoOperacion<AuthResponse>.Fallo(
-                "La cuenta se creó pero no se pudo iniciar sesión. Ingresa desde la pantalla de acceso.");
-        }
-
-        return ResultadoOperacion<AuthResponse>.Fallo(
-            await LeerErrorAsync(respuesta, "No fue posible crear la cuenta.", cancellationToken));
     }
 
-    /// <summary>
-    /// Cambio de contraseña del usuario autenticado. La API devuelve una sesión
-    /// nueva, que reemplaza a la actual.
-    /// </summary>
-    public async Task<ResultadoOperacion<AuthResponse>> CambiarPasswordAsync(
-        string passwordActual,
-        string passwordNueva,
+    public async Task<ResultadoOperacion<AuthResponse>> CambiarContrasenaAsync(
+        string actual,
+        string nueva,
         CancellationToken cancellationToken = default)
     {
-        HttpResponseMessage respuesta;
         try
         {
-            respuesta = await http.PostAsJsonAsync(
+            using var respuesta = await http.PostAsJsonAsync(
                 "api/auth/change-password",
-                new ChangePasswordRequest(passwordActual, passwordNueva),
+                new ChangePasswordRequest(actual, nueva),
                 cancellationToken);
-        }
-        catch (HttpRequestException)
-        {
-            return ResultadoOperacion<AuthResponse>.Fallo(
-                "No se pudo contactar al servidor. Verifica tu conexión y vuelve a intentar.");
-        }
 
-        if (respuesta.IsSuccessStatusCode)
-        {
-            var sesion = await respuesta.Content.ReadFromJsonAsync<AuthResponse>(cancellationToken: cancellationToken);
-            if (sesion is not null)
+            if (!respuesta.IsSuccessStatusCode)
             {
-                await tokenStorage.GuardarAsync(sesion);
-                authStateProvider.NotificarSesionIniciada(sesion);
-                return ResultadoOperacion<AuthResponse>.Ok(sesion);
+                return ResultadoOperacion<AuthResponse>.Fallo(
+                    await ApiErrorReader.LeerAsync(respuesta, "No fue posible cambiar la contraseña.", cancellationToken));
             }
-        }
 
-        return ResultadoOperacion<AuthResponse>.Fallo(
-            await LeerErrorAsync(respuesta, "No fue posible cambiar la contraseña.", cancellationToken));
+            var sesion = await respuesta.Content.ReadFromJsonAsync<AuthResponse>(cancellationToken: cancellationToken);
+            return sesion is null
+                ? ResultadoOperacion<AuthResponse>.Fallo("La contraseña cambió, pero no se pudo actualizar la sesión.")
+                : await GuardarSesionAsync(sesion);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            return ResultadoOperacion<AuthResponse>.Fallo("No se pudo contactar al servidor.");
+        }
     }
 
     /// <summary>
     /// Pide a la API que envíe por correo un código para restablecer la
     /// contraseña. La API responde 200 aunque el correo no exista: es a
     /// propósito, para que nadie pueda averiguar qué correos están registrados.
-    /// Por eso el mensaje que se muestra al usuario es siempre el mismo.
     /// </summary>
     public async Task<ResultadoOperacion<bool>> SolicitarCodigoRecuperacionAsync(
         string email,
@@ -137,7 +112,7 @@ public sealed class AuthApiService(
     {
         try
         {
-            var respuesta = await http.PostAsJsonAsync(
+            using var respuesta = await http.PostAsJsonAsync(
                 "api/auth/forgot-password",
                 new ForgotPasswordRequest(email.Trim()),
                 cancellationToken);
@@ -145,18 +120,16 @@ public sealed class AuthApiService(
             return respuesta.IsSuccessStatusCode
                 ? ResultadoOperacion<bool>.Ok(true)
                 : ResultadoOperacion<bool>.Fallo(
-                    await LeerErrorAsync(respuesta, "No fue posible enviar el código.", cancellationToken));
+                    await ApiErrorReader.LeerAsync(respuesta, "No fue posible enviar el código.", cancellationToken));
         }
-        catch (HttpRequestException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
             return ResultadoOperacion<bool>.Fallo(
                 "No se pudo contactar al servidor. Verifica tu conexión y vuelve a intentar.");
         }
     }
 
-    /// <summary>
-    /// Cambia la contraseña usando el código que llegó por correo.
-    /// </summary>
+    /// <summary>Cambia la contraseña usando el código que llegó por correo.</summary>
     public async Task<ResultadoOperacion<bool>> RestablecerPasswordAsync(
         string email,
         string codigo,
@@ -165,7 +138,7 @@ public sealed class AuthApiService(
     {
         try
         {
-            var respuesta = await http.PostAsJsonAsync(
+            using var respuesta = await http.PostAsJsonAsync(
                 "api/auth/reset-password",
                 new ResetPasswordRequest(email.Trim(), codigo.Trim(), passwordNueva),
                 cancellationToken);
@@ -173,12 +146,24 @@ public sealed class AuthApiService(
             return respuesta.IsSuccessStatusCode
                 ? ResultadoOperacion<bool>.Ok(true)
                 : ResultadoOperacion<bool>.Fallo(
-                    await LeerErrorAsync(respuesta, "El código no es válido o ya venció.", cancellationToken));
+                    await ApiErrorReader.LeerAsync(respuesta, "El código no es válido o ya venció.", cancellationToken));
         }
-        catch (HttpRequestException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
             return ResultadoOperacion<bool>.Fallo(
                 "No se pudo contactar al servidor. Verifica tu conexión y vuelve a intentar.");
+        }
+    }
+
+    public async Task<UsuarioActualDto?> ObtenerUsuarioActualAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await http.GetFromJsonAsync<UsuarioActualDto>("api/auth/me", cancellationToken);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            return null;
         }
     }
 
@@ -188,19 +173,12 @@ public sealed class AuthApiService(
         authStateProvider.NotificarSesionCerrada();
     }
 
-    private static async Task<string> LeerErrorAsync(
-        HttpResponseMessage respuesta,
-        string mensajePorDefecto,
-        CancellationToken cancellationToken)
+    private async Task<ResultadoOperacion<AuthResponse>> GuardarSesionAsync(
+        AuthResponse sesion,
+        bool persistente = true)
     {
-        try
-        {
-            var error = await respuesta.Content.ReadFromJsonAsync<ErrorResponse>(cancellationToken: cancellationToken);
-            return string.IsNullOrWhiteSpace(error?.Error) ? mensajePorDefecto : error.Error;
-        }
-        catch
-        {
-            return mensajePorDefecto;
-        }
+        await tokenStorage.GuardarAsync(sesion, persistente);
+        authStateProvider.NotificarSesionIniciada(sesion);
+        return ResultadoOperacion<AuthResponse>.Ok(sesion);
     }
 }

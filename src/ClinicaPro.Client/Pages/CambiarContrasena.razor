@@ -1,0 +1,135 @@
+@page "/cambiar-contrasena"
+@attribute [Authorize]
+@layout Layout.EmptyLayout
+@inject AuthApiService AuthApi
+@inject TokenStorageService TokenStorage
+@inject NavigationManager Navigation
+
+<PageTitle>Cambiar contraseña · Clínica Pro</PageTitle>
+
+<div class="flex min-h-screen items-center justify-center bg-surface-muted px-4 ">
+    <div class="w-full max-w-md rounded-card border border-border bg-surface p-8 shadow-card">
+        <div class="mb-6">
+            <div class="mb-3 flex h-11 w-11 items-center justify-center rounded-control bg-brand-100 text-brand-700">
+                <Icon Name="key" Size="21" />
+            </div>
+            <h1 class="text-xl font-semibold text-ink">Cambiar contraseña</h1>
+            <p class="mt-1 text-sm text-ink-muted">
+                @(cambioObligatorio
+                    ? "Por seguridad debes reemplazar la contraseña temporal antes de continuar."
+                    : "Actualiza tu contraseña de acceso a Clínica Pro.")
+            </p>
+        </div>
+
+        <EditForm Model="modelo" OnValidSubmit="GuardarAsync">
+            <div class="space-y-4">
+                <div>
+                    <label class="text-sm font-medium text-ink" for="pwd-actual">Contraseña actual</label>
+                    <input id="pwd-actual" type="password" required autocomplete="current-password" class="@ClaseInput"
+                           @bind="modelo.Actual" @bind:event="oninput" />
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-ink" for="pwd-nueva">Nueva contraseña</label>
+                    <input id="pwd-nueva" type="password" required autocomplete="new-password" class="@ClaseInput"
+                           @bind="modelo.Nueva" @bind:event="oninput" />
+                    <p class="mt-1 text-xs text-ink-muted">Mínimo 8 caracteres, con mayúscula, minúscula, número y símbolo.</p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-ink" for="pwd-confirmar">Confirmar nueva contraseña</label>
+                    <input id="pwd-confirmar" type="password" required autocomplete="new-password" class="@ClaseInput"
+                           @bind="modelo.Confirmacion" @bind:event="oninput" />
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(error))
+                {
+                    <p class="rounded-control bg-state-rechazada/10 px-3 py-2 text-sm text-state-rechazada">@error</p>
+                }
+
+                <div class="flex flex-col gap-2 pt-3 sm:flex-row justify-end">
+                    @if (!cambioObligatorio)
+                    {
+                        <Button Variant="ButtonVariant.Secondary" Disabled="guardando" OnClick="Volver">Volver</Button>
+                    }
+                    <Button Type="submit" Variant="ButtonVariant.Primary" IconName="check" Loading="guardando">
+                        Guardar contraseña
+                    </Button>
+                </div>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private const string ClaseInput = "mt-1 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100";
+    private readonly ModeloCambio modelo = new();
+    private bool cambioObligatorio;
+    private bool guardando;
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var sesion = await TokenStorage.ObtenerAsync();
+        if (sesion is null)
+        {
+            Navigation.NavigateTo("/login", replace: true);
+            return;
+        }
+
+        cambioObligatorio = sesion.MustChangePassword;
+    }
+
+    private async Task GuardarAsync()
+    {
+        error = null;
+        if (!PasswordValida(modelo.Nueva))
+        {
+            error = "La nueva contraseña debe tener mínimo 8 caracteres e incluir mayúscula, minúscula, número y símbolo.";
+            return;
+        }
+
+        if (!string.Equals(modelo.Nueva, modelo.Confirmacion, StringComparison.Ordinal))
+        {
+            error = "La confirmación no coincide con la nueva contraseña.";
+            return;
+        }
+
+        if (string.Equals(modelo.Actual, modelo.Nueva, StringComparison.Ordinal))
+        {
+            error = "La nueva contraseña debe ser diferente a la contraseña actual.";
+            return;
+        }
+
+        guardando = true;
+        var resultado = await AuthApi.CambiarContrasenaAsync(modelo.Actual, modelo.Nueva);
+        guardando = false;
+
+        if (!resultado.Exito || resultado.Valor is null)
+        {
+            error = resultado.Error ?? "No fue posible cambiar la contraseña.";
+            return;
+        }
+
+        Navigation.NavigateTo(RoleRoutes.Inicio(resultado.Valor.Roles), replace: true);
+    }
+
+    private void Volver()
+    {
+        var sesion = TokenStorage.Actual;
+        Navigation.NavigateTo(sesion is null ? "/login" : RoleRoutes.Inicio(sesion.Roles));
+    }
+
+    private static bool PasswordValida(string valor) =>
+        !string.IsNullOrWhiteSpace(valor)
+        && valor.Length >= 8
+        && valor.Any(char.IsUpper)
+        && valor.Any(char.IsLower)
+        && valor.Any(char.IsDigit)
+        && valor.Any(c => !char.IsLetterOrDigit(c));
+
+    private sealed class ModeloCambio
+    {
+        public string Actual { get; set; } = string.Empty;
+        public string Nueva { get; set; } = string.Empty;
+        public string Confirmacion { get; set; } = string.Empty;
+    }
+}

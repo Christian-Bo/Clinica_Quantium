@@ -22,7 +22,51 @@ public sealed class Horario
         Guid medicoId,
         byte diaSemana,
         TimeOnly horaInicio,
-        TimeOnly horaFin)
+        TimeOnly horaFin,
+        DateOnly? vigenteDesde = null,
+        DateOnly? vigenteHasta = null)
+    {
+        Validar(diaSemana, horaInicio, horaFin, vigenteDesde, vigenteHasta);
+
+        return new Horario
+        {
+            Id = Guid.NewGuid(),
+            MedicoId = medicoId,
+            DiaSemana = diaSemana,
+            HoraInicio = horaInicio,
+            HoraFin = horaFin,
+            VigenteDesde = vigenteDesde,
+            VigenteHasta = vigenteHasta,
+            IsActive = true,
+            CreatedAtUtc = DateTime.UtcNow
+        };
+    }
+
+    public void Actualizar(
+        byte diaSemana,
+        TimeOnly horaInicio,
+        TimeOnly horaFin,
+        DateOnly? vigenteDesde,
+        DateOnly? vigenteHasta,
+        bool isActive)
+    {
+        Validar(diaSemana, horaInicio, horaFin, vigenteDesde, vigenteHasta);
+        DiaSemana = diaSemana;
+        HoraInicio = horaInicio;
+        HoraFin = horaFin;
+        VigenteDesde = vigenteDesde;
+        VigenteHasta = vigenteHasta;
+        IsActive = isActive;
+    }
+
+    public void Desactivar() => IsActive = false;
+
+    private static void Validar(
+        byte diaSemana,
+        TimeOnly horaInicio,
+        TimeOnly horaFin,
+        DateOnly? vigenteDesde,
+        DateOnly? vigenteHasta)
     {
         if (diaSemana is < 1 or > 7)
         {
@@ -34,17 +78,9 @@ public sealed class Horario
             throw new DomainException("La hora de fin debe ser posterior a la de inicio.");
         }
 
-        return new Horario
+        if (vigenteDesde is not null && vigenteHasta is not null && vigenteHasta < vigenteDesde)
         {
-            Id = Guid.NewGuid(),
-            MedicoId = medicoId,
-            DiaSemana = diaSemana,
-            HoraInicio = horaInicio,
-            HoraFin = horaFin,
-            IsActive = true,
-            CreatedAtUtc = DateTime.UtcNow
-        };
+            throw new DomainException("VigenteHasta no puede ser anterior a VigenteDesde.");
+        }
     }
-
-    public void Desactivar() => IsActive = false;
 }

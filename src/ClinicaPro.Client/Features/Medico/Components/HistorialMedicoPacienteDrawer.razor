@@ -1,0 +1,135 @@
+@inject CitasApiService CitasApi
+
+<Drawer IsOpen="IsOpen" IsOpenChanged="IsOpenChanged" Title="Contexto del paciente" CloseOnBackdrop="false">
+    <Body>
+        @if (cargando)
+        {
+            <Skeleton Filas="5" />
+        }
+        else if (!string.IsNullOrWhiteSpace(error))
+        {
+            <EmptyState IconName="alert-triangle" Title="No se pudo abrir el historial" Description="@error" />
+        }
+        else if (historial is not null)
+        {
+            <div class="space-y-5">
+                <div class="rounded-control bg-brand-50 p-4">
+                    <p class="text-lg font-semibold text-ink">@historial.Paciente.NombreCompleto</p>
+                    <div class="mt-2 grid grid-cols-2 gap-2 text-xs text-ink-muted">
+                        <span><strong class="text-ink">Edad:</strong> @EdadTexto(historial.Paciente.FechaNacimiento)</span>
+                        <span><strong class="text-ink">Sexo:</strong> @SexoTexto(historial.Paciente.Sexo)</span>
+                        <span class="sm:col-span-2"><strong class="text-ink">Teléfono:</strong> @(historial.Paciente.Telefono ?? "No registrado")</span>
+                    </div>
+                </div>
+
+                <div class="rounded-control border border-border p-3">
+                    <div class="flex items-center gap-2"><Icon Name="alert-triangle" Size="17" CssClass="text-state-solicitada" /><p class="text-sm font-medium text-ink">Alergias registradas</p></div>
+                    <p class="mt-2 text-sm @(string.IsNullOrWhiteSpace(historial.Paciente.Alergias) ? "text-ink-muted" : "text-ink")">@(string.IsNullOrWhiteSpace(historial.Paciente.Alergias) ? "Sin alergias registradas." : historial.Paciente.Alergias)</p>
+                </div>
+
+                <div>
+                    <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">Última atención contigo</p>
+                    @if (historial.UltimaAtencion is null)
+                    {
+                        <p class="text-sm text-ink-muted">No hay una atención finalizada previa relacionada contigo.</p>
+                    }
+                    else
+                    {
+                        var ultima = historial.UltimaAtencion;
+                        <div class="rounded-control border border-border bg-surface p-3">
+                            <div class="flex items-start justify-between gap-3">
+                                <div><p class="text-sm font-medium text-ink">@ultima.FechaHoraInicio.ToString("dd/MM/yyyy · HH:mm")</p><p class="mt-0.5 text-xs text-ink-muted">@ultima.EspecialidadNombre · @ultima.MotivoConsulta</p></div>
+                                <CitaStatusBadge Estado="@ultima.Estado" />
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <div>
+                    <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">Próximas citas contigo</p>
+                    @if (historial.CitasProximas.Count == 0)
+                    {
+                        <p class="text-sm text-ink-muted">No hay próximas citas.</p>
+                    }
+                    else
+                    {
+                        <div class="space-y-2">
+                            @foreach (var cita in historial.CitasProximas.OrderBy(x => x.FechaHoraInicio))
+                            {
+                                <div class="rounded-control border border-border bg-surface p-3">
+                                    <div class="flex items-start justify-between gap-3"><div><p class="text-sm font-medium text-ink">@cita.FechaHoraInicio.ToString("dd/MM/yyyy · HH:mm")</p><p class="mt-0.5 text-xs text-ink-muted">@cita.EspecialidadNombre · @cita.MotivoConsulta</p></div><CitaStatusBadge Estado="@cita.Estado" /></div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <div>
+                    <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">Citas anteriores contigo</p>
+                    @if (historial.CitasPasadas.Count == 0)
+                    {
+                        <p class="text-sm text-ink-muted">No hay citas anteriores.</p>
+                    }
+                    else
+                    {
+                        <div class="space-y-2">
+                            @foreach (var cita in historial.CitasPasadas.OrderByDescending(x => x.FechaHoraInicio).Take(8))
+                            {
+                                <div class="rounded-control border border-border bg-surface p-3">
+                                    <div class="flex items-start justify-between gap-3"><div><p class="text-sm font-medium text-ink">@cita.FechaHoraInicio.ToString("dd/MM/yyyy · HH:mm")</p><p class="mt-0.5 text-xs text-ink-muted">@cita.EspecialidadNombre · @cita.MotivoConsulta</p></div><CitaStatusBadge Estado="@cita.Estado" /></div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </Body>
+</Drawer>
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public Guid? PacienteId { get; set; }
+
+    private bool cargando;
+    private string? error;
+    private Guid? pacienteAnterior;
+    private HistorialMedicoPacienteDto? historial;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsOpen && PacienteId.HasValue && pacienteAnterior != PacienteId)
+        {
+            pacienteAnterior = PacienteId;
+            await CargarAsync();
+        }
+        else if (!IsOpen)
+        {
+            pacienteAnterior = null;
+        }
+    }
+
+    private async Task CargarAsync()
+    {
+        if (!PacienteId.HasValue) return;
+        cargando = true; error = null;
+        try
+        {
+            historial = await CitasApi.ObtenerHistorialMedicoPacienteAsync(PacienteId.Value);
+            if (historial is null) error = "No tienes acceso al historial de este paciente o no existe relación clínica registrada.";
+        }
+        finally { cargando = false; }
+    }
+
+    private static string EdadTexto(DateOnly? nacimiento)
+    {
+        if (!nacimiento.HasValue) return "No registrada";
+        var hoy = DateOnly.FromDateTime(DateTime.Today);
+        var edad = hoy.Year - nacimiento.Value.Year;
+        if (nacimiento.Value > hoy.AddYears(-edad)) edad--;
+        return $"{Math.Max(0, edad)} años";
+    }
+
+    private static string SexoTexto(string? sexo) => sexo switch { "F" => "Femenino", "M" => "Masculino", "X" => "Otro", _ => "No registrado" };
+}

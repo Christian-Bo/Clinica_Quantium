@@ -123,6 +123,21 @@ public sealed class CitaTests
     }
 
     [Fact]
+    public void Reprogramar_TerceraConAdmin_QuedaAutorizada()
+    {
+        var cita = CrearCita();
+        cita.ConfirmarPorSecretaria(Guid.NewGuid());
+        cita.Reprogramar(new DateTime(2026, 9, 8, 10, 0, 0), 30, null);
+        cita.Reprogramar(new DateTime(2026, 9, 9, 10, 0, 0), 30, null);
+        var adminId = Guid.NewGuid();
+
+        cita.Reprogramar(new DateTime(2026, 9, 10, 10, 0, 0), 30, adminId);
+
+        Assert.Equal(3, cita.NumeroReprogramaciones);
+        Assert.Equal(adminId, cita.AutorizacionTerceraPorUsuarioId);
+    }
+
+    [Fact]
     public void DiaSemana_LunesEsUnoYDomingoEsSiete()
     {
         Assert.Equal(1, HoraClinica.DiaSemana(new DateTime(2026, 9, 7)));

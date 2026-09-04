@@ -1,7 +1,8 @@
 @page "/dashboard"
-@attribute [Authorize]
+@attribute [Authorize(Roles = Roles.Secretaria)]
 @inject ReportesApiService ReportesApi
 @inject CitasApiService CitasApi
+@inject NotificacionesApiService NotificacionesApi
 @inject NavigationManager Navigation
 
 <PageTitle>Dashboard · Clínica Pro</PageTitle>
@@ -9,7 +10,7 @@
 <div class="space-y-6">
     <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
-            <h1 class="text-xl font-semibold text-ink">Dashboard de Secretaría</h1>
+            <h1 class="text-xl font-semibold text-ink">@Saludo 👋</h1>
             <p class="text-sm text-ink-muted">Resumen operativo de hoy.</p>
         </div>
         <div class="flex gap-2">
@@ -30,11 +31,23 @@
     }
     else
     {
+        @if (notificacionesFallidas > 0)
+        {
+            <button type="button" class="flex w-full items-center justify-between rounded-card border border-state-rechazada/30 bg-state-rechazada/5 px-4 py-3 text-left transition-colors hover:bg-state-rechazada/10"
+                    @onclick="IrANotificaciones">
+                <span class="flex items-center gap-2 text-sm text-state-rechazada">
+                    <Icon Name="alert-triangle" Size="16" />
+                    @notificacionesFallidas notificación@(notificacionesFallidas == 1 ? "" : "es") sin enviar — revisar
+                </span>
+                <Icon Name="arrow-right" Size="16" CssClass="text-state-rechazada" />
+            </button>
+        }
+
         <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <TarjetaKpi Titulo="Citas hoy" Valor="totalHoy" IconName="calendar" />
-            <TarjetaKpi Titulo="Pendientes de confirmar" Valor="pendientesHoy" IconName="clock" />
-            <TarjetaKpi Titulo="Pacientes en sala" Valor="enSalaHoy" IconName="users" />
-            <TarjetaKpi Titulo="No se presentaron" Valor="noPresentadosHoy" IconName="alert-triangle" />
+            <TarjetaKpi Titulo="Citas hoy" Valor="totalHoy" IconName="calendar" OnClick="IrACitas" />
+            <TarjetaKpi Titulo="Pendientes de confirmar" Valor="pendientesHoy" IconName="clock" OnClick="IrAPendientes" />
+            <TarjetaKpi Titulo="Pacientes en sala" Valor="enSalaHoy" IconName="users" OnClick="IrACitas" />
+            <TarjetaKpi Titulo="No se presentaron" Valor="noPresentadosHoy" IconName="alert-triangle" OnClick="IrACitas" />
         </div>
 
         <Card Title="Agenda del día" IconName="calendar">
@@ -62,7 +75,7 @@
                             <tbody class="divide-y divide-border">
                                 @foreach (var cita in citasHoy.OrderBy(c => c.FechaHoraInicio))
                                 {
-                                    <tr>
+                                    <tr class="@ClaseFila(cita) cursor-pointer" @onclick="() => AbrirDetalle(cita)">
                                         <td class="py-2 pr-3 font-medium text-ink">@cita.FechaHoraInicio.ToString("HH:mm")</td>
                                         <td class="py-2 pr-3 text-ink">@cita.PacienteNombre</td>
                                         <td class="py-2 pr-3 text-ink-muted">@cita.MedicoNombre</td>
@@ -78,6 +91,9 @@
     }
 </div>
 
+<CitaDetalleDrawer IsOpen="drawerAbierto" IsOpenChanged="@((bool v) => drawerAbierto = v)"
+                    Cita="citaSeleccionada" OnActualizada="ManejarCitaActualizada" />
+
 @code {
     private bool cargando = true;
     private string? errorCarga;
@@ -85,23 +101,40 @@
     private int pendientesHoy;
     private int enSalaHoy;
     private int noPresentadosHoy;
+    private int notificacionesFallidas;
     private List<CitaDto> citasHoy = [];
 
-    protected override async Task OnInitializedAsync()
+    private bool drawerAbierto;
+    private CitaDto? citaSeleccionada;
+
+    private static string Saludo => DateTime.Now.Hour switch
+    {
+        >= 5 and < 12 => "Buenos días",
+        >= 12 and < 19 => "Buenas tardes",
+        _ => "Buenas noches"
+    };
+
+    protected override async Task OnInitializedAsync() => await CargarAsync();
+
+    private async Task CargarAsync()
     {
         var hoy = DateTime.Today;
         var manana = hoy.AddDays(1);
 
+        cargando = citasHoy.Count == 0;
         try
         {
             var reporte = await ReportesApi.ObtenerReporteCitasAsync(hoy, manana);
             var agenda = await CitasApi.ListarAgendaAsync(hoy, manana);
+            var fallidas = await NotificacionesApi.ListarAsync(NotificacionEstados.Fallida);
 
             citasHoy = agenda.ToList();
             totalHoy = reporte?.Total ?? citasHoy.Count;
             pendientesHoy = ContarPorEstado(reporte, CitaEstados.Solicitada);
             enSalaHoy = ContarPorEstado(reporte, CitaEstados.EnEspera) + ContarPorEstado(reporte, CitaEstados.EnAtencion);
             noPresentadosHoy = reporte?.NoPresentadas ?? 0;
+            notificacionesFallidas = fallidas.Count;
+            errorCarga = null;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
@@ -116,7 +149,29 @@
     private static int ContarPorEstado(ReporteCitasDto? reporte, string estado)
         => reporte?.PorEstado.FirstOrDefault(p => p.Estado == estado)?.Cantidad ?? 0;
 
+    private Guid? ProximaCitaId => citasHoy
+        .Where(c => c.FechaHoraInicio >= DateTime.Now && c.Estado is CitaEstados.Programada or CitaEstados.Confirmada)
+        .OrderBy(c => c.FechaHoraInicio)
+        .Select(c => (Guid?)c.CitaId)
+        .FirstOrDefault();
+
+    private string ClaseFila(CitaDto cita) => cita.CitaId == ProximaCitaId
+        ? "border-l-2 border-l-brand-500 bg-brand-50 hover:bg-brand-100"
+        : "hover:bg-surface-muted";
+
+    private void AbrirDetalle(CitaDto cita)
+    {
+        citaSeleccionada = cita;
+        drawerAbierto = true;
+    }
+
+    private async Task ManejarCitaActualizada(CitaDto cita) => await CargarAsync();
+
     private void IrACitas() => Navigation.NavigateTo("/citas");
 
+    private void IrAPendientes() => Navigation.NavigateTo("/citas?tab=pendientes");
+
     private void IrAPacientes() => Navigation.NavigateTo("/pacientes");
+
+    private void IrANotificaciones() => Navigation.NavigateTo("/notificaciones");
 }

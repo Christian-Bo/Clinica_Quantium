@@ -76,5 +76,12 @@ public sealed class ListarNotificacionesStaffServiceTests
             string tipo,
             CancellationToken cancellationToken = default)
             => Task.FromResult(false);
+
+        public Task AnularPendientesDeTipoAsync(
+            Guid citaId,
+            string tipo,
+            string motivo,
+            CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 }

@@ -1,0 +1,122 @@
+@page "/admin"
+@attribute [Authorize(Roles = Roles.Administrador)]
+@inject AdminApiService AdminApi
+@inject NavigationManager Navigation
+
+<PageTitle>Administración · Clínica Pro</PageTitle>
+
+<div class="space-y-6">
+    <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">Administración</p>
+        <h1 class="mt-1 text-xl font-semibold text-ink">Panel de control</h1>
+        <p class="mt-1 text-sm text-ink-muted">Supervisa personal, accesos, autorizaciones y configuración general.</p>
+    </div>
+
+    @if (cargando)
+    {
+        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">@for (var i = 0; i < 5; i++) { <Skeleton Filas="1" HeightClass="h-24" /> }</div>
+    }
+    else if (!string.IsNullOrWhiteSpace(error))
+    {
+        <Card><EmptyState IconName="alert-triangle" Title="No se pudo cargar el panel" Description="@error" /></Card>
+    }
+    else
+    {
+        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <TarjetaKpi Titulo="Especialidades activas" Valor="especialidadesActivas" IconName="clipboard-list" OnClick="IrEspecialidades" />
+            <TarjetaKpi Titulo="Médicos activos" Valor="medicosActivos" IconName="stethoscope" OnClick="IrMedicos" />
+            <TarjetaKpi Titulo="Usuarios activos" Valor="usuariosActivos" IconName="users" OnClick="IrUsuarios" />
+            <TarjetaKpi Titulo="Autorizaciones pendientes" Valor="autorizacionesPendientes" IconName="shield" OnClick="IrAutorizaciones" />
+            <TarjetaKpi Titulo="Parámetros" Valor="parametrosTotal" IconName="settings" OnClick="IrParametros" />
+        </div>
+
+        <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <Card Title="Acciones rápidas" IconName="settings">
+                <div class="space-y-2">
+                    <button class="@ClaseAccion" @onclick="IrAutorizaciones"><span class="flex items-center gap-2"><Icon Name="shield" Size="17" CssClass="text-brand-600" /> Revisar autorizaciones</span><Icon Name="chevron-right" Size="16" CssClass="text-ink-muted" /></button>
+                    <button class="@ClaseAccion" @onclick="IrMedicos"><span class="flex items-center gap-2"><Icon Name="stethoscope" Size="17" CssClass="text-brand-600" /> Médicos y horarios</span><Icon Name="chevron-right" Size="16" CssClass="text-ink-muted" /></button>
+                    <button class="@ClaseAccion" @onclick="IrUsuarios"><span class="flex items-center gap-2"><Icon Name="key" Size="17" CssClass="text-brand-600" /> Usuarios y roles</span><Icon Name="chevron-right" Size="16" CssClass="text-ink-muted" /></button>
+                    <button class="@ClaseAccion" @onclick="IrReportes"><span class="flex items-center gap-2"><Icon Name="chart" Size="17" CssClass="text-brand-600" /> Consultar reportes</span><Icon Name="chevron-right" Size="16" CssClass="text-ink-muted" /></button>
+                </div>
+            </Card>
+
+            <Card Title="Resumen administrativo" IconName="chart">
+                <dl class="space-y-4 text-sm">
+                    <div class="flex items-center justify-between"><dt class="text-ink-muted">Médicos registrados</dt><dd class="font-semibold text-ink">@medicosTotal</dd></div>
+                    <div class="flex items-center justify-between"><dt class="text-ink-muted">Médicos inactivos</dt><dd class="font-semibold text-ink">@(medicosTotal - medicosActivos)</dd></div>
+                    <div class="flex items-center justify-between"><dt class="text-ink-muted">Cuentas registradas</dt><dd class="font-semibold text-ink">@usuariosTotal</dd></div>
+                    <div class="flex items-center justify-between"><dt class="text-ink-muted">Especialidades registradas</dt><dd class="font-semibold text-ink">@especialidadesTotal</dd></div>
+                </dl>
+            </Card>
+
+            <Card Title="Actividad reciente" IconName="history">
+                @if (auditoria.Count == 0)
+                {
+                    <EmptyState IconName="history" Title="Sin actividad reciente" Description="Los cambios administrativos aparecerán aquí." />
+                }
+                else
+                {
+                    <div class="divide-y divide-border">
+                        @foreach (var item in auditoria.Take(5))
+                        {
+                            <div class="py-2.5 first:pt-0 last:pb-0"><div class="flex items-start justify-between gap-3"><p class="text-sm font-medium text-ink">@item.Accion · @item.Entidad</p><time class="shrink-0 text-xs text-ink-muted">@item.FechaUtc.ToLocalTime().ToString("dd/MM HH:mm")</time></div><p class="mt-0.5 truncate text-xs text-ink-muted">@(string.IsNullOrWhiteSpace(item.Detalle) ? item.EntidadId ?? "Sin detalle" : item.Detalle)</p></div>
+                        }
+                    </div>
+                    <div class="mt-4 border-t border-border pt-3 text-right"><Button Variant="ButtonVariant.Ghost" Size="sm" OnClick="IrAuditoria">Ver auditoría completa</Button></div>
+                }
+            </Card>
+        </div>
+    }
+</div>
+
+@code {
+    private const string ClaseAccion = "flex w-full items-center justify-between rounded-control border border-border px-3 py-3 text-left text-sm text-ink hover:bg-surface-muted";
+    private bool cargando = true;
+    private string? error;
+    private int especialidadesTotal;
+    private int especialidadesActivas;
+    private int medicosTotal;
+    private int medicosActivos;
+    private int usuariosTotal;
+    private int usuariosActivos;
+    private int parametrosTotal;
+    private int autorizacionesPendientes;
+    private IReadOnlyList<AuditoriaDto> auditoria = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var especialidadesTask = AdminApi.ListarEspecialidadesAsync();
+            var medicosTask = AdminApi.ListarMedicosAsync();
+            var usuariosTask = AdminApi.ListarUsuariosAsync();
+            var parametrosTask = AdminApi.ListarParametrosAsync();
+            var auditoriaTask = AdminApi.ListarAuditoriaAsync();
+            var autorizacionesTask = AdminApi.ListarAutorizacionesAsync("Pendiente");
+            await Task.WhenAll(especialidadesTask, medicosTask, usuariosTask, parametrosTask, auditoriaTask, autorizacionesTask);
+
+            var especialidades = await especialidadesTask;
+            var medicos = await medicosTask;
+            var usuarios = await usuariosTask;
+            especialidadesTotal = especialidades.Count;
+            especialidadesActivas = especialidades.Count(x => x.IsActive);
+            medicosTotal = medicos.Count;
+            medicosActivos = medicos.Count(x => x.IsActive);
+            usuariosTotal = usuarios.Count;
+            usuariosActivos = usuarios.Count(x => x.IsActive);
+            parametrosTotal = (await parametrosTask).Count;
+            auditoria = await auditoriaTask;
+            autorizacionesPendientes = (await autorizacionesTask).Count;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { error = "No fue posible contactar a la API para obtener la información administrativa."; }
+        finally { cargando = false; }
+    }
+
+    private void IrEspecialidades() => Navigation.NavigateTo("/admin/especialidades");
+    private void IrMedicos() => Navigation.NavigateTo("/admin/medicos");
+    private void IrUsuarios() => Navigation.NavigateTo("/admin/usuarios");
+    private void IrAutorizaciones() => Navigation.NavigateTo("/admin/autorizaciones");
+    private void IrReportes() => Navigation.NavigateTo("/reportes");
+    private void IrParametros() => Navigation.NavigateTo("/admin/parametros");
+    private void IrAuditoria() => Navigation.NavigateTo("/admin/auditoria");
+}

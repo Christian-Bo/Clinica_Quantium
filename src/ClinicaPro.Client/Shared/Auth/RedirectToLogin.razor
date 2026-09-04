@@ -1,8 +1,14 @@
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
 
 @code {
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        Navigation.NavigateTo("/login", forceLoad: false);
+        var estado = await AuthStateProvider.GetAuthenticationStateAsync();
+        var destino = estado.User.Identity?.IsAuthenticated == true
+            ? RoleRoutes.Inicio(estado.User)
+            : "/login";
+
+        Navigation.NavigateTo(destino, replace: true);
     }
 }

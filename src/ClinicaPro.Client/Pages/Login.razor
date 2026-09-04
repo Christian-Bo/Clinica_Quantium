@@ -208,8 +208,8 @@
         // que es el de Secretaría, y un paciente quedaba en una pantalla vacía.
         var sesion = resultado.Valor;
         var destino = sesion.MustChangePassword
-            ? RutasPorRol.CambioPasswordObligatorio
-            : RutasPorRol.InicioPara(sesion.Roles);
+            ? RoleRoutes.CambioContrasenaObligatorio
+            : RoleRoutes.Inicio(sesion.Roles);
 
         Navigation.NavigateTo(destino, replace: true);
     }

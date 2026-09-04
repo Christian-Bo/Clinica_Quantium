@@ -7,13 +7,13 @@ using Microsoft.AspNetCore.Mvc;
 namespace ClinicaPro.Api.Controllers;
 
 [ApiController]
-[AllowAnonymous]
 [Route("api/medicos")]
 public sealed class MedicosController(
     ListarMedicosActivosService listarMedicos,
     IMedicoRepository medicos,
     IHorarioRepository horarios) : ControllerBase
 {
+    [AllowAnonymous]
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<MedicoDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<MedicoDto>>> Get(CancellationToken cancellationToken)
@@ -22,6 +22,7 @@ public sealed class MedicosController(
         return Ok(lista.Select(item => Map(item.Medico, item.Especialidades)).ToList());
     }
 
+    [AllowAnonymous]
     [HttpGet("{medicoId:guid}")]
     [ProducesResponseType(typeof(MedicoDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -40,6 +41,7 @@ public sealed class MedicosController(
         return Ok(Map(medico, especialidades));
     }
 
+    [AllowAnonymous]
     [HttpGet("{medicoId:guid}/horarios")]
     [ProducesResponseType(typeof(IReadOnlyList<HorarioDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<HorarioDto>>> Horarios(
@@ -52,7 +54,10 @@ public sealed class MedicosController(
             horario.MedicoId,
             horario.DiaSemana,
             horario.HoraInicio,
-            horario.HoraFin)).ToList());
+            horario.HoraFin,
+            horario.VigenteDesde,
+            horario.VigenteHasta,
+            horario.IsActive)).ToList());
     }
 
     private static MedicoDto Map(Medico medico, IReadOnlyList<MedicoEspecialidad> especialidades)
