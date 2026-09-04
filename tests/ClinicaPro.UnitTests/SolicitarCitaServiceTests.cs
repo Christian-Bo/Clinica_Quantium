@@ -2,6 +2,7 @@ using ClinicaPro.Application;
 using ClinicaPro.Application.Agenda;
 using ClinicaPro.Application.Citas;
 using ClinicaPro.Application.Pacientes;
+using ClinicaPro.Domain;
 using ClinicaPro.Domain.Entities;
 using ClinicaPro.Domain.Exceptions;
 
@@ -14,11 +15,14 @@ public sealed class SolicitarCitaServiceTests
     private static SolicitarCitaService Construir(Medico? medico)
     {
         var paciente = Paciente.Create(Guid.NewGuid(), "Ana", "Lopez");
+        var citas = new CitasFalso();
+        var parametros = new ParametrosFalso();
         return new SolicitarCitaService(
             new PacientesFalso(paciente),
             new MedicosFalso(medico),
-            new CitasFalso(),
-            new ParametrosFalso(),
+            citas,
+            parametros,
+            new ValidarAgendaPacienteService(citas, parametros),
             new UnitOfWorkFalso(),
             null!);
     }
@@ -34,6 +38,91 @@ public sealed class SolicitarCitaServiceTests
                 new SolicitarCitaInput(Guid.NewGuid(), FechaFutura, "Dolor de cabeza")));
 
         Assert.Contains("no existe", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task CrearPendienteAsync_MedicoActivo_AgregaCitaDelMedico()
+    {
+        var medico = Medico.Create(Guid.NewGuid(), Guid.NewGuid(), "Carlos", "Hernandez");
+        var citas = new CitasFalso();
+        var parametros = new ParametrosFalso();
+        var paciente = Paciente.Create(Guid.NewGuid(), "Ana", "Lopez");
+        var servicio = new SolicitarCitaService(
+            new PacientesFalso(paciente),
+            new MedicosFalso(medico),
+            citas,
+            parametros,
+            new ValidarAgendaPacienteService(citas, parametros),
+            new UnitOfWorkFalso(),
+            null!);
+
+        var cita = await servicio.CrearPendienteAsync(
+            paciente.Id,
+            paciente.UsuarioId,
+            new SolicitarCitaInput(medico.Id, FechaFutura, "Dolor de cabeza"));
+
+        Assert.Equal(medico.Id, cita.MedicoId);
+        Assert.Equal(paciente.Id, cita.PacienteId);
+        Assert.Equal("Dolor de cabeza", cita.MotivoConsulta);
+        Assert.Single(citas.Agregadas);
+    }
+
+    [Fact]
+    public async Task CrearPendienteAsync_MotivoCorto_LanzaDomainException()
+    {
+        var medico = Medico.Create(Guid.NewGuid(), Guid.NewGuid(), "Carlos", "Hernandez");
+        var paciente = Paciente.Create(Guid.NewGuid(), "Ana", "Lopez");
+        var citas = new CitasFalso();
+        var parametros = new ParametrosFalso();
+        var servicio = new SolicitarCitaService(
+            new PacientesFalso(paciente),
+            new MedicosFalso(medico),
+            citas,
+            parametros,
+            new ValidarAgendaPacienteService(citas, parametros),
+            new UnitOfWorkFalso(),
+            null!);
+
+        var error = await Assert.ThrowsAsync<DomainException>(
+            () => servicio.CrearPendienteAsync(
+                paciente.Id,
+                paciente.UsuarioId,
+                new SolicitarCitaInput(medico.Id, FechaFutura, "abc")));
+
+        Assert.Contains("motivo", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(citas.Agregadas);
+    }
+
+    [Fact]
+    public async Task CrearPendienteAsync_PacienteYaTieneEseHorario_LanzaDomainException()
+    {
+        var medico = Medico.Create(Guid.NewGuid(), Guid.NewGuid(), "Carlos", "Hernandez");
+        var paciente = Paciente.Create(Guid.NewGuid(), "Ana", "Lopez");
+        var citas = new CitasFalso
+        {
+            Existentes =
+            {
+                Cita.Solicitar(paciente.Id, Guid.NewGuid(), paciente.UsuarioId, FechaFutura, "Control previo")
+            }
+        };
+        var parametros = new ParametrosFalso();
+        var servicio = new SolicitarCitaService(
+            new PacientesFalso(paciente),
+            new MedicosFalso(medico),
+            citas,
+            parametros,
+            new ValidarAgendaPacienteService(citas, parametros),
+            new UnitOfWorkFalso(),
+            null!);
+
+        var error = await Assert.ThrowsAsync<DomainException>(
+            () => servicio.CrearPendienteAsync(
+                paciente.Id,
+                paciente.UsuarioId,
+                new SolicitarCitaInput(medico.Id, FechaFutura, "Dolor de cabeza")));
+
+        Assert.Contains("ya tiene una cita", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(citas.Agregadas);
     }
 
     [Fact]
@@ -115,6 +204,9 @@ public sealed class SolicitarCitaServiceTests
 
     private sealed class CitasFalso : ICitaRepository
     {
+        public List<Cita> Agregadas { get; } = [];
+        public List<Cita> Existentes { get; } = [];
+
         public Task<Cita?> ObtenerPorIdAsync(Guid citaId, CancellationToken cancellationToken = default)
             => Task.FromResult<Cita?>(null);
 
@@ -133,11 +225,32 @@ public sealed class SolicitarCitaServiceTests
         public Task<IReadOnlyList<Cita>> ListarQueBloqueanEnRangoAsync(Guid medicoId, DateTime desde, DateTime hasta, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<Cita>>([]);
 
+        public Task<IReadOnlyList<Cita>> ListarQueBloqueanPacienteEnRangoAsync(
+            Guid pacienteId, DateTime desde, DateTime hasta, Guid? exceptoCitaId, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<Cita>>(
+                Existentes.Where(cita =>
+                    cita.PacienteId == pacienteId
+                    && CitaEstados.BloqueaHorario(cita.Estado)
+                    && cita.FechaHoraInicio < hasta
+                    && desde < cita.FechaHoraFin
+                    && cita.Id != exceptoCitaId).ToList());
+
+        public Task<int> ContarActivasFuturasAsync(
+            Guid pacienteId, DateTime ahoraClinica, Guid? exceptoCitaId, CancellationToken cancellationToken = default)
+            => Task.FromResult(Existentes.Count(cita =>
+                cita.PacienteId == pacienteId
+                && CitaEstados.BloqueaHorario(cita.Estado)
+                && cita.FechaHoraInicio >= ahoraClinica
+                && cita.Id != exceptoCitaId));
+
         public Task<IReadOnlyList<Cita>> ListarParaRecordatorioAsync(DateTime desdeInicio, DateTime hastaInicio, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<Cita>>([]);
 
         public Task AgregarAsync(Cita cita, CancellationToken cancellationToken = default)
-            => Task.CompletedTask;
+        {
+            Agregadas.Add(cita);
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class UnitOfWorkFalso : IUnitOfWork

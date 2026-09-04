@@ -152,6 +152,63 @@ public sealed class CitaRepository(ClinicaProDbContext dbContext) : ICitaReposit
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Cita>> ListarQueBloqueanPacienteEnRangoAsync(
+        Guid pacienteId,
+        DateTime desde,
+        DateTime hasta,
+        Guid? exceptoCitaId,
+        CancellationToken cancellationToken = default)
+    {
+        var estados = EstadosQueBloqueanHorario;
+
+        var consulta = dbContext.Citas.AsNoTracking()
+            .Where(cita =>
+                cita.PacienteId == pacienteId
+                && estados.Contains(cita.Estado)
+                && cita.FechaHoraInicio < hasta
+                && desde < cita.FechaHoraFin);
+
+        if (exceptoCitaId is not null)
+        {
+            consulta = consulta.Where(cita => cita.Id != exceptoCitaId.Value);
+        }
+
+        return await consulta
+            .OrderBy(cita => cita.FechaHoraInicio)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<int> ContarActivasFuturasAsync(
+        Guid pacienteId,
+        DateTime ahoraClinica,
+        Guid? exceptoCitaId,
+        CancellationToken cancellationToken = default)
+    {
+        var estados = EstadosQueBloqueanHorario;
+
+        var consulta = dbContext.Citas.AsNoTracking()
+            .Where(cita =>
+                cita.PacienteId == pacienteId
+                && estados.Contains(cita.Estado)
+                && cita.FechaHoraInicio >= ahoraClinica);
+
+        if (exceptoCitaId is not null)
+        {
+            consulta = consulta.Where(cita => cita.Id != exceptoCitaId.Value);
+        }
+
+        return consulta.CountAsync(cancellationToken);
+    }
+
+    private static readonly string[] EstadosQueBloqueanHorario =
+    [
+        CitaEstados.Solicitada,
+        CitaEstados.Programada,
+        CitaEstados.Confirmada,
+        CitaEstados.EnEspera,
+        CitaEstados.EnAtencion
+    ];
+
     public async Task<IReadOnlyList<Cita>> ListarParaRecordatorioAsync(
         DateTime desdeInicio,
         DateTime hastaInicio,

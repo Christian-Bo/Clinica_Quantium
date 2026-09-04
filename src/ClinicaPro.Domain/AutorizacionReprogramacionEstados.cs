@@ -13,4 +13,5 @@ public static class ParametrosClave
     public const string MaximoReprogramaciones = "Citas.MaximoReprogramaciones";
     public const string HorasMinimasCancelacion = "Citas.HorasMinimasCancelacion";
     public const string DuracionPredeterminadaMinutos = "Citas.DuracionPredeterminadaMinutos";
+    public const string MaximoActivasPorPaciente = "Citas.MaximoActivasPorPaciente";
 }

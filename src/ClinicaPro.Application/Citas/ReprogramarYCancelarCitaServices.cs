@@ -11,6 +11,7 @@ namespace ClinicaPro.Application.Citas;
 public sealed class ReprogramarCitaService(
     ICitaRepository citas,
     IAutorizacionReprogramacionRepository autorizaciones,
+    ValidarAgendaPacienteService validarAgendaPaciente,
     IUnitOfWork unitOfWork,
     EncolarNotificacionCitaService encolarNotificacion,
     AjustarRecordatorioCitaService ajustarRecordatorio)
@@ -38,6 +39,14 @@ public sealed class ReprogramarCitaService(
         }
 
         cita.Reprogramar(nuevaFechaHoraInicio, duracion, autorizacion);
+
+        await validarAgendaPaciente.ExigirPuedeAgendarAsync(
+            cita.PacienteId,
+            cita.FechaHoraInicio,
+            cita.FechaHoraFin,
+            cita.Id,
+            cuentaComoCitaNueva: false,
+            cancellationToken);
 
         var motivoFinal = string.IsNullOrWhiteSpace(motivo)
             ? "Reprogramación de la cita"

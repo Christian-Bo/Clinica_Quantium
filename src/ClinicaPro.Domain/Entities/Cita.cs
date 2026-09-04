@@ -8,6 +8,7 @@ public sealed class Cita
     public const int MotivoMaxLength = 500;
     public const int DuracionPredeterminadaMinutos = 30;
     public const int MaximoReprogramaciones = 3;
+    public const int MaximoActivasFuturasPorPaciente = 3;
 
     public Guid Id { get; private set; }
     public Guid PacienteId { get; private set; }

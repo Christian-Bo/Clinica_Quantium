@@ -114,6 +114,21 @@ public sealed class ListarAgendaServiceTests
             CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<Cita>>([]);
 
+        public Task<IReadOnlyList<Cita>> ListarQueBloqueanPacienteEnRangoAsync(
+            Guid pacienteId,
+            DateTime desde,
+            DateTime hasta,
+            Guid? exceptoCitaId,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<Cita>>([]);
+
+        public Task<int> ContarActivasFuturasAsync(
+            Guid pacienteId,
+            DateTime ahoraClinica,
+            Guid? exceptoCitaId,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(0);
+
         public Task<IReadOnlyList<Cita>> ListarParaRecordatorioAsync(
             DateTime desdeInicio,
             DateTime hastaInicio,

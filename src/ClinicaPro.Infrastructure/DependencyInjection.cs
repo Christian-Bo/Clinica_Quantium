@@ -68,7 +68,9 @@ public static class DependencyInjection
             }
         });
 
+        services.AddMemoryCache();
         services.AddSingleton<JwtTokenGenerator>();
+        services.AddSingleton<IAuthAttemptLimiter, MemoryAuthAttemptLimiter>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
       

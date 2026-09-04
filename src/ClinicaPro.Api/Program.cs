@@ -125,6 +125,7 @@ app.UseHttpsRedirection();
 app.UseCors("Client");
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<ClinicaPro.Api.Security.MustChangePasswordMiddleware>();
 
 app.MapControllers();
 app.MapHub<ClinicaPro.Api.Hubs.AgendaMedicoHub>(ClinicaPro.Api.Hubs.AgendaMedicoHub.Ruta);

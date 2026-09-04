@@ -1,5 +1,6 @@
 using ClinicaPro.Application;
 using ClinicaPro.Application.Auth;
+using ClinicaPro.Application.Citas;
 using ClinicaPro.Application.Notificaciones;
 using ClinicaPro.Application.Pacientes;
 using ClinicaPro.Domain;
@@ -16,6 +17,8 @@ public sealed class AuthService(
     UserManager<ApplicationUser> userManager,
     RoleManager<ApplicationRole> roleManager,
     IPacienteRepository pacienteRepository,
+    SolicitarCitaService solicitarCita,
+    EncolarNotificacionCitaService encolarNotificacion,
     ClinicaProDbContext dbContext,
     JwtTokenGenerator jwtTokenGenerator,
     IEmailSender emailSender,
@@ -48,7 +51,7 @@ public sealed class AuthService(
 
         var roles = await ObtenerRolesActivosAsync(user, cancellationToken);
         var paciente = await pacienteRepository.ObtenerPorUsuarioIdAsync(user.Id, cancellationToken);
-        var (token, expiresAt) = jwtTokenGenerator.Create(user, roles);
+        var (token, expiresAt) = jwtTokenGenerator.Create(user, roles, user.MustChangePassword);
 
         await auditoria.RegistrarAsync(user.Id, "Login", "Usuario", user.Id.ToString(), user.Email, cancellationToken);
 
@@ -95,7 +98,7 @@ public sealed class AuthService(
 
         var roles = await ObtenerRolesActivosAsync(user, cancellationToken);
         var paciente = await pacienteRepository.ObtenerPorUsuarioIdAsync(user.Id, cancellationToken);
-        var (token, expiresAt) = jwtTokenGenerator.Create(user, roles);
+        var (token, expiresAt) = jwtTokenGenerator.Create(user, roles, user.MustChangePassword);
 
         return AuthOperationResult.Ok(new AuthSession(
             token,
@@ -110,6 +113,47 @@ public sealed class AuthService(
     public async Task<AuthOperationResult> RegisterPacienteAsync(
         RegisterPacienteInput input,
         CancellationToken cancellationToken = default)
+    {
+        if (input.PrimeraCita is null
+            || input.PrimeraCita.MedicoId == Guid.Empty
+            || string.IsNullOrWhiteSpace(input.PrimeraCita.MotivoConsulta))
+        {
+            return AuthOperationResult.Fail(
+                "cita_required",
+                "Al registrarse debe agendar su primera cita: médico, fecha y motivo.");
+        }
+
+        return await RegistrarCuentaPacienteAsync(input, input.PrimeraCita, cancellationToken);
+    }
+
+    public async Task<PacienteStaffResult> RegisterPacientePorStaffAsync(
+        RegisterPacienteInput input,
+        CancellationToken cancellationToken = default)
+    {
+        var resultado = await RegistrarCuentaPacienteAsync(input, primeraCita: null, cancellationToken);
+        if (!resultado.Succeeded || resultado.Session is null)
+        {
+            return new PacienteStaffResult(false, resultado.ErrorCode, null, null);
+        }
+
+        var user = await userManager.FindByIdAsync(resultado.Session.UsuarioId.ToString());
+        if (user is not null)
+        {
+            user.MustChangePassword = true;
+            await userManager.UpdateAsync(user);
+        }
+
+        return new PacienteStaffResult(
+            true,
+            null,
+            resultado.Session.PacienteId,
+            resultado.Session.UsuarioId);
+    }
+
+    private async Task<AuthOperationResult> RegistrarCuentaPacienteAsync(
+        RegisterPacienteInput input,
+        PrimeraCitaRegistro? primeraCita,
+        CancellationToken cancellationToken)
     {
         var email = input.Email.Trim();
 
@@ -152,6 +196,25 @@ public sealed class AuthService(
             return AuthOperationResult.Fail("invalid_patient");
         }
 
+        Cita? citaPreparada = null;
+        if (primeraCita is not null)
+        {
+            try
+            {
+                // Valida médico y motivo antes de crear el usuario.
+                _ = Cita.Solicitar(
+                    paciente.Id,
+                    primeraCita.MedicoId,
+                    paciente.UsuarioId,
+                    primeraCita.FechaHoraInicio,
+                    primeraCita.MotivoConsulta);
+            }
+            catch (DomainException ex)
+            {
+                return AuthOperationResult.Fail("invalid_appointment", ex.Message);
+            }
+        }
+
         var user = new ApplicationUser
         {
             Id = paciente.UsuarioId,
@@ -186,13 +249,49 @@ public sealed class AuthService(
             }
 
             await pacienteRepository.AgregarAsync(paciente, cancellationToken);
-            await dbContext.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
+
+            if (primeraCita is not null)
+            {
+                try
+                {
+                    citaPreparada = await solicitarCita.CrearPendienteAsync(
+                        paciente.Id,
+                        user.Id,
+                        new SolicitarCitaInput(
+                            primeraCita.MedicoId,
+                            primeraCita.FechaHoraInicio,
+                            primeraCita.MotivoConsulta),
+                        cancellationToken);
+                }
+                catch (DomainException ex)
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    return AuthOperationResult.Fail("invalid_appointment", ex.Message);
+                }
+            }
+
+            try
+            {
+                await dbContext.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+            }
+            catch (DbUpdateException)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return AuthOperationResult.Fail(
+                    "invalid_appointment",
+                    "No fue posible agendar la primera cita. Revise que el médico esté activo y el horario libre.");
+            }
 
             await auditoria.RegistrarAsync(user.Id, "RegistroPaciente", "Paciente", paciente.Id.ToString(), email, cancellationToken);
 
+            if (citaPreparada is not null)
+            {
+                await encolarNotificacion.ExecuteAsync(citaPreparada, cancellationToken);
+            }
+
             var roles = new[] { RolNombres.Paciente };
-            var (token, expiresAt) = jwtTokenGenerator.Create(user, roles);
+            var (token, expiresAt) = jwtTokenGenerator.Create(user, roles, user.MustChangePassword);
 
             return AuthOperationResult.Ok(new AuthSession(
                 token,
@@ -203,30 +302,6 @@ public sealed class AuthService(
                 false,
                 paciente.Id));
         });
-    }
-
-    public async Task<PacienteStaffResult> RegisterPacientePorStaffAsync(
-        RegisterPacienteInput input,
-        CancellationToken cancellationToken = default)
-    {
-        var resultado = await RegisterPacienteAsync(input, cancellationToken);
-        if (!resultado.Succeeded || resultado.Session is null)
-        {
-            return new PacienteStaffResult(false, resultado.ErrorCode, null, null);
-        }
-
-        var user = await userManager.FindByIdAsync(resultado.Session.UsuarioId.ToString());
-        if (user is not null)
-        {
-            user.MustChangePassword = true;
-            await userManager.UpdateAsync(user);
-        }
-
-        return new PacienteStaffResult(
-            true,
-            null,
-            resultado.Session.PacienteId,
-            resultado.Session.UsuarioId);
     }
 
     public async Task<AuthUserInfo?> ObtenerUsuarioAsync(

@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using ClinicaPro.Application.Auth;
 using ClinicaPro.Infrastructure.Identity;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -11,7 +12,8 @@ public sealed class JwtTokenGenerator(IOptions<JwtOptions> options)
 {
     public (string Token, DateTimeOffset ExpiresAtUtc) Create(
         ApplicationUser user,
-        IEnumerable<string> roles)
+        IEnumerable<string> roles,
+        bool mustChangePassword = false)
     {
         var jwt = options.Value;
 
@@ -32,6 +34,10 @@ public sealed class JwtTokenGenerator(IOptions<JwtOptions> options)
         };
 
         claims.AddRange(roles.Select(rol => new Claim(ClaimTypes.Role, rol)));
+        if (mustChangePassword)
+        {
+            claims.Add(new Claim(MustChangePasswordAccess.ClaimType, MustChangePasswordAccess.ClaimValue));
+        }
 
         var credentials = new SigningCredentials(
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key)),

@@ -8,13 +8,14 @@ namespace ClinicaPro.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public sealed class AuthController(IAuthService authService) : ControllerBase
+public sealed class AuthController(IAuthService authService, IAuthAttemptLimiter intentos) : ControllerBase
 {
     [AllowAnonymous]
     [HttpPost("login")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status423Locked)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<AuthResponse>> Login(
         [FromBody] LoginRequest request,
         CancellationToken cancellationToken)
@@ -22,6 +23,11 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
         {
             return BadRequest(new ErrorResponse("El correo y la contraseña son obligatorios."));
+        }
+
+        if (!intentos.TryAcquireLogin(ObtenerIp()))
+        {
+            return DemasiadosIntentos();
         }
 
         var result = await authService.LoginAsync(request.Email, request.Password, cancellationToken);
@@ -42,6 +48,15 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
             return BadRequest(new ErrorResponse("El correo y la contraseña son obligatorios."));
         }
 
+        if (request.MedicoId is null
+            || request.MedicoId == Guid.Empty
+            || request.FechaHoraInicio is null
+            || string.IsNullOrWhiteSpace(request.MotivoConsulta))
+        {
+            return BadRequest(new ErrorResponse(
+                "Al registrarse debe agendar su primera cita: médico, fecha y motivo."));
+        }
+
         var result = await authService.RegisterPacienteAsync(
             new RegisterPacienteInput(
                 request.Email,
@@ -55,7 +70,11 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
                 request.Sexo,
                 request.Alergias,
                 request.ContactoEmergenciaNombre,
-                request.ContactoEmergenciaTelefono),
+                request.ContactoEmergenciaTelefono,
+                new PrimeraCitaRegistro(
+                    request.MedicoId.Value,
+                    request.FechaHoraInicio.Value,
+                    request.MotivoConsulta)),
             cancellationToken);
 
         if (!result.Succeeded || result.Session is null)
@@ -69,6 +88,7 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
     [AllowAnonymous]
     [HttpPost("forgot-password")]
     [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> ForgotPassword(
         [FromBody] ForgotPasswordRequest request,
         CancellationToken cancellationToken)
@@ -76,6 +96,11 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Email))
         {
             return BadRequest(new ErrorResponse("El correo es obligatorio."));
+        }
+
+        if (!intentos.TryAcquireForgotPassword(ObtenerIp(), request.Email))
+        {
+            return DemasiadosIntentos();
         }
 
         await authService.ForgotPasswordAsync(request.Email, cancellationToken);
@@ -182,6 +207,10 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
             "locked_out" => StatusCode(StatusCodes.Status423Locked),
             "email_taken" => Conflict(new ErrorResponse("El correo ya está registrado.")),
             "documento_taken" => Conflict(new ErrorResponse("Ya existe un paciente con ese documento.")),
+            "cita_required" => BadRequest(new ErrorResponse(
+                result.ErrorDetail ?? "Al registrarse debe agendar su primera cita: médico, fecha y motivo.")),
+            "invalid_appointment" => BadRequest(new ErrorResponse(
+                result.ErrorDetail ?? "No fue posible agendar la primera cita. Revise médico, horario y motivo.")),
             "password_mismatch" => BadRequest(new ErrorResponse("La contraseña actual no es correcta.")),
             "password_same" => BadRequest(new ErrorResponse("La nueva contraseña debe ser distinta a la actual.")),
             "invalid_patient" or "invalid_user" or "PasswordTooShort" or "PasswordRequiresDigit"
@@ -210,4 +239,12 @@ public sealed class AuthController(IAuthService authService) : ControllerBase
 
         return Guid.TryParse(value, out var usuarioId) ? usuarioId : null;
     }
+
+    private string ObtenerIp()
+        => HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+    private ObjectResult DemasiadosIntentos()
+        => StatusCode(
+            StatusCodes.Status429TooManyRequests,
+            new ErrorResponse("Demasiados intentos. Espere unos minutos e intente de nuevo."));
 }
