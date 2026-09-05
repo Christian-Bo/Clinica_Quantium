@@ -51,8 +51,12 @@
         <div>
             <label class="text-sm font-medium text-ink" for="dp-documento">Documento (DPI)</label>
             <input id="dp-documento" inputmode="numeric" class="@ClaseInput("Documento")"
-                   @bind="Modelo.Documento" @bind:event="oninput" />
+                   disabled="@DocumentoSoloLectura" @bind="Modelo.Documento" @bind:event="oninput" />
             <MensajeCampo Mensaje='@Error("Documento")' />
+            @if (DocumentoSoloLectura)
+            {
+                <p class="mt-1 text-xs text-ink-muted">Si el DPI está mal, pida la corrección en recepción.</p>
+            }
         </div>
 
         <div>
@@ -124,6 +128,9 @@
 
     /// <summary>true en el registro público; false al editar el propio perfil.</summary>
     [Parameter] public bool MostrarCredenciales { get; set; }
+
+    /// <summary>El paciente no puede cambiar su DPI; secretaría sí.</summary>
+    [Parameter] public bool DocumentoSoloLectura { get; set; }
 
     /// <summary>Qué parte del formulario pintar. Completo por defecto.</summary>
     [Parameter] public SeccionFormulario Seccion { get; set; } = SeccionFormulario.Completo;

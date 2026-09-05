@@ -8,11 +8,11 @@ public sealed class Cita
     public const int MotivoMaxLength = 500;
     public const int DuracionPredeterminadaMinutos = 30;
     public const int MaximoReprogramaciones = 3;
+    public const int MaximoActivasFuturasPorPaciente = 3;
 
     public Guid Id { get; private set; }
     public Guid PacienteId { get; private set; }
     public Guid MedicoId { get; private set; }
-    public Guid EspecialidadId { get; private set; }
     public DateTime FechaHoraInicio { get; private set; }
     public DateTime FechaHoraFin { get; private set; }
     public string MotivoConsulta { get; private set; } = null!;
@@ -32,7 +32,6 @@ public sealed class Cita
     public static Cita Solicitar(
         Guid pacienteId,
         Guid medicoId,
-        Guid especialidadId,
         Guid creadaPorUsuarioId,
         DateTime fechaHoraInicio,
         string motivoConsulta,
@@ -66,7 +65,6 @@ public sealed class Cita
             Id = Guid.NewGuid(),
             PacienteId = pacienteId,
             MedicoId = medicoId,
-            EspecialidadId = especialidadId,
             FechaHoraInicio = inicio,
             FechaHoraFin = fin,
             MotivoConsulta = motivo,

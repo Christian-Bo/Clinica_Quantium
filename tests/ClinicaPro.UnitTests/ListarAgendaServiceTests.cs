@@ -69,43 +69,14 @@ public sealed class ListarAgendaServiceTests
         public Task<Medico?> ObtenerPorUsuarioIdAsync(Guid usuarioId, CancellationToken cancellationToken = default)
             => Task.FromResult(medico is not null && medico.UsuarioId == usuarioId ? medico : null);
 
-        public Task<Medico?> ObtenerPrimarioPorEspecialidadAsync(
-            Guid especialidadId,
-            CancellationToken cancellationToken = default)
-            => Task.FromResult<Medico?>(null);
-
         public Task<IReadOnlyList<Medico>> ListarActivosAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<Medico>>([]);
 
         public Task<IReadOnlyList<Medico>> ListarTodosAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<Medico>>([]);
 
-        public Task<IReadOnlyList<MedicoEspecialidad>> ListarEspecialidadesActivasAsync(
-            CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<MedicoEspecialidad>>([]);
-
         public Task AgregarAsync(Medico item, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
-
-        public Task AgregarEspecialidadAsync(MedicoEspecialidad relacion, CancellationToken cancellationToken = default)
-            => Task.CompletedTask;
-
-        public Task<IReadOnlyList<MedicoEspecialidad>> ListarEspecialidadesDeMedicoAsync(
-            Guid medicoId,
-            CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<MedicoEspecialidad>>([]);
-
-        public Task<MedicoEspecialidad?> ObtenerEspecialidadRastreadaAsync(
-            Guid medicoId,
-            Guid especialidadId,
-            CancellationToken cancellationToken = default)
-            => Task.FromResult<MedicoEspecialidad?>(null);
-
-        public Task<bool> ExisteOtroPrimarioActivoAsync(
-            Guid especialidadId,
-            Guid medicoId,
-            CancellationToken cancellationToken = default)
-            => Task.FromResult(false);
     }
 
     private sealed class CitasFalso : ICitaRepository
@@ -142,6 +113,21 @@ public sealed class ListarAgendaServiceTests
             DateTime hasta,
             CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<Cita>>([]);
+
+        public Task<IReadOnlyList<Cita>> ListarQueBloqueanPacienteEnRangoAsync(
+            Guid pacienteId,
+            DateTime desde,
+            DateTime hasta,
+            Guid? exceptoCitaId,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<Cita>>([]);
+
+        public Task<int> ContarActivasFuturasAsync(
+            Guid pacienteId,
+            DateTime ahoraClinica,
+            Guid? exceptoCitaId,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(0);
 
         public Task<IReadOnlyList<Cita>> ListarParaRecordatorioAsync(
             DateTime desdeInicio,

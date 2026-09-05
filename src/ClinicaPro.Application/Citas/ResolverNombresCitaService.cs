@@ -1,5 +1,4 @@
 using ClinicaPro.Application.Agenda;
-using ClinicaPro.Application.Especialidades;
 using ClinicaPro.Application.Pacientes;
 using ClinicaPro.Domain.Entities;
 
@@ -7,8 +6,7 @@ namespace ClinicaPro.Application.Citas;
 
 public sealed class ResolverNombresCitaService(
     IPacienteRepository pacientes,
-    IMedicoRepository medicos,
-    IEspecialidadRepository especialidades)
+    IMedicoRepository medicos)
 {
     public async Task<IReadOnlyDictionary<Guid, NombresCita>> ExecuteAsync(
         IReadOnlyList<Cita> citas,
@@ -26,16 +24,12 @@ public sealed class ResolverNombresCitaService(
         var porMedico = (await medicos.ListarTodosAsync(cancellationToken))
             .ToDictionary(item => item.Id, item => item.NombreCompleto);
 
-        var porEspecialidad = (await especialidades.ListarTodasAsync(cancellationToken))
-            .ToDictionary(item => item.Id, item => item.Nombre);
-
         return citas.ToDictionary(
             cita => cita.Id,
             cita => new NombresCita(
                 porPaciente.GetValueOrDefault(cita.PacienteId, string.Empty),
-                porMedico.GetValueOrDefault(cita.MedicoId, string.Empty),
-                porEspecialidad.GetValueOrDefault(cita.EspecialidadId, string.Empty)));
+                porMedico.GetValueOrDefault(cita.MedicoId, string.Empty)));
     }
 }
 
-public sealed record NombresCita(string PacienteNombre, string MedicoNombre, string EspecialidadNombre);
+public sealed record NombresCita(string PacienteNombre, string MedicoNombre);

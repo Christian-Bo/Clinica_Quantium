@@ -6,9 +6,7 @@ public sealed record MedicoDto(
     string Apellidos,
     string NombreCompleto,
     string? NumeroColegiado,
-    string? Telefono,
-    IReadOnlyList<Guid> EspecialidadIds,
-    Guid? EspecialidadPrimariaId);
+    string? Telefono);
 
 public sealed record HorarioDto(
     Guid HorarioId,
@@ -21,17 +19,15 @@ public sealed record HorarioDto(
     bool IsActive);
 
 public sealed record SolicitarCitaRequest(
-    Guid EspecialidadId,
+    Guid MedicoId,
     DateTime FechaHoraInicio,
-    string MotivoConsulta,
-    Guid? MedicoId = null);
+    string MotivoConsulta);
 
 public sealed record SolicitarCitaParaPacienteRequest(
     Guid PacienteId,
-    Guid EspecialidadId,
+    Guid MedicoId,
     DateTime FechaHoraInicio,
-    string MotivoConsulta,
-    Guid? MedicoId = null);
+    string MotivoConsulta);
 
 public sealed record CitaDto(
     Guid CitaId,
@@ -39,8 +35,6 @@ public sealed record CitaDto(
     string PacienteNombre,
     Guid MedicoId,
     string MedicoNombre,
-    Guid EspecialidadId,
-    string EspecialidadNombre,
     DateTime FechaHoraInicio,
     DateTime FechaHoraFin,
     string MotivoConsulta,

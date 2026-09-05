@@ -14,7 +14,6 @@ public sealed class CitaAccesoMedicoTests
             Guid.NewGuid(),
             medicoId,
             Guid.NewGuid(),
-            Guid.NewGuid(),
             new DateTime(2026, 9, 7, 9, 0, 0),
             "Control de presión arterial");
 
@@ -25,7 +24,6 @@ public sealed class CitaAccesoMedicoTests
     public void ExigirAsignado_OtroMedico_LanzaForbidden()
     {
         var cita = Cita.Solicitar(
-            Guid.NewGuid(),
             Guid.NewGuid(),
             Guid.NewGuid(),
             Guid.NewGuid(),

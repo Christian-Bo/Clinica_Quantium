@@ -12,7 +12,7 @@ public sealed class MedicoConfiguration : IEntityTypeConfiguration<Medico>
         builder.HasKey(medico => medico.Id);
         builder.Property(medico => medico.Id).HasColumnName("MedicoId");
         builder.HasMany<Horario>().WithOne().HasForeignKey(horario => horario.MedicoId);
-        builder.HasMany<MedicoEspecialidad>().WithOne().HasForeignKey(relacion => relacion.MedicoId);
+     
         builder.Property(medico => medico.Nombres).HasMaxLength(Medico.NombresMaxLength).IsRequired();
         builder.Property(medico => medico.Apellidos).HasMaxLength(Medico.ApellidosMaxLength).IsRequired();
         builder.Property(medico => medico.NumeroColegiado).HasMaxLength(Medico.ColegiadoMaxLength);
@@ -22,14 +22,6 @@ public sealed class MedicoConfiguration : IEntityTypeConfiguration<Medico>
     }
 }
 
-public sealed class MedicoEspecialidadConfiguration : IEntityTypeConfiguration<MedicoEspecialidad>
-{
-    public void Configure(EntityTypeBuilder<MedicoEspecialidad> builder)
-    {
-        builder.ToTable("MedicoEspecialidad");
-        builder.HasKey(relacion => new { relacion.MedicoId, relacion.EspecialidadId });
-    }
-}
 
 public sealed class HorarioConfiguration : IEntityTypeConfiguration<Horario>
 {

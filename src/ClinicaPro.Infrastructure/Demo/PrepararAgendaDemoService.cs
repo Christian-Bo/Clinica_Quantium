@@ -13,7 +13,6 @@ public sealed class PrepararAgendaDemoService(
     RoleManager<ApplicationRole> roleManager,
     ClinicaProDbContext dbContext) : IPrepararAgendaDemo
 {
-    public static readonly Guid MedicinaGeneralId = Guid.Parse("20000000-0000-0000-0000-000000000001");
     public static readonly Guid SecretariaUsuarioId = Guid.Parse("30000000-0000-0000-0000-000000000002");
     public static readonly Guid MedicoUsuarioId = Guid.Parse("30000000-0000-0000-0000-000000000003");
     public static readonly Guid MedicoId = Guid.Parse("40000000-0000-0000-0000-000000000001");
@@ -52,7 +51,6 @@ public sealed class PrepararAgendaDemoService(
                 "Hernandez",
                 "COL-1001",
                 "55500011",
-                esPrimario: true,
                 cancellationToken);
 
             await AsegurarMedicoAsync(
@@ -62,7 +60,6 @@ public sealed class PrepararAgendaDemoService(
                 "Morales",
                 "COL-1002",
                 "55500012",
-                esPrimario: false,
                 cancellationToken);
 
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -72,7 +69,7 @@ public sealed class PrepararAgendaDemoService(
             throw SqlServerExceptionMapper.Map(exception);
         }
 
-        return "Agenda lista: secretaria@clinica.com / Secretaria123!, medico@clinica.com y medico2@clinica.com / Medico123!. Medicina General, lunes a viernes 08:00-16:00 (hora de Guatemala).";
+        return "Agenda lista: secretaria@clinica.com / Secretaria123!, medico@clinica.com y medico2@clinica.com / Medico123!. Lunes a viernes 08:00-16:00 (hora de Guatemala).";
     }
 
     private async Task AsegurarMedicoAsync(
@@ -82,7 +79,6 @@ public sealed class PrepararAgendaDemoService(
         string apellidos,
         string colegiado,
         string telefono,
-        bool esPrimario,
         CancellationToken cancellationToken)
     {
         if (!await dbContext.Medicos.AnyAsync(medico => medico.Id == medicoId, cancellationToken))
@@ -91,15 +87,6 @@ public sealed class PrepararAgendaDemoService(
                 Medico.Create(medicoId, usuarioId, nombres, apellidos, colegiado, telefono),
                 cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
-        }
-
-        if (!await dbContext.MedicoEspecialidades.AnyAsync(
-                relacion => relacion.MedicoId == medicoId && relacion.EspecialidadId == MedicinaGeneralId,
-                cancellationToken))
-        {
-            await dbContext.MedicoEspecialidades.AddAsync(
-                MedicoEspecialidad.Create(medicoId, MedicinaGeneralId, esPrimario),
-                cancellationToken);
         }
 
         if (!await dbContext.Horarios.AnyAsync(horario => horario.MedicoId == medicoId, cancellationToken))

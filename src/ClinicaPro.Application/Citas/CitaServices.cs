@@ -8,13 +8,14 @@ using ClinicaPro.Domain.Exceptions;
 
 namespace ClinicaPro.Application.Citas;
 
-public sealed record SolicitarCitaInput(Guid EspecialidadId, DateTime FechaHoraInicio, string MotivoConsulta, Guid? MedicoId = null);
+public sealed record SolicitarCitaInput(Guid MedicoId, DateTime FechaHoraInicio, string MotivoConsulta);
 
 public sealed class SolicitarCitaService(
     IPacienteRepository pacientes,
     IMedicoRepository medicos,
     ICitaRepository citas,
     IParametroRepository parametros,
+    ValidarAgendaPacienteService validarAgendaPaciente,
     IUnitOfWork unitOfWork,
     EncolarNotificacionCitaService encolarNotificacion)
 {
@@ -22,25 +23,8 @@ public sealed class SolicitarCitaService(
         SolicitarCitaInput input,
         CancellationToken cancellationToken)
     {
-        if (input.MedicoId is null)
-        {
-            return await medicos.ObtenerPrimarioPorEspecialidadAsync(input.EspecialidadId, cancellationToken)
-                ?? throw new DomainException("La especialidad no tiene un médico primario activo.");
-        }
-
-        var elegido = await medicos.ObtenerPorIdAsync(input.MedicoId.Value, cancellationToken)
+        return await medicos.ObtenerPorIdAsync(input.MedicoId, cancellationToken)
             ?? throw new DomainException("El médico seleccionado no existe o no está activo.");
-
-        var especialidades = await medicos.ListarEspecialidadesDeMedicoAsync(elegido.Id, cancellationToken);
-        var atiende = especialidades.Any(
-            relacion => relacion.EspecialidadId == input.EspecialidadId && relacion.IsActive);
-
-        if (!atiende)
-        {
-            throw new DomainException("El médico seleccionado no atiende la especialidad indicada.");
-        }
-
-        return elegido;
     }
 
     public async Task<Cita> ExecuteAsync(
@@ -51,25 +35,41 @@ public sealed class SolicitarCitaService(
         var paciente = await pacientes.ObtenerPorUsuarioIdAsync(usuarioId, cancellationToken)
             ?? throw new DomainException("El usuario no tiene un perfil de paciente.");
 
-        var medico = await ResolverMedicoAsync(input, cancellationToken);
+        var cita = await CrearPendienteAsync(paciente.Id, usuarioId, input, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        await encolarNotificacion.ExecuteAsync(cita, cancellationToken);
+        return cita;
+    }
 
+    public async Task<Cita> CrearPendienteAsync(
+        Guid pacienteId,
+        Guid creadaPorUsuarioId,
+        SolicitarCitaInput input,
+        CancellationToken cancellationToken = default)
+    {
+        var medico = await ResolverMedicoAsync(input, cancellationToken);
         var duracion = await parametros.ObtenerEnteroAsync(
             "Citas.DuracionPredeterminadaMinutos",
             Cita.DuracionPredeterminadaMinutos,
             cancellationToken);
 
         var cita = Cita.Solicitar(
-            paciente.Id,
+            pacienteId,
             medico.Id,
-            input.EspecialidadId,
-            usuarioId,
+            creadaPorUsuarioId,
             input.FechaHoraInicio,
             input.MotivoConsulta,
             duracion);
 
+        await validarAgendaPaciente.ExigirPuedeAgendarAsync(
+            pacienteId,
+            cita.FechaHoraInicio,
+            cita.FechaHoraFin,
+            exceptoCitaId: null,
+            cuentaComoCitaNueva: true,
+            cancellationToken);
+
         await citas.AgregarAsync(cita, cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-        await encolarNotificacion.ExecuteAsync(cita, cancellationToken);
         return cita;
     }
 
@@ -82,23 +82,7 @@ public sealed class SolicitarCitaService(
         var paciente = await pacientes.ObtenerPorIdAsync(pacienteId, cancellationToken)
             ?? throw new DomainException("El paciente no existe.");
 
-        var medico = await ResolverMedicoAsync(input, cancellationToken);
-
-        var duracion = await parametros.ObtenerEnteroAsync(
-            "Citas.DuracionPredeterminadaMinutos",
-            Cita.DuracionPredeterminadaMinutos,
-            cancellationToken);
-
-        var cita = Cita.Solicitar(
-            paciente.Id,
-            medico.Id,
-            input.EspecialidadId,
-            staffUsuarioId,
-            input.FechaHoraInicio,
-            input.MotivoConsulta,
-            duracion);
-
-        await citas.AgregarAsync(cita, cancellationToken);
+        var cita = await CrearPendienteAsync(paciente.Id, staffUsuarioId, input, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         await encolarNotificacion.ExecuteAsync(cita, cancellationToken);
         return cita;

@@ -32,7 +32,7 @@
     {
         <Card>
             <EditForm Model="modelo" OnValidSubmit="Guardar">
-                <DatosPacienteForm Modelo="modelo" Errores="errores" MostrarCredenciales="false" />
+                <DatosPacienteForm Modelo="modelo" Errores="errores" MostrarCredenciales="false" DocumentoSoloLectura="true" />
 
                 @if (!string.IsNullOrEmpty(errorGuardado))
                 {

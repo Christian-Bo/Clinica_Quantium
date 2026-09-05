@@ -20,7 +20,7 @@ public sealed class CitaTests
     public void Solicitar_MotivoCorto_LanzaExcepcionDeDominio()
     {
         var exception = Assert.Throws<DomainException>(() =>
-            Cita.Solicitar(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            Cita.Solicitar(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
                 new DateTime(2026, 9, 7, 9, 0, 0), "abc"));
 
         Assert.Contains("motivo", exception.Message, StringComparison.OrdinalIgnoreCase);
@@ -147,7 +147,6 @@ public sealed class CitaTests
     private static Cita CrearCita()
     {
         return Cita.Solicitar(
-            Guid.NewGuid(),
             Guid.NewGuid(),
             Guid.NewGuid(),
             Guid.NewGuid(),

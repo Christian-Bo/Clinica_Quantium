@@ -16,7 +16,10 @@ public sealed record RegisterPacienteRequest(
     string? Sexo,
     string? Alergias,
     string? ContactoEmergenciaNombre,
-    string? ContactoEmergenciaTelefono);
+    string? ContactoEmergenciaTelefono,
+    Guid? MedicoId = null,
+    DateTime? FechaHoraInicio = null,
+    string? MotivoConsulta = null);
 
 public sealed record ActualizarPerfilRequest(
     string Nombres,
