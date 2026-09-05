@@ -1,0 +1,228 @@
+@inject CitasPacienteApiService CitasApi
+
+@* Paso del registro donde el paciente agenda su primera cita.
+
+   Consulta la disponibilidad sin estar autenticado: el endpoint acepta
+   peticiones anónimas justamente para que esta pantalla pueda mostrar
+   horarios antes de que la cuenta exista.
+
+   La lógica de elegir hueco se parece a la de SolicitarCitaModal, que es del
+   portal ya autenticado. Están separadas a propósito por ahora: unificarlas
+   implica tocar un componente que otro compañero acaba de reescribir, y eso
+   se acuerda con él, no se hace por la espalda. *@
+
+<div class="space-y-5">
+
+    <div>
+        <label class="text-sm font-medium text-ink" for="pc-fecha">¿Qué día quieres venir? *</label>
+        <input id="pc-fecha" type="date" min="@FechaMinima" class="@ClaseInput"
+               value="@Modelo.FechaTexto" @onchange="CambiarFecha" />
+        <p class="mt-1 text-xs text-ink-muted">La clínica atiende de lunes a viernes.</p>
+    </div>
+
+    <div>
+        <div class="flex items-center justify-between gap-3">
+            <div>
+                <p class="text-sm font-medium text-ink">Médico y horario *</p>
+                <p class="mt-0.5 text-xs text-ink-muted">Solo aparecen espacios realmente libres.</p>
+            </div>
+            @if (buscando)
+            {
+                <span class="text-xs text-ink-muted">Consultando...</span>
+            }
+        </div>
+
+        @if (buscando)
+        {
+            <div class="mt-3"><Skeleton Filas="2" HeightClass="h-12" /></div>
+        }
+        else if (!string.IsNullOrEmpty(errorDisponibilidad))
+        {
+            <p role="alert" class="mt-2 rounded-control bg-state-rechazada/10 px-3 py-2 text-sm text-state-rechazada">
+                @errorDisponibilidad
+            </p>
+        }
+        else if (EsFinDeSemana)
+        {
+            <p class="mt-2 rounded-control bg-surface-muted px-3 py-3 text-sm text-ink-muted">
+                Ese día es @DiaElegido y la clínica no atiende fines de semana. Elige un día de lunes a viernes.
+            </p>
+        }
+        else if (slots.Count == 0)
+        {
+            <p class="mt-2 rounded-control bg-surface-muted px-3 py-3 text-sm text-ink-muted">
+                Ese día ya no tiene cupos libres. Prueba con otra fecha.
+            </p>
+        }
+        else
+        {
+            <div class="mt-3 space-y-3">
+                @foreach (var grupo in SlotsPorMedico)
+                {
+                    <div class="rounded-control border border-border bg-surface-muted/50 p-3">
+                        <div class="mb-2 flex items-center gap-2">
+                            <span class="flex h-8 w-8 items-center justify-center rounded-pill bg-brand-100 text-brand-700">
+                                <Icon Name="stethoscope" Size="16" />
+                            </span>
+                            <div>
+                                <p class="text-sm font-semibold text-ink">@grupo.Nombre</p>
+                                <p class="text-xs text-ink-muted">
+                                    @grupo.Slots.Count @(grupo.Slots.Count == 1 ? "horario" : "horarios")
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            @foreach (var slot in grupo.Slots)
+                            {
+                                var elegido = EsElegido(slot);
+                                <button type="button" class="@ClaseSlot(elegido)"
+                                        aria-pressed="@Presionado(elegido)" @onclick="() => Elegir(slot)">
+                                    @slot.FechaHoraInicio.ToString("HH:mm")
+                                </button>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        @if (slots.Count > 0)
+        {
+            <p class="mt-2 text-xs text-ink-muted">Ese día se atiende de @RangoDelDia.</p>
+        }
+
+        <MensajeCampo Mensaje='@Error("Slot")' />
+    </div>
+
+    @if (Modelo.Slot is not null)
+    {
+        <div class="rounded-control border border-brand-200 bg-brand-50 px-3 py-3">
+            <p class="text-xs uppercase tracking-wide text-brand-600">Tu cita</p>
+            <p class="mt-1 text-sm font-semibold capitalize text-ink">@Modelo.Slot.MedicoNombre</p>
+            <p class="mt-0.5 text-xs first-letter:uppercase text-ink-muted">@Resumen</p>
+        </div>
+    }
+
+    <div>
+        <label class="text-sm font-medium text-ink" for="pc-motivo">Motivo de la consulta *</label>
+        <textarea id="pc-motivo" rows="3" class="@ClaseInput"
+                  placeholder="Por ejemplo: dolor de cabeza desde hace tres días"
+                  @bind="Modelo.Motivo" @bind:event="oninput"></textarea>
+        <MensajeCampo Mensaje='@Error("Motivo")' />
+    </div>
+
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ModeloPrimeraCita Modelo { get; set; } = new();
+    [Parameter] public Dictionary<string, string> Errores { get; set; } = [];
+
+    private const string ClaseInput = "mt-1 w-full rounded-control border border-border px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100";
+
+    private static readonly string FechaMinima = ModeloPrimeraCita.PrimeraFechaPosible.ToString("yyyy-MM-dd");
+
+    private List<SlotDisponibleDto> slots = [];
+    private string? errorDisponibilidad;
+    private bool buscando;
+    private bool yaBusco;
+
+    private IReadOnlyList<GrupoMedico> SlotsPorMedico => slots
+        .GroupBy(slot => new { slot.MedicoId, slot.MedicoNombre })
+        .Select(grupo => new GrupoMedico(
+            grupo.Key.MedicoNombre,
+            grupo.OrderBy(slot => slot.FechaHoraInicio).ToList()))
+        .OrderBy(grupo => grupo.Nombre)
+        .ToList();
+
+    private bool EsFinDeSemana => DateOnly.TryParse(Modelo.FechaTexto, out var fecha)
+        && fecha.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
+
+    private string DiaElegido => DateOnly.TryParse(Modelo.FechaTexto, out var fecha)
+        ? fecha.ToString("dddd", Cultura)
+        : string.Empty;
+
+    /// <summary>
+    /// El horario se arma con lo que la API devolvió, no con un texto fijo:
+    /// Administración puede cambiar los horarios de los médicos cuando quiera,
+    /// y una leyenda escrita a mano quedaría mintiendo.
+    /// </summary>
+    private string RangoDelDia => slots.Count == 0
+        ? string.Empty
+        : $"{slots.Min(slot => slot.FechaHoraInicio):HH:mm} a {slots.Max(slot => slot.FechaHoraFin):HH:mm}";
+
+    private string Resumen => Modelo.Slot is null
+        ? string.Empty
+        : $"{Modelo.Slot.FechaHoraInicio.ToString("dddd d 'de' MMMM", Cultura)} · " +
+          $"{Modelo.Slot.FechaHoraInicio:HH:mm} – {Modelo.Slot.FechaHoraFin:HH:mm}";
+
+    private static readonly System.Globalization.CultureInfo Cultura = new("es-GT");
+
+    /// <summary>
+    /// La primera búsqueda se dispara al entrar al paso, no al construir el
+    /// componente, porque el paciente llega aquí después de dos pantallas y
+    /// para entonces la agenda pudo haber cambiado.
+    /// </summary>
+    protected override async Task OnAfterRenderAsync(bool primeraVez)
+    {
+        if (primeraVez && !yaBusco)
+        {
+            yaBusco = true;
+            await Buscar();
+            StateHasChanged();
+        }
+    }
+
+    private async Task CambiarFecha(ChangeEventArgs e)
+    {
+        Modelo.FechaTexto = e.Value?.ToString() ?? string.Empty;
+        await Buscar();
+    }
+
+    private async Task Buscar()
+    {
+        Modelo.Slot = null;
+        slots = [];
+        errorDisponibilidad = null;
+
+        if (!DateOnly.TryParse(Modelo.FechaTexto, out var fecha))
+        {
+            return;
+        }
+
+        buscando = true;
+        StateHasChanged();
+
+        var resultado = await CitasApi.ListarDisponibilidadAsync(fecha);
+        buscando = false;
+
+        if (resultado.Exito && resultado.Valor is not null)
+        {
+            slots = [.. resultado.Valor];
+            return;
+        }
+
+        errorDisponibilidad = resultado.Error;
+    }
+
+    private void Elegir(SlotDisponibleDto slot)
+    {
+        Modelo.Slot = slot;
+        Errores.Remove("Slot");
+    }
+
+    private bool EsElegido(SlotDisponibleDto slot)
+        => Modelo.Slot is not null
+           && Modelo.Slot.MedicoId == slot.MedicoId
+           && Modelo.Slot.FechaHoraInicio == slot.FechaHoraInicio;
+
+    private static string ClaseSlot(bool elegido) => elegido
+        ? "rounded-control border border-brand-500 bg-brand-500 px-3 py-2 text-sm font-semibold text-white"
+        : "rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink transition-colors hover:border-brand-500 hover:text-brand-600";
+
+    /// <summary>aria-pressed exige minusculas; un bool de .NET se pinta "True".</summary>
+    private static string Presionado(bool valor) => valor ? "true" : "false";
+
+    private string? Error(string campo) => Errores.TryGetValue(campo, out var mensaje) ? mensaje : null;
+
+    private sealed record GrupoMedico(string Nombre, IReadOnlyList<SlotDisponibleDto> Slots);
+}

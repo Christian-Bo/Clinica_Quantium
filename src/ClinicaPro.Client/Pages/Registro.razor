@@ -4,9 +4,13 @@
 @inject AuthApiService AuthApi
 @inject NavigationManager Navigation
 
-@* Registro en tres pasos. Un formulario de trece campos de un solo golpe
+@* Registro en cuatro pasos. Un formulario de esta extensión de un solo golpe
    ahuyenta: partirlo baja el costo percibido y permite validar por tramos,
-   así el usuario corrige de a poco en vez de recibir seis errores juntos. *@
+   así el usuario corrige de a poco en vez de recibir seis errores juntos.
+
+   El último paso es la primera cita. No es un adorno: la API rechaza el
+   registro si no viene médico, fecha y motivo, porque crea la cuenta y la cita
+   en la misma transacción. Sin este paso, registrarse falla siempre. *@
 
 <PageTitle>Crear cuenta · Clínica Pro</PageTitle>
 
@@ -29,10 +33,17 @@
     <div class="rounded-card border border-border bg-surface p-6 shadow-card sm:p-7">
         <EditForm Model="modelo" OnValidSubmit="Continuar">
 
-            <DatosPacienteForm Modelo="modelo" Errores="errores"
-                               MostrarCredenciales="true" Seccion="@SeccionActual" />
+            @if (paso == PasoCita)
+            {
+                <PrimeraCitaPaso Modelo="cita" Errores="errores" />
+            }
+            else
+            {
+                <DatosPacienteForm Modelo="modelo" Errores="errores"
+                                   MostrarCredenciales="true" Seccion="@SeccionActual" />
+            }
 
-            @if (paso == TotalPasos)
+            @if (paso == PasoSalud)
             {
                 <p class="mt-5 rounded-control bg-surface-muted px-3.5 py-3 text-xs leading-relaxed text-ink-muted">
                     Estos datos son opcionales, pero le sirven al médico para atenderte mejor.
@@ -42,9 +53,24 @@
 
             @if (!string.IsNullOrEmpty(errorGeneral))
             {
-                <div role="alert" class="mt-5 flex items-start gap-2.5 rounded-card border border-state-rechazada/25 bg-state-rechazada/10 px-4 py-3">
-                    <span class="mt-0.5 text-state-rechazada"><Icon Name="alert-triangle" Size="17" /></span>
-                    <p class="text-sm leading-relaxed text-state-rechazada">@errorGeneral</p>
+                <div role="alert" class="mt-5 rounded-card border border-state-rechazada/25 bg-state-rechazada/10 px-4 py-3">
+                    <div class="flex items-start gap-2.5">
+                        <span class="mt-0.5 text-state-rechazada"><Icon Name="alert-triangle" Size="17" /></span>
+                        <p class="text-sm leading-relaxed text-state-rechazada">@errorGeneral</p>
+                    </div>
+
+                    @* Si el correo o el DPI ya existen, el problema no se
+                       arregla corrigiendo el formulario: esta persona ya es
+                       paciente y lo que necesita es entrar. Dejarla con el
+                       aviso rojo y sin salida sería un callejón. *@
+                    @if (yaEsPaciente)
+                    {
+                        <a href="/login"
+                           class="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-pill bg-brand-500 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2">
+                            <Icon Name="arrow-right" Size="17" />
+                            Ir a iniciar sesión
+                        </a>
+                    }
                 </div>
             }
 
@@ -70,19 +96,34 @@
     </div>
 
     <p class="mt-5 text-center text-xs leading-relaxed text-ink-muted">
-        Al terminar entras directo a tu portal, sin volver a escribir la contraseña.
+        Tu cita queda solicitada. Recepción la confirma y te avisa.
+    </p>
+
+    @* El enlace de registro salió del login, así que quien llega aquí por el
+       enlace compartido o el QR y ya tiene cuenta necesita el camino de vuelta
+       desde cualquier paso, no solo desde el primero. *@
+    <p class="mt-3 text-center text-sm text-ink-muted">
+        ¿Ya eres paciente?
+        <a href="/login" class="font-semibold text-brand-600 transition-colors hover:text-brand-700">
+            Inicia sesión aquí
+        </a>
     </p>
 
 </AuthShell>
 
 @code {
-    private const int TotalPasos = 3;
+    private const int TotalPasos = 4;
+    private const int PasoSalud = 3;
+    private const int PasoCita = 4;
 
     private readonly ModeloDatosPaciente modelo = new();
+    private readonly ModeloPrimeraCita cita = new();
     private Dictionary<string, string> errores = [];
     private string? errorGeneral;
     private int paso = 1;
     private bool guardando;
+
+    private bool yaEsPaciente;
 
     /// <summary>
     /// Qué campos pertenecen a cada paso. Se usa para filtrar los errores:
@@ -92,7 +133,8 @@
     {
         [1] = ["Email", "Password", "PasswordConfirmacion"],
         [2] = ["Nombres", "Apellidos", "Documento", "FechaNacimiento", "Sexo", "Telefono", "Direccion"],
-        [3] = ["Alergias", "ContactoEmergenciaNombre", "ContactoEmergenciaTelefono"]
+        [3] = ["Alergias", "ContactoEmergenciaNombre", "ContactoEmergenciaTelefono"],
+        [4] = ["Slot", "Motivo"]
     };
 
     private SeccionFormulario SeccionActual => paso switch
@@ -106,26 +148,29 @@
     {
         1 => "Tu cuenta",
         2 => "Tus datos",
-        _ => "Tu salud"
+        3 => "Tu salud",
+        _ => "Tu primera cita"
     };
 
     private string TituloPaso => paso switch
     {
         1 => "Crea tu cuenta",
         2 => "Cuéntanos quién eres",
-        _ => "Un último detalle"
+        3 => "Un último detalle",
+        _ => "Agenda tu primera cita"
     };
 
     private string SubtituloPaso => paso switch
     {
         1 => "Con este correo y contraseña vas a entrar al portal.",
         2 => "Estos datos identifican tu expediente en la clínica.",
-        _ => "Información que el médico revisa antes de atenderte."
+        3 => "Información que el médico revisa antes de atenderte.",
+        _ => "Tu cuenta y tu cita se crean juntas, en un solo paso."
     };
 
     private string TextoBotonPrincipal => paso < TotalPasos
         ? "Continuar"
-        : guardando ? "Creando cuenta..." : "Crear mi cuenta";
+        : guardando ? "Creando cuenta..." : "Crear cuenta y agendar";
 
     private string ClaseBarraPaso(int indice)
     {
@@ -149,10 +194,16 @@
     private async Task Continuar()
     {
         errorGeneral = null;
+        yaEsPaciente = false;
 
-        // Se valida el modelo completo, pero solo se muestran los errores del
-        // paso actual: los campos que aún no ha visto no deben salir en rojo.
+        // Se valida todo, pero solo se muestran los errores del paso actual:
+        // los campos que aún no ha visto no deben salir en rojo.
         var todos = modelo.Validar(incluyeCredenciales: true);
+        foreach (var (campo, mensaje) in cita.Validar())
+        {
+            todos[campo] = mensaje;
+        }
+
         var delPaso = CamposPorPaso[paso];
         errores = todos
             .Where(par => delPaso.Contains(par.Key))
@@ -178,7 +229,12 @@
         }
 
         guardando = true;
-        var resultado = await AuthApi.RegistrarPacienteAsync(modelo.ConstruirRegistro());
+        var peticion = modelo.ConstruirRegistro(
+            cita.Slot!.MedicoId,
+            cita.Slot.FechaHoraInicio,
+            cita.Motivo.Trim());
+
+        var resultado = await AuthApi.RegistrarPacienteAsync(peticion);
         guardando = false;
 
         if (resultado.Exito && resultado.Valor is not null)
@@ -188,6 +244,25 @@
             return;
         }
 
+        // Si el hueco se ocupó mientras llenaba el formulario, el error habla
+        // de la cita y no de la cuenta: se le devuelve al paso de la cita para
+        // que elija otro horario en vez de dejarlo mirando un aviso arriba.
         errorGeneral = resultado.Error ?? "No fue posible crear la cuenta.";
+
+        // 409 es el conflicto que devuelve la API cuando el correo o el DPI ya
+        // pertenecen a alguien: la salida es el login, no corregir el campo.
+        yaEsPaciente = resultado.EsConflicto;
+        if (yaEsPaciente)
+        {
+            return;
+        }
+
+        if (errorGeneral.Contains("horario", StringComparison.OrdinalIgnoreCase)
+            || errorGeneral.Contains("cita", StringComparison.OrdinalIgnoreCase)
+            || errorGeneral.Contains("disponib", StringComparison.OrdinalIgnoreCase))
+        {
+            cita.Slot = null;
+            paso = PasoCita;
+        }
     }
 }
