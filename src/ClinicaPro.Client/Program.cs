@@ -22,7 +22,7 @@ public static class Program
         builder.RootComponents.Add<App>("#app");
         builder.RootComponents.Add<HeadOutlet>("head::after");
 
-        var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "http://136.113.48.173:5030/";
+        var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "https://136-113-48-173.sslip.io/";
 
         // --- Autenticación ---
         builder.Services.AddAuthorizationCore();
