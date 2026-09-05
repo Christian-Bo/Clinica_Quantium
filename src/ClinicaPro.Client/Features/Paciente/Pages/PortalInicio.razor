@@ -149,7 +149,12 @@ else
         var resultadoFicha = await PerfilApi.ObtenerMiFichaAsync();
         if (!resultadoFicha.Exito)
         {
-            error = resultadoFicha.Error;
+            // El código HTTP acompaña al mensaje: sin él, "no fue posible" no
+            // distingue un permiso denegado de una caída del servidor, ni para
+            // el paciente ni para quien tenga que arreglarlo.
+            error = resultadoFicha.StatusCode is null
+                ? resultadoFicha.Error
+                : $"{resultadoFicha.Error} (código {(int)resultadoFicha.StatusCode})";
             cargando = false;
             return;
         }
