@@ -9,12 +9,12 @@
 <AuthShell Titulo="Bienvenido de vuelta"
            Subtitulo="Ingresa con tu correo y contraseña para continuar.">
 
-    @if (sesionVencida)
+    @if (!string.IsNullOrWhiteSpace(avisoSesion))
     {
         <div role="status" class="mb-5 flex items-start gap-2.5 rounded-card border border-state-solicitada/30 bg-state-solicitada/10 px-4 py-3">
             <span class="mt-0.5 text-state-solicitada"><Icon Name="clock" Size="17" /></span>
             <p class="text-sm leading-relaxed text-ink">
-                Tu sesión venció por seguridad. Vuelve a ingresar para continuar.
+                @avisoSesion
             </p>
         </div>
     }
@@ -131,16 +131,23 @@
     private bool cargando;
     private bool verPassword;
     private bool emailInvalido;
-    private bool recordarme = true;
+    private bool recordarme;
     private bool modalRecuperarAbierto;
-    private bool sesionVencida;
+    private string? avisoSesion;
 
     protected override void OnInitialized()
     {
         // El BearerTokenHandler manda aquí con ?sesion=vencida cuando la API
         // rechaza un token que ya no sirve.
         var consulta = new Uri(Navigation.Uri).Query;
-        sesionVencida = consulta.Contains("sesion=vencida", StringComparison.OrdinalIgnoreCase);
+        if (consulta.Contains("sesion=inactividad", StringComparison.OrdinalIgnoreCase))
+        {
+            avisoSesion = "La sesión se cerró automáticamente por inactividad.";
+        }
+        else if (consulta.Contains("sesion=vencida", StringComparison.OrdinalIgnoreCase))
+        {
+            avisoSesion = "Tu sesión venció por seguridad. Vuelve a ingresar para continuar.";
+        }
     }
 
     /// <summary>

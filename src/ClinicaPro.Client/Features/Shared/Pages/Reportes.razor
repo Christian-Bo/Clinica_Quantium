@@ -8,7 +8,7 @@
 
 <PageTitle>Reportes · Clínica Pro</PageTitle>
 
-<div class="space-y-5">
+<div class="space-y-6">
     <div>
         <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">Análisis operativo</p>
         <h1 class="mt-1 text-xl font-semibold text-ink">Reportes de citas</h1>
@@ -16,7 +16,7 @@
     </div>
 
     <Card>
-        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4 sm:items-end">
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5 xl:items-end">
             <div>
                 <label class="text-xs font-medium text-ink-muted">Desde</label>
                 <input type="date" class="@ClaseInput" value="@desdeTexto" @onchange="e => desdeTexto = e.Value?.ToString() ?? string.Empty" />
@@ -36,9 +36,9 @@
                 </select>
             </div>
             <div>
-                <label class="text-xs font-medium text-ink-muted">Estado en detalle</label>
+                <label class="text-xs font-medium text-ink-muted">Estado</label>
                 <select class="@ClaseInput" @bind="estadoFiltro">
-                    <option value="">Todos</option>
+                    <option value="">Todos los estados</option>
                     @foreach (var estado in Estados)
                     {
                         <option value="@estado">@estado</option>
@@ -55,21 +55,20 @@
 
     @if (cargando && reporte is null)
     {
-        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">@for (var i = 0; i < 5; i++) { <Skeleton Filas="1" HeightClass="h-24" /> }</div>
+        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">@for (var i = 0; i < 4; i++) { <Skeleton Filas="1" HeightClass="h-24" /> }</div>
         <Card><Skeleton Filas="6" /></Card>
     }
     else if (reporte is not null)
     {
         <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <TarjetaKpi Titulo="Total" Valor="reporte.Total" IconName="calendar" />
+            <TarjetaKpi Titulo="Total de citas" Valor="reporte.Total" IconName="calendar" />
             <TarjetaKpi Titulo="Atendidas" Valor="reporte.Atendidas" IconName="check-circle" />
             <TarjetaKpi Titulo="Canceladas" Valor="reporte.Canceladas" IconName="x" />
             <TarjetaKpi Titulo="No presentadas" Valor="reporte.NoPresentadas" IconName="alert-triangle" />
-            <TarjetaKpi Titulo="Reprogramadas" Valor="reporte.Reprogramadas" IconName="refresh" />
         </div>
 
         <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
-            <Card Title="Distribución por estado" IconName="chart" CssClass="xl:col-span-1">
+            <Card Title="Distribución por estado" IconName="chart">
                 @if (reporte.PorEstado.Count == 0)
                 {
                     <EmptyState IconName="chart" Title="Sin datos" Description="No hay movimientos en el período seleccionado." />
@@ -80,10 +79,14 @@
                         @foreach (var item in reporte.PorEstado.OrderByDescending(x => x.Cantidad))
                         {
                             <div>
-                                <div class="mb-2 flex items-center justify-between gap-2 text-xs"><span class="text-ink-muted">@item.Estado</span><span class="font-medium text-ink">@item.Cantidad</span></div>
+                                <div class="mb-2 flex items-center justify-between gap-2 text-xs">
+                                    <span class="text-ink-muted">@item.Estado</span>
+                                    <span class="font-semibold text-ink">@item.Cantidad</span>
+                                </div>
                                 <div class="h-2 overflow-hidden rounded-pill bg-surface-muted"><div class="h-full rounded-pill bg-brand-500" style="@AnchoBarra(item.Cantidad)"></div></div>
                             </div>
                         }
+                        <div class="border-t border-border pt-3 text-xs text-ink-muted">Reprogramadas durante el período: <strong class="text-ink">@reporte.Reprogramadas</strong></div>
                     </div>
                 }
             </Card>
@@ -91,17 +94,31 @@
             <Card Title="Detalle de citas" IconName="clipboard-list" CssClass="xl:col-span-2" BodyPadding="p-0">
                 @if (CitasFiltradas.Count == 0)
                 {
-                    <div class="p-5"><EmptyState IconName="calendar" Title="Sin citas" Description="No hay citas que coincidan con los filtros." /></div>
+                    <div class="p-5"><EmptyState IconName="calendar" Title="Sin citas" Description="No hay citas que coincidan con los filtros seleccionados." /></div>
                 }
                 else
                 {
                     <div class="overflow-x-auto">
-                        <table class="w-full min-w-[780px] text-left text-sm">
-                            <thead class="bg-surface-muted text-xs uppercase tracking-wide text-ink-muted"><tr><th class="px-4 py-3 font-medium">Fecha</th><th class="px-4 py-3 font-medium">Paciente</th><th class="px-4 py-3 font-medium">Médico</th><th class="px-4 py-3 font-medium">Especialidad</th><th class="px-4 py-3 font-medium">Estado</th></tr></thead>
+                        <table class="w-full min-w-[820px] text-left text-sm">
+                            <thead class="bg-surface-muted text-xs uppercase tracking-wide text-ink-muted">
+                                <tr>
+                                    <th class="px-4 py-3 font-medium">Fecha</th>
+                                    <th class="px-4 py-3 font-medium">Paciente</th>
+                                    <th class="px-4 py-3 font-medium">Médico</th>
+                                    <th class="px-4 py-3 font-medium">Motivo</th>
+                                    <th class="px-4 py-3 font-medium">Estado</th>
+                                </tr>
+                            </thead>
                             <tbody class="divide-y divide-border">
                                 @foreach (var cita in CitasFiltradas)
                                 {
-                                    <tr class="hover:bg-surface-muted"><td class="whitespace-nowrap px-4 py-3"><p class="font-medium text-ink">@cita.FechaHoraInicio.ToString("dd/MM/yyyy")</p><p class="text-xs text-ink-muted">@cita.FechaHoraInicio.ToString("HH:mm")</p></td><td class="px-4 py-3 text-ink">@cita.PacienteNombre</td><td class="px-4 py-3 text-ink-muted">@cita.MedicoNombre</td><td class="px-4 py-3 text-ink-muted">@cita.EspecialidadNombre</td><td class="px-4 py-3"><CitaStatusBadge Estado="@cita.Estado" /></td></tr>
+                                    <tr class="hover:bg-surface-muted">
+                                        <td class="whitespace-nowrap px-4 py-3"><p class="font-medium text-ink">@cita.FechaHoraInicio.ToString("dd/MM/yyyy")</p><p class="text-xs text-ink-muted">@cita.FechaHoraInicio.ToString("HH:mm") – @cita.FechaHoraFin.ToString("HH:mm")</p></td>
+                                        <td class="px-4 py-3 text-ink">@cita.PacienteNombre</td>
+                                        <td class="px-4 py-3 text-ink-muted">@cita.MedicoNombre</td>
+                                        <td class="max-w-xs px-4 py-3 text-ink-muted"><span class="line-clamp-2">@cita.MotivoConsulta</span></td>
+                                        <td class="px-4 py-3"><CitaStatusBadge Estado="@cita.Estado" /></td>
+                                    </tr>
                                 }
                             </tbody>
                         </table>
@@ -113,7 +130,7 @@
 </div>
 
 @code {
-    private const string ClaseInput = "mt-1 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none";
+    private const string ClaseInput = "mt-1 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100";
     private static readonly string[] Estados = [CitaEstados.Solicitada, CitaEstados.Programada, CitaEstados.Confirmada, CitaEstados.EnEspera, CitaEstados.EnAtencion, CitaEstados.Atendida, CitaEstados.Cancelada, CitaEstados.NoPresentada, CitaEstados.Rechazada];
 
     private string desdeTexto = DateOnly.FromDateTime(DateTime.Today.AddDays(-30)).ToString("yyyy-MM-dd");

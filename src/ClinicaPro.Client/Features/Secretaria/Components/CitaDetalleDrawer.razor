@@ -6,66 +6,94 @@
         @if (citaActual is not null)
         {
             <div class="space-y-5">
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between gap-3">
                     <CitaStatusBadge Estado="@citaActual.Estado" />
-                    <span class="text-xs text-ink-muted">@citaActual.NumeroReprogramaciones reprogramación(es)</span>
+                    <span class="text-xs text-ink-muted">@TextoReprogramaciones</span>
                 </div>
 
-                <div class="space-y-1"><p class="text-lg font-semibold text-ink">@citaActual.PacienteNombre</p><p class="text-sm text-ink-muted">@citaActual.EspecialidadNombre · @citaActual.MedicoNombre</p></div>
-                <div class="grid grid-cols-2 gap-3 text-sm"><div><p class="text-xs uppercase text-ink-muted">Fecha</p><p class="font-medium text-ink">@citaActual.FechaHoraInicio.ToString("dd/MM/yyyy")</p></div><div><p class="text-xs uppercase text-ink-muted">Hora</p><p class="font-medium text-ink">@citaActual.FechaHoraInicio.ToString("HH:mm") – @citaActual.FechaHoraFin.ToString("HH:mm")</p></div></div>
-                <div><p class="text-xs uppercase text-ink-muted">Motivo de consulta</p><p class="mt-1 text-sm text-ink">@citaActual.MotivoConsulta</p></div>
+                <div class="rounded-card border border-border bg-surface-muted p-4">
+                    <p class="text-lg font-semibold text-ink">@citaActual.PacienteNombre</p>
+                    <div class="mt-3 flex items-center gap-2">
+                        <span class="flex h-8 w-8 items-center justify-center rounded-pill bg-brand-100 text-brand-700"><Icon Name="stethoscope" Size="16" /></span>
+                        <div><p class="text-xs uppercase tracking-wide text-ink-muted">Médico asignado</p><p class="text-sm font-medium text-ink">@citaActual.MedicoNombre</p></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div class="rounded-control border border-border p-3"><p class="text-xs uppercase text-ink-muted">Fecha</p><p class="mt-1 font-medium text-ink">@citaActual.FechaHoraInicio.ToString("dd/MM/yyyy")</p></div>
+                    <div class="rounded-control border border-border p-3"><p class="text-xs uppercase text-ink-muted">Horario</p><p class="mt-1 font-medium text-ink">@citaActual.FechaHoraInicio.ToString("HH:mm") – @citaActual.FechaHoraFin.ToString("HH:mm")</p></div>
+                </div>
+
+                <div class="rounded-control border border-border p-3">
+                    <p class="text-xs uppercase text-ink-muted">Motivo de consulta</p>
+                    <p class="mt-1 text-sm text-ink">@citaActual.MotivoConsulta</p>
+                </div>
 
                 @if (RequiereAutorizacion)
                 {
-                    <div class="rounded-control border border-border bg-state-solicitada/10 p-3">
-                        <div class="flex items-start gap-2"><Icon Name="shield" Size="18" CssClass="mt-0.5 text-state-solicitada" /><div><p class="text-sm font-medium text-ink">La siguiente será la tercera reprogramación</p><p class="mt-1 text-xs text-ink-muted">Secretaría necesita autorización del Administrador antes de completar el cambio. La autorización queda registrada en auditoría.</p></div></div>
+                    <div class="rounded-control border border-state-solicitada/30 bg-state-solicitada/10 p-3">
+                        <div class="flex items-start gap-2">
+                            <Icon Name="shield" Size="18" CssClass="mt-0.5 text-state-solicitada" />
+                            <div><p class="text-sm font-medium text-ink">La siguiente será la tercera reprogramación</p><p class="mt-1 text-xs leading-5 text-ink-muted">Antes de completar el cambio debe existir una autorización aprobada por Administración. La decisión queda registrada en auditoría.</p></div>
+                        </div>
                     </div>
                 }
 
                 @if (reprogramando)
                 {
-                    <div class="rounded-control border border-border bg-surface-muted p-3">
-                        <p class="mb-2 text-sm font-medium text-ink">Reprogramar cita</p>
+                    <div class="rounded-card border border-brand-200 bg-brand-50/50 p-4">
+                        <div class="mb-3">
+                            <p class="text-sm font-semibold text-ink">Reprogramar con @citaActual.MedicoNombre</p>
+                            <p class="mt-0.5 text-xs text-ink-muted">El médico se conserva; solo se muestran sus espacios libres para la nueva fecha.</p>
+                        </div>
+
                         @if (RequiereAutorizacion)
                         {
                             <div class="mb-3 rounded-control bg-surface px-3 py-2 text-xs text-ink-muted">
                                 @if (autorizacionSolicitada)
                                 {
-                                    <p><span class="font-medium text-brand-700">Solicitud enviada.</span> Cuando el Administrador la apruebe, podrás guardar la nueva fecha.</p>
+                                    <p><span class="font-medium text-brand-700">Solicitud enviada.</span> Administración debe aprobarla antes de que el backend permita guardar la tercera reprogramación.</p>
                                 }
                                 else
                                 {
-                                    <span>Primero solicita la autorización. Si ya fue aprobada anteriormente, puedes seleccionar el nuevo horario y guardar.</span>
+                                    <span>Escribe el motivo y solicita autorización. Si una solicitud anterior ya fue aprobada, puedes continuar directamente.</span>
                                 }
                             </div>
                         }
 
-                        <label class="text-xs font-medium text-ink-muted">Nueva fecha</label>
-                        <input type="date" min="@HoyTexto" class="mt-1 w-full rounded-control border border-border px-3 py-2 text-sm text-ink" @bind="nuevaFecha" @bind:after="CargarSlotsReprogramacionAsync" />
+                        <label class="text-xs font-medium text-ink-muted" for="repro-fecha">Nueva fecha</label>
+                        <input id="repro-fecha" type="date" min="@HoyTexto" class="mt-1 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink" value="@nuevaFechaTexto" @onchange="CambiarFechaReprogramacionAsync" />
 
                         @if (cargandoSlotsReprogramacion)
                         {
-                            <p class="mt-2 text-xs text-ink-muted">Buscando horarios...</p>
+                            <div class="mt-3"><Skeleton Filas="2" HeightClass="h-9" /></div>
                         }
-                        else if (nuevaFecha is not null)
+                        else if (!string.IsNullOrWhiteSpace(errorSlots))
+                        {
+                            <p class="mt-2 rounded-control bg-state-rechazada/5 px-3 py-2 text-xs text-state-rechazada">@errorSlots</p>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(nuevaFechaTexto))
                         {
                             @if (slotsReprogramacion.Count == 0)
                             {
-                                <p class="mt-2 text-xs text-state-rechazada">No hay horarios disponibles ese día.</p>
+                                <p class="mt-2 rounded-control bg-surface px-3 py-2 text-xs text-state-rechazada">El médico no tiene espacios libres ese día.</p>
                             }
                             else
                             {
-                                <div class="mt-2 flex flex-wrap gap-2">
-                                    @foreach (var slot in slotsReprogramacion)
-                                    {
-                                        <button type="button" class="@ClaseChip(slot)" @onclick="() => nuevaHora = slot">@slot.FechaHoraInicio.ToString("HH:mm")</button>
-                                    }
+                                <div class="mt-3">
+                                    <p class="mb-2 text-xs font-medium text-ink-muted">Horarios disponibles</p>
+                                    <div class="flex flex-wrap gap-2">
+                                        @foreach (var slot in slotsReprogramacion)
+                                        {
+                                            <button type="button" class="@ClaseChip(slot)" @onclick="() => nuevaHora = slot">@slot.FechaHoraInicio.ToString("HH:mm")</button>
+                                        }
+                                    </div>
                                 </div>
                             }
                         }
 
-                        <label class="mt-3 block text-xs font-medium text-ink-muted">Motivo de la reprogramación</label>
-                        <textarea rows="2" class="mt-1 w-full rounded-control border border-border px-3 py-2 text-sm text-ink" value="@motivoReprogramacion" @oninput="e => motivoReprogramacion = e.Value?.ToString() ?? string.Empty"></textarea>
+                        <label class="mt-3 block text-xs font-medium text-ink-muted" for="repro-motivo">Motivo de la reprogramación</label>
+                        <textarea id="repro-motivo" rows="2" class="mt-1 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink" value="@motivoReprogramacion" @oninput="e => motivoReprogramacion = e.Value?.ToString() ?? string.Empty"></textarea>
 
                         <div class="mt-3 flex flex-wrap justify-end gap-2">
                             <Button Variant="ButtonVariant.Ghost" Size="sm" OnClick="CancelarReprogramacion">Cancelar</Button>
@@ -79,12 +107,30 @@
                 }
 
                 <div>
-                    <p class="mb-2 text-xs uppercase text-ink-muted">Historial</p>
-                    @if (cargandoHistorial) { <Skeleton Filas="2" HeightClass="h-10" /> }
-                    else if (historial.Count == 0) { <p class="text-sm text-ink-muted">Sin movimientos registrados todavía.</p> }
+                    <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">Historial de movimientos</p>
+                    @if (cargandoHistorial)
+                    {
+                        <Skeleton Filas="2" HeightClass="h-10" />
+                    }
+                    else if (!string.IsNullOrWhiteSpace(errorHistorial))
+                    {
+                        <div class="rounded-control border border-state-rechazada/20 bg-state-rechazada/5 p-3">
+                            <p class="text-sm text-state-rechazada">@errorHistorial</p>
+                            <button type="button" class="mt-2 text-xs font-medium text-brand-600 hover:text-brand-700" @onclick="CargarHistorialAsync">Reintentar</button>
+                        </div>
+                    }
+                    else if (historial.Count == 0)
+                    {
+                        <p class="text-sm text-ink-muted">Sin movimientos registrados todavía.</p>
+                    }
                     else
                     {
-                        <ul class="space-y-2">@foreach (var item in historial.OrderByDescending(h => h.FechaCambioUtc)) { <li class="rounded-control border border-border bg-surface p-2.5 text-sm"><p class="text-ink">@item.Descripcion</p><p class="mt-0.5 text-xs text-ink-muted">@item.FechaCambioLocal.ToString("dd/MM/yyyy HH:mm")</p></li> }</ul>
+                        <ul class="space-y-2">
+                            @foreach (var item in historial.OrderByDescending(h => h.FechaCambioUtc))
+                            {
+                                <li class="rounded-control border border-border bg-surface p-2.5 text-sm"><p class="text-ink">@item.Descripcion</p><p class="mt-0.5 text-xs text-ink-muted">@item.FechaCambioLocal.ToString("dd/MM/yyyy HH:mm") · @item.ActorNombre</p></li>
+                            }
+                        </ul>
                     }
                 </div>
             </div>
@@ -93,12 +139,12 @@
     <Footer>
         @if (citaActual is not null && !reprogramando)
         {
-            @if (PuedeConfirmar) { <Button Variant="ButtonVariant.Primary" Size="sm" IconName="check" Loading="enviando" OnClick="ConfirmarAsync">Confirmar</Button> }
-            @if (PuedeRechazar) { <Button Variant="ButtonVariant.Danger" Size="sm" OnClick="() => modalRechazoAbierto = true">Rechazar</Button> }
-            @if (PuedeRegistrarLlegada) { <Button Variant="ButtonVariant.Primary" Size="sm" IconName="check" Loading="enviando" OnClick="RegistrarLlegadaAsync">Registrar llegada</Button> }
-            @if (PuedeReprogramar) { <Button Variant="ButtonVariant.Secondary" Size="sm" IconName="calendar" OnClick="AbrirReprogramar">Reprogramar</Button> }
-            @if (PuedeMarcarNoPresentada) { <Button Variant="ButtonVariant.Secondary" Size="sm" OnClick="MarcarNoPresentadaAsync">No se presentó</Button> }
-            @if (PuedeCancelar) { <Button Variant="ButtonVariant.Danger" Size="sm" OnClick="() => modalCancelacionAbierto = true">Cancelar cita</Button> }
+            @if (PuedeConfirmar) { <Button Variant="ButtonVariant.Primary" Size="sm" IconName="check" Loading="enviando" Disabled="@enviando" OnClick="ConfirmarAsync">Confirmar</Button> }
+            @if (PuedeRechazar) { <Button Variant="ButtonVariant.Danger" Size="sm" Disabled="@enviando" OnClick="() => modalRechazoAbierto = true">Rechazar</Button> }
+            @if (PuedeRegistrarLlegada) { <Button Variant="ButtonVariant.Primary" Size="sm" IconName="check" Loading="enviando" Disabled="@enviando" OnClick="RegistrarLlegadaAsync">Registrar llegada</Button> }
+            @if (PuedeReprogramar) { <Button Variant="ButtonVariant.Secondary" Size="sm" IconName="calendar" Disabled="@enviando" OnClick="AbrirReprogramar">Reprogramar</Button> }
+            @if (PuedeMarcarNoPresentada) { <Button Variant="ButtonVariant.Secondary" Size="sm" Disabled="@enviando" OnClick="MarcarNoPresentadaAsync">No se presentó</Button> }
+            @if (PuedeCancelar) { <Button Variant="ButtonVariant.Danger" Size="sm" Disabled="@enviando" OnClick="() => modalCancelacionAbierto = true">Cancelar cita</Button> }
         }
     </Footer>
 </Drawer>
@@ -116,15 +162,17 @@
     private Guid? citaIdCargada;
     private List<HistorialCitaDto> historial = [];
     private bool cargandoHistorial;
+    private string? errorHistorial;
     private bool enviando;
     private bool modalRechazoAbierto;
     private bool modalCancelacionAbierto;
     private bool reprogramando;
-    private DateOnly? nuevaFecha;
+    private string nuevaFechaTexto = string.Empty;
     private List<SlotDisponibleDto> slotsReprogramacion = [];
     private SlotDisponibleDto? nuevaHora;
     private string motivoReprogramacion = string.Empty;
     private bool cargandoSlotsReprogramacion;
+    private string? errorSlots;
     private bool solicitandoAutorizacion;
     private bool autorizacionSolicitada;
 
@@ -136,23 +184,47 @@
     private bool PuedeReprogramar => citaActual?.Estado is CitaEstados.Solicitada or CitaEstados.Programada or CitaEstados.Confirmada;
     private bool PuedeCancelar => citaActual?.Estado is CitaEstados.Programada or CitaEstados.Confirmada;
     private bool PuedeMarcarNoPresentada => citaActual?.Estado is CitaEstados.Programada or CitaEstados.Confirmada or CitaEstados.EnEspera;
+    private string TextoReprogramaciones => citaActual?.NumeroReprogramaciones switch
+    {
+        1 => "1 reprogramación",
+        > 1 => $"{citaActual.NumeroReprogramaciones} reprogramaciones",
+        _ => "Sin reprogramaciones"
+    };
 
     protected override async Task OnParametersSetAsync()
     {
         if (Cita is not null && Cita.CitaId != citaIdCargada)
         {
-            citaActual = Cita; citaIdCargada = Cita.CitaId; reprogramando = false; autorizacionSolicitada = false; await CargarHistorialAsync();
+            citaActual = Cita;
+            citaIdCargada = Cita.CitaId;
+            reprogramando = false;
+            autorizacionSolicitada = false;
+            await CargarHistorialAsync();
         }
-        else if (Cita is null) { citaActual = null; citaIdCargada = null; }
+        else if (Cita is null)
+        {
+            citaActual = null;
+            citaIdCargada = null;
+        }
     }
 
     private async Task CargarHistorialAsync()
     {
         if (citaActual is null) return;
         cargandoHistorial = true;
-        try { historial = (await CitasApi.ObtenerHistorialAsync(citaActual.CitaId)).ToList(); }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { historial = []; }
-        finally { cargandoHistorial = false; }
+        errorHistorial = null;
+        try
+        {
+            historial = (await CitasApi.ObtenerHistorialAsync(citaActual.CitaId)).ToList();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            errorHistorial = ex.Message;
+        }
+        finally
+        {
+            cargandoHistorial = false;
+        }
     }
 
     private async Task<bool> EjecutarAsync(Func<Task<ResultadoOperacion<CitaDto>>> accion, string mensajeExito)
@@ -163,9 +235,14 @@
             var resultado = await accion();
             if (resultado.Exito && resultado.Valor is not null)
             {
-                Toasts.Exito(mensajeExito); citaActual = resultado.Valor; await OnActualizada.InvokeAsync(resultado.Valor); await CargarHistorialAsync(); return true;
+                Toasts.Exito(mensajeExito);
+                citaActual = resultado.Valor;
+                await OnActualizada.InvokeAsync(resultado.Valor);
+                await CargarHistorialAsync();
+                return true;
             }
-            Toasts.Error(resultado.Error ?? "No fue posible completar la acción."); return false;
+            Toasts.Error(resultado.Error ?? "No fue posible completar la acción.");
+            return false;
         }
         finally { enviando = false; }
     }
@@ -176,32 +253,78 @@
     private async Task MarcarNoPresentadaAsync() => await EjecutarAsync(() => CitasApi.MarcarNoPresentadaAsync(citaActual!.CitaId), "Cita marcada como no presentada.");
     private async Task CancelarAsync(string motivo) => await EjecutarAsync(() => CitasApi.CancelarAdministrativaAsync(citaActual!.CitaId, motivo), "Cita cancelada.");
 
-    private void AbrirReprogramar() { reprogramando = true; nuevaFecha = null; slotsReprogramacion = []; nuevaHora = null; motivoReprogramacion = string.Empty; autorizacionSolicitada = false; }
-    private void CancelarReprogramacion() { reprogramando = false; nuevaFecha = null; nuevaHora = null; slotsReprogramacion = []; }
+    private void AbrirReprogramar()
+    {
+        reprogramando = true;
+        nuevaFechaTexto = string.Empty;
+        slotsReprogramacion = [];
+        nuevaHora = null;
+        motivoReprogramacion = string.Empty;
+        autorizacionSolicitada = false;
+    }
+
+    private void CancelarReprogramacion()
+    {
+        reprogramando = false;
+        nuevaFechaTexto = string.Empty;
+        nuevaHora = null;
+        slotsReprogramacion = [];
+    }
+
+    private async Task CambiarFechaReprogramacionAsync(ChangeEventArgs e)
+    {
+        nuevaFechaTexto = e.Value?.ToString() ?? string.Empty;
+        await CargarSlotsReprogramacionAsync();
+    }
 
     private async Task CargarSlotsReprogramacionAsync()
     {
-        slotsReprogramacion = []; nuevaHora = null;
-        if (citaActual is null || nuevaFecha is null) return;
+        slotsReprogramacion = [];
+        nuevaHora = null;
+        errorSlots = null;
+        if (citaActual is null || !DateOnly.TryParse(nuevaFechaTexto, out var nuevaFecha)) return;
+
         cargandoSlotsReprogramacion = true;
-        try { slotsReprogramacion = (await CitasApi.ListarDisponibilidadAsync(citaActual.EspecialidadId, nuevaFecha.Value)).ToList(); }
-        finally { cargandoSlotsReprogramacion = false; }
+        try
+        {
+            slotsReprogramacion = (await CitasApi.ListarDisponibilidadAsync(nuevaFecha))
+                .Where(x => x.MedicoId == citaActual.MedicoId)
+                .OrderBy(x => x.FechaHoraInicio)
+                .ToList();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            errorSlots = ex.Message;
+        }
+        finally
+        {
+            cargandoSlotsReprogramacion = false;
+        }
     }
 
     private string ClaseChip(SlotDisponibleDto slot) => nuevaHora is not null && nuevaHora.FechaHoraInicio == slot.FechaHoraInicio
-        ? "rounded-control bg-brand-500 px-3 py-1.5 text-xs font-medium text-white"
-        : "rounded-control border border-border bg-surface px-3 py-1.5 text-xs font-medium text-ink hover:border-brand-500";
+        ? "rounded-control border border-brand-500 bg-brand-500 px-3 py-2 text-xs font-semibold text-white"
+        : "rounded-control border border-border bg-surface px-3 py-2 text-xs font-medium text-ink hover:border-brand-500";
 
     private async Task SolicitarAutorizacionAsync()
     {
         if (citaActual is null) return;
         var motivo = motivoReprogramacion.Trim();
-        if (motivo.Length < 5) { Toasts.Error("Escribe primero el motivo de la reprogramación (mínimo 5 caracteres)."); return; }
+        if (motivo.Length < 5)
+        {
+            Toasts.Error("Escribe primero el motivo de la reprogramación (mínimo 5 caracteres).");
+            return;
+        }
+
         solicitandoAutorizacion = true;
         try
         {
             var resultado = await CitasApi.SolicitarAutorizacionReprogramacionAsync(citaActual.CitaId, motivo);
-            if (!resultado.Exito) { Toasts.Error(resultado.Error ?? "No fue posible solicitar la autorización."); return; }
+            if (!resultado.Exito)
+            {
+                Toasts.Error(resultado.Error ?? "No fue posible solicitar la autorización.");
+                return;
+            }
             autorizacionSolicitada = true;
             Toasts.Exito("Solicitud enviada al Administrador.");
         }
@@ -210,9 +333,20 @@
 
     private async Task ConfirmarReprogramacionAsync()
     {
-        if (citaActual is null || nuevaHora is null) { Toasts.Error("Selecciona un nuevo horario."); return; }
-        if (motivoReprogramacion.Trim().Length < 5) { Toasts.Error("Escribe el motivo de la reprogramación."); return; }
-        var exito = await EjecutarAsync(() => CitasApi.ReprogramarAsync(citaActual.CitaId, nuevaHora.FechaHoraInicio, motivoReprogramacion.Trim()), "Cita reprogramada.");
+        if (citaActual is null || nuevaHora is null)
+        {
+            Toasts.Error("Selecciona un nuevo horario.");
+            return;
+        }
+        if (motivoReprogramacion.Trim().Length < 5)
+        {
+            Toasts.Error("Escribe el motivo de la reprogramación.");
+            return;
+        }
+
+        var exito = await EjecutarAsync(
+            () => CitasApi.ReprogramarAsync(citaActual.CitaId, nuevaHora.FechaHoraInicio, motivoReprogramacion.Trim()),
+            "Cita reprogramada.");
         if (exito) reprogramando = false;
     }
 }

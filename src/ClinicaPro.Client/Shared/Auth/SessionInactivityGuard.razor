@@ -1,0 +1,93 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject AuthApiService AuthApi
+@inject NavigationManager Navigation
+
+@if (mostrarAviso)
+{
+    <div class="fixed inset-x-0 bottom-4 mx-auto max-w-lg rounded-card border border-state-solicitada/30 bg-surface p-4 shadow-modal"
+         style="z-index: 70; width: calc(100% - 2rem);"
+         role="alertdialog" aria-live="assertive" aria-label="Aviso de inactividad">
+        <div class="flex items-start gap-3">
+            <div class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-state-solicitada/10 text-state-solicitada">
+                <Icon Name="clock" Size="18" />
+            </div>
+            <div class="min-w-0 flex-1">
+                <p class="text-sm font-semibold text-ink">Tu sesión está por cerrarse</p>
+                <p class="mt-1 text-sm leading-relaxed text-ink-muted">
+                    Detectamos inactividad. Por seguridad, la sesión se cerrará en aproximadamente 5 minutos.
+                </p>
+                <div class="mt-3 flex flex-wrap gap-2">
+                    <Button Variant="ButtonVariant.Primary" Size="sm" OnClick="ContinuarAsync">Seguir trabajando</Button>
+                    <Button Variant="ButtonVariant.Ghost" Size="sm" OnClick="CerrarAhoraAsync">Cerrar sesión ahora</Button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private DotNetObjectReference<SessionInactivityGuard>? referencia;
+    private bool registrado;
+    private bool mostrarAviso;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || registrado)
+        {
+            return;
+        }
+
+        registrado = true;
+        referencia = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync(
+            "clinicaProIdle.register",
+            referencia,
+            25 * 60 * 1000,
+            5 * 60 * 1000);
+    }
+
+    [JSInvokable]
+    public async Task AvisarInactividad()
+    {
+        mostrarAviso = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task ExpirarPorInactividad()
+    {
+        mostrarAviso = false;
+        await AuthApi.CerrarSesionAsync();
+        Navigation.NavigateTo("/login?sesion=inactividad", replace: true);
+    }
+
+    private async Task ContinuarAsync()
+    {
+        mostrarAviso = false;
+        await JS.InvokeVoidAsync("clinicaProIdle.reset");
+    }
+
+    private async Task CerrarAhoraAsync()
+    {
+        mostrarAviso = false;
+        await AuthApi.CerrarSesionAsync();
+        Navigation.NavigateTo("/login", replace: true);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (registrado)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("clinicaProIdle.unregister");
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+
+        referencia?.Dispose();
+    }
+}

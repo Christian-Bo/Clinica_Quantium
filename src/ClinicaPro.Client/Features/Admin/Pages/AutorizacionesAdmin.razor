@@ -39,7 +39,10 @@
         }
         else if (!string.IsNullOrWhiteSpace(error))
         {
-            <div class="p-5"><EmptyState IconName="alert-triangle" Title="No se pudieron cargar las autorizaciones" Description="@error" /></div>
+            <div class="p-5">
+                <EmptyState IconName="alert-triangle" Title="No se pudieron cargar las autorizaciones" Description="@error" />
+                <div class="mt-3 flex justify-center"><Button Variant="ButtonVariant.Secondary" Size="sm" IconName="refresh" OnClick="CargarAsync">Reintentar</Button></div>
+            </div>
         }
         else if (Filtradas.Count == 0)
         {
@@ -115,7 +118,7 @@
             usuarios = await usuariosTask;
             error = null;
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { error = "No se pudo contactar a la API."; }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { error = ex.Message; }
         finally { cargando = false; }
     }
     private void AbrirDecision(AutorizacionReprogramacionDto item, bool aprobar) { seleccionada = item; decisionAprobar = aprobar; modalAbierto = true; }

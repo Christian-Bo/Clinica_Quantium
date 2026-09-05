@@ -2,9 +2,10 @@
 @attribute [AllowAnonymous]
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
+@inject AuthApiService AuthApi
 
 <div class="flex min-h-screen items-center justify-center bg-surface-muted text-sm text-ink-muted">
-    Cargando Clínica Pro...
+    <div class="flex items-center gap-2"><Icon Name="loader" Size="17" CssClass="animate-spin" /> Verificando sesión...</div>
 </div>
 
 @code {
@@ -18,7 +19,19 @@
             return;
         }
 
-        var destino = RoleRoutes.Inicio(estado.User);
-        Navigation.NavigateTo(destino, replace: true);
+        var actual = await AuthApi.ObtenerUsuarioActualSeguroAsync();
+        if (actual.Exito && actual.Valor is not null)
+        {
+            var destinoActual = actual.Valor.MustChangePassword
+                ? RoleRoutes.CambioContrasenaObligatorio
+                : RoleRoutes.Inicio(actual.Valor.Roles);
+            Navigation.NavigateTo(destinoActual, replace: true);
+            return;
+        }
+
+        // Si la API está temporalmente fuera de línea, conserva la navegación
+        // basada en la sesión local; cualquier endpoint protegido seguirá
+        // validando el JWT en servidor cuando vuelva a estar disponible.
+        Navigation.NavigateTo(RoleRoutes.Inicio(estado.User), replace: true);
     }
 }

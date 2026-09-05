@@ -1,0 +1,30 @@
+@page "/acceso-denegado"
+@attribute [Authorize]
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
+<PageTitle>Acceso restringido · Clínica Pro</PageTitle>
+
+<div class="flex min-h-[70vh] items-center justify-center px-4">
+    <div class="w-full max-w-lg rounded-card border border-border bg-surface p-7 text-center shadow-card">
+        <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-state-solicitada/10 text-state-solicitada">
+            <Icon Name="shield" Size="26" />
+        </div>
+        <h1 class="mt-5 text-xl font-semibold text-ink">Acceso restringido</h1>
+        <p class="mt-2 text-sm leading-relaxed text-ink-muted">
+            Tu sesión está activa, pero tu rol no tiene permiso para abrir esta sección.
+            No se modificó ningún dato.
+        </p>
+        <div class="mt-6 flex justify-center">
+            <Button Variant="ButtonVariant.Primary" IconName="home" OnClick="IrAMiPanel">Ir a mi panel</Button>
+        </div>
+    </div>
+</div>
+
+@code {
+    private async Task IrAMiPanel()
+    {
+        var estado = await AuthStateProvider.GetAuthenticationStateAsync();
+        Navigation.NavigateTo(RoleRoutes.Inicio(estado.User), replace: true);
+    }
+}

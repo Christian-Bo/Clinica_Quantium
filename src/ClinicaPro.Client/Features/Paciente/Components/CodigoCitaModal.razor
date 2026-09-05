@@ -17,10 +17,6 @@
                         <span class="text-right font-medium capitalize text-ink">@Cita.PacienteNombre</span>
                     </div>
                     <div class="flex justify-between gap-3">
-                        <span class="text-ink-muted">Especialidad</span>
-                        <span class="text-right font-medium text-ink">@Cita.EspecialidadNombre</span>
-                    </div>
-                    <div class="flex justify-between gap-3">
                         <span class="text-ink-muted">Médico</span>
                         <span class="text-right font-medium capitalize text-ink">@Cita.MedicoNombre</span>
                     </div>
@@ -80,7 +76,7 @@
 
             var texto =
                 $"Mi cita en Clínica Pro\n" +
-                $"{Cita.EspecialidadNombre} con {Cita.MedicoNombre}\n" +
+                $"Consulta con {Cita.MedicoNombre}\n" +
                 $"{FechaLarga} a las {Cita.FechaHoraInicio:HH:mm}\n" +
                 $"Código: {Cita.CitaId}";
 

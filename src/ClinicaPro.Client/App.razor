@@ -1,9 +1,10 @@
 <CascadingAuthenticationState>
+    <SessionBootstrapper />
     <Router AppAssembly="@typeof(App).Assembly">
         <Found Context="routeData">
             <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)">
                 <NotAuthorized>
-                    <RedirectToLogin />
+                    <RedirectForAuthorization />
                 </NotAuthorized>
                 <Authorizing>
                     <div class="flex min-h-screen items-center justify-center bg-surface-muted text-sm text-ink-muted">

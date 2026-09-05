@@ -9,13 +9,20 @@
                 <div class="flex items-center justify-between"><CitaStatusBadge Estado="@Cita.Estado" /><span class="text-xs text-ink-muted">@Cita.FechaHoraInicio.ToString("HH:mm") – @Cita.FechaHoraFin.ToString("HH:mm")</span></div>
                 <div class="space-y-1">
                     <div class="flex items-center justify-between gap-2"><p class="text-lg font-semibold text-ink">@Cita.PacienteNombre</p><button type="button" class="flex shrink-0 items-center gap-1 text-xs font-medium text-brand-600 hover:underline" @onclick="AbrirHistorial"><Icon Name="history" Size="14" /> Contexto del paciente</button></div>
-                    <p class="text-sm text-ink-muted">@Cita.EspecialidadNombre</p>
+                    <p class="text-sm text-ink-muted">Cita asignada a tu agenda</p>
                 </div>
                 <div class="rounded-control bg-surface-muted p-3"><p class="text-xs uppercase text-ink-muted">Motivo de consulta</p><p class="mt-1 text-sm text-ink">@Cita.MotivoConsulta</p></div>
 
                 <div>
                     <p class="mb-2 text-xs uppercase text-ink-muted">Historial de esta cita</p>
                     @if (cargandoHistorial) { <Skeleton Filas="2" HeightClass="h-10" /> }
+                    else if (!string.IsNullOrWhiteSpace(errorHistorial))
+                    {
+                        <div class="rounded-control border border-state-rechazada/20 bg-state-rechazada/5 p-3">
+                            <p class="text-sm text-state-rechazada">@errorHistorial</p>
+                            <button type="button" class="mt-2 text-xs font-medium text-brand-600 hover:text-brand-700" @onclick="CargarHistorialAsync">Reintentar</button>
+                        </div>
+                    }
                     else if (historial.Count == 0) { <p class="text-sm text-ink-muted">Sin movimientos registrados todavía.</p> }
                     else
                     {
@@ -28,11 +35,11 @@
     <Footer>
         @if (Cita?.Estado == CitaEstados.EnEspera)
         {
-            <Button Variant="ButtonVariant.Primary" IconName="check" Loading="enviando" OnClick="IniciarAsync">Iniciar atención</Button>
+            <Button Variant="ButtonVariant.Primary" IconName="check" Loading="enviando" Disabled="@enviando" OnClick="IniciarAsync">Iniciar atención</Button>
         }
         @if (Cita?.Estado == CitaEstados.EnAtencion)
         {
-            <Button Variant="ButtonVariant.Primary" IconName="check" Loading="enviando" OnClick="FinalizarAsync">Finalizar atención</Button>
+            <Button Variant="ButtonVariant.Primary" IconName="check" Loading="enviando" Disabled="@enviando" OnClick="FinalizarAsync">Finalizar atención</Button>
         }
     </Footer>
 </Drawer>
@@ -47,6 +54,7 @@
 
     private List<HistorialCitaDto> historial = [];
     private bool cargandoHistorial;
+    private string? errorHistorial;
     private bool enviando;
     private Guid? citaIdCargada;
     private bool historialAbierto;
@@ -63,9 +71,19 @@
     {
         if (Cita is null) return;
         cargandoHistorial = true;
-        try { historial = (await CitasApi.ObtenerHistorialAsync(Cita.CitaId)).ToList(); }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { historial = []; }
-        finally { cargandoHistorial = false; }
+        errorHistorial = null;
+        try
+        {
+            historial = (await CitasApi.ObtenerHistorialAsync(Cita.CitaId)).ToList();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            errorHistorial = ex.Message;
+        }
+        finally
+        {
+            cargandoHistorial = false;
+        }
     }
 
     private async Task IniciarAsync() => await EjecutarAsync(() => CitasApi.IniciarAtencionAsync(Cita!.CitaId), "Atención iniciada.");
@@ -73,7 +91,7 @@
 
     private async Task EjecutarAsync(Func<Task<ResultadoOperacion<CitaDto>>> accion, string mensajeExito)
     {
-        if (Cita is null) return;
+        if (Cita is null || enviando) return;
         enviando = true;
         try
         {
