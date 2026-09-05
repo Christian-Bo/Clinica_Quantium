@@ -1,10 +1,10 @@
 namespace ClinicaPro.Client.Features.Secretaria.Services;
 
-public sealed class CitasApiService(HttpClient http)
+public sealed class CitasApiService(ApiClient api)
 {
     private const string FormatoFecha = "yyyy-MM-ddTHH:mm:ss";
 
-    public async Task<IReadOnlyList<CitaDto>> ListarAgendaAsync(
+    public Task<IReadOnlyList<CitaDto>> ListarAgendaAsync(
         DateTime desde,
         DateTime hasta,
         Guid? medicoId = null,
@@ -18,108 +18,111 @@ public sealed class CitasApiService(HttpClient http)
             url += $"&medicoId={medicoId}";
         }
 
-        return await http.GetFromJsonAsync<List<CitaDto>>(url, ct) ?? [];
+        return api.ObtenerListaAsync<CitaDto>(url, "No fue posible cargar la agenda.", ct);
     }
 
-    public async Task<IReadOnlyList<CitaDto>> ListarPendientesAsync(CancellationToken ct = default)
-        => await http.GetFromJsonAsync<List<CitaDto>>("api/citas/pendientes", ct) ?? [];
+    public Task<IReadOnlyList<CitaDto>> ListarPendientesAsync(CancellationToken ct = default)
+        => api.ObtenerListaAsync<CitaDto>(
+            "api/citas/pendientes",
+            "No fue posible cargar las solicitudes pendientes.",
+            ct);
 
-    /// <summary>Todas las citas del médico autenticado (sin filtro de fecha: el backend no lo expone
-    /// todavía en este endpoint). Se filtra por día del lado del cliente.</summary>
-    public async Task<IReadOnlyList<CitaDto>> ListarMisCitasAsync(CancellationToken ct = default)
-        => await http.GetFromJsonAsync<List<CitaDto>>("api/citas/medico", ct) ?? [];
+    public Task<IReadOnlyList<CitaDto>> ListarMisCitasAsync(CancellationToken ct = default)
+        => api.ObtenerListaAsync<CitaDto>(
+            "api/citas/medico",
+            "No fue posible cargar tu agenda médica.",
+            ct);
 
     public Task<ResultadoOperacion<CitaDto>> IniciarAtencionAsync(Guid citaId, CancellationToken ct = default)
-        => AccionSimpleAsync($"api/citas/{citaId}/iniciar", ct);
+        => api.EnviarAsync<CitaDto>(
+            HttpMethod.Post,
+            $"api/citas/{citaId}/iniciar",
+            null,
+            "No fue posible iniciar la atención.",
+            ct);
 
     public Task<ResultadoOperacion<CitaDto>> FinalizarAtencionAsync(Guid citaId, CancellationToken ct = default)
-        => AccionSimpleAsync($"api/citas/{citaId}/finalizar", ct);
+        => api.EnviarAsync<CitaDto>(
+            HttpMethod.Post,
+            $"api/citas/{citaId}/finalizar",
+            null,
+            "No fue posible finalizar la atención.",
+            ct);
 
-    /// <summary>Historial administrativo de citas de un paciente específico (fecha, médico, estado). Devuelve
-    /// lista vacía si el paciente no existe, en vez de propagar el 404 al llamador.</summary>
-    public async Task<IReadOnlyList<CitaDto>> ListarPorPacienteAsync(Guid pacienteId, CancellationToken ct = default)
-    {
-        var respuesta = await http.GetAsync($"api/citas?pacienteId={pacienteId}", ct);
-        if (!respuesta.IsSuccessStatusCode)
-        {
-            return [];
-        }
+    public Task<IReadOnlyList<CitaDto>> ListarPorPacienteAsync(Guid pacienteId, CancellationToken ct = default)
+        => api.ObtenerListaAsync<CitaDto>(
+            $"api/citas?pacienteId={pacienteId}",
+            "No fue posible cargar el historial del paciente.",
+            ct,
+            notFoundComoVacio: true);
 
-        return await respuesta.Content.ReadFromJsonAsync<List<CitaDto>>(cancellationToken: ct) ?? [];
-    }
+    public Task<ResultadoOperacion<HistorialMedicoPacienteDto>> ObtenerHistorialMedicoPacienteSeguroAsync(
+        Guid pacienteId,
+        CancellationToken ct = default)
+        => api.ObtenerResultadoAsync<HistorialMedicoPacienteDto>(
+            $"api/citas/paciente/{pacienteId}/historial-medico",
+            "No fue posible cargar el historial médico permitido.",
+            ct);
 
     public async Task<HistorialMedicoPacienteDto?> ObtenerHistorialMedicoPacienteAsync(
         Guid pacienteId,
         CancellationToken ct = default)
     {
-        try
-        {
-            using var respuesta = await http.GetAsync($"api/citas/paciente/{pacienteId}/historial-medico", ct);
-            if (!respuesta.IsSuccessStatusCode)
-            {
-                return null;
-            }
-
-            return await respuesta.Content.ReadFromJsonAsync<HistorialMedicoPacienteDto>(cancellationToken: ct);
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
-        {
-            return null;
-        }
+        var resultado = await ObtenerHistorialMedicoPacienteSeguroAsync(pacienteId, ct);
+        return resultado.Exito ? resultado.Valor : null;
     }
 
-    public async Task<ResultadoOperacion<AutorizacionReprogramacionDto>> SolicitarAutorizacionReprogramacionAsync(
+    public Task<ResultadoOperacion<AutorizacionReprogramacionDto>> SolicitarAutorizacionReprogramacionAsync(
         Guid citaId,
         string motivo,
         CancellationToken ct = default)
-    {
-        try
-        {
-            using var respuesta = await http.PostAsJsonAsync(
-                $"api/citas/{citaId}/solicitar-autorizacion-reprogramacion",
-                new MotivoCitaRequest(motivo),
-                ct);
+        => api.EnviarAsync<AutorizacionReprogramacionDto>(
+            HttpMethod.Post,
+            $"api/citas/{citaId}/solicitar-autorizacion-reprogramacion",
+            new MotivoCitaRequest(motivo),
+            "No fue posible solicitar la autorización.",
+            ct);
 
-            if (!respuesta.IsSuccessStatusCode)
-            {
-                return ResultadoOperacion<AutorizacionReprogramacionDto>.Fallo(
-                    await ApiErrorReader.LeerAsync(respuesta, "No fue posible solicitar la autorización.", ct));
-            }
-
-            var valor = await respuesta.Content.ReadFromJsonAsync<AutorizacionReprogramacionDto>(cancellationToken: ct);
-            return valor is null
-                ? ResultadoOperacion<AutorizacionReprogramacionDto>.Fallo("La autorización se creó pero no se pudo leer la respuesta.")
-                : ResultadoOperacion<AutorizacionReprogramacionDto>.Ok(valor);
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
-        {
-            return ResultadoOperacion<AutorizacionReprogramacionDto>.Fallo("No se pudo contactar al servidor.");
-        }
-    }
-
-    public async Task<IReadOnlyList<SlotDisponibleDto>> ListarDisponibilidadAsync(
-        Guid especialidadId,
+    public Task<IReadOnlyList<SlotDisponibleDto>> ListarDisponibilidadAsync(
         DateOnly fecha,
         CancellationToken ct = default)
-        => await http.GetFromJsonAsync<List<SlotDisponibleDto>>(
-            $"api/citas/disponibilidad?especialidadId={especialidadId}&fecha={fecha:yyyy-MM-dd}", ct) ?? [];
+        => api.ObtenerListaAsync<SlotDisponibleDto>(
+            $"api/citas/disponibilidad?fecha={fecha:yyyy-MM-dd}",
+            "No fue posible consultar los horarios disponibles.",
+            ct);
 
-    public async Task<IReadOnlyList<HistorialCitaDto>> ObtenerHistorialAsync(
+    public Task<IReadOnlyList<HistorialCitaDto>> ObtenerHistorialAsync(
         Guid citaId,
         CancellationToken ct = default)
-        => await http.GetFromJsonAsync<List<HistorialCitaDto>>($"api/citas/{citaId}/historial", ct) ?? [];
+        => api.ObtenerListaAsync<HistorialCitaDto>(
+            $"api/citas/{citaId}/historial",
+            "No fue posible cargar el historial de la cita.",
+            ct);
 
     public Task<ResultadoOperacion<CitaDto>> CrearParaPacienteAsync(
         SolicitarCitaParaPacienteRequest request,
         CancellationToken ct = default)
-        => EnviarAsync(() => http.PostAsJsonAsync("api/citas/para-paciente", request, ct), ct);
+        => api.EnviarAsync<CitaDto>(
+            HttpMethod.Post,
+            "api/citas/para-paciente",
+            request,
+            "No fue posible registrar la cita.",
+            ct);
 
     public Task<ResultadoOperacion<CitaDto>> ConfirmarAsync(Guid citaId, CancellationToken ct = default)
-        => AccionSimpleAsync($"api/citas/{citaId}/confirmar", ct);
+        => api.EnviarAsync<CitaDto>(
+            HttpMethod.Post,
+            $"api/citas/{citaId}/confirmar",
+            null,
+            "No fue posible confirmar la cita.",
+            ct);
 
     public Task<ResultadoOperacion<CitaDto>> RechazarAsync(Guid citaId, string? motivo, CancellationToken ct = default)
-        => EnviarAsync(
-            () => http.PostAsJsonAsync($"api/citas/{citaId}/rechazar", new MotivoCitaRequest(motivo ?? string.Empty), ct),
+        => api.EnviarAsync<CitaDto>(
+            HttpMethod.Post,
+            $"api/citas/{citaId}/rechazar",
+            new MotivoCitaRequest(motivo ?? string.Empty),
+            "No fue posible rechazar la solicitud.",
             ct);
 
     public Task<ResultadoOperacion<CitaDto>> ReprogramarAsync(
@@ -127,50 +130,37 @@ public sealed class CitasApiService(HttpClient http)
         DateTime nuevaFechaHoraInicio,
         string? motivo,
         CancellationToken ct = default)
-        => EnviarAsync(
-            () => http.PostAsJsonAsync($"api/citas/{citaId}/reprogramar", new ReprogramarCitaRequest(nuevaFechaHoraInicio, motivo), ct),
+        => api.EnviarAsync<CitaDto>(
+            HttpMethod.Post,
+            $"api/citas/{citaId}/reprogramar",
+            new ReprogramarCitaRequest(nuevaFechaHoraInicio, motivo),
+            "No fue posible reprogramar la cita.",
             ct);
 
     public Task<ResultadoOperacion<CitaDto>> CancelarAdministrativaAsync(
         Guid citaId,
         string? motivo,
         CancellationToken ct = default)
-        => EnviarAsync(
-            () => http.PostAsJsonAsync($"api/citas/{citaId}/cancelar-administrativa", new MotivoCitaRequest(motivo ?? string.Empty), ct),
+        => api.EnviarAsync<CitaDto>(
+            HttpMethod.Post,
+            $"api/citas/{citaId}/cancelar-administrativa",
+            new MotivoCitaRequest(motivo ?? string.Empty),
+            "No fue posible cancelar la cita.",
             ct);
 
     public Task<ResultadoOperacion<CitaDto>> RegistrarLlegadaAsync(Guid citaId, CancellationToken ct = default)
-        => AccionSimpleAsync($"api/citas/{citaId}/llegada", ct);
+        => api.EnviarAsync<CitaDto>(
+            HttpMethod.Post,
+            $"api/citas/{citaId}/llegada",
+            null,
+            "No fue posible registrar la llegada.",
+            ct);
 
     public Task<ResultadoOperacion<CitaDto>> MarcarNoPresentadaAsync(Guid citaId, CancellationToken ct = default)
-        => AccionSimpleAsync($"api/citas/{citaId}/no-presentada", ct);
-
-    private Task<ResultadoOperacion<CitaDto>> AccionSimpleAsync(string url, CancellationToken ct)
-        => EnviarAsync(() => http.PostAsync(url, content: null, ct), ct);
-
-    private static async Task<ResultadoOperacion<CitaDto>> EnviarAsync(
-        Func<Task<HttpResponseMessage>> enviar,
-        CancellationToken ct)
-    {
-        HttpResponseMessage respuesta;
-        try
-        {
-            respuesta = await enviar();
-        }
-        catch (HttpRequestException)
-        {
-            return ResultadoOperacion<CitaDto>.Fallo("No se pudo contactar al servidor. Verifica tu conexión.");
-        }
-
-        if (respuesta.IsSuccessStatusCode)
-        {
-            var cita = await respuesta.Content.ReadFromJsonAsync<CitaDto>(cancellationToken: ct);
-            return cita is not null
-                ? ResultadoOperacion<CitaDto>.Ok(cita)
-                : ResultadoOperacion<CitaDto>.Fallo("La cita se procesó pero no se pudo leer la respuesta.");
-        }
-
-        return ResultadoOperacion<CitaDto>.Fallo(
-            await ApiErrorReader.LeerAsync(respuesta, "No fue posible completar la acción sobre la cita.", ct));
-    }
+        => api.EnviarAsync<CitaDto>(
+            HttpMethod.Post,
+            $"api/citas/{citaId}/no-presentada",
+            null,
+            "No fue posible marcar la cita como no presentada.",
+            ct);
 }

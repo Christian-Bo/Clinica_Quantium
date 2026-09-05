@@ -43,22 +43,18 @@ public sealed class CitasPacienteApiService(HttpClient http)
     }
 
     /// <summary>
-    /// Devuelve los horarios libres. Distingue entre "no hay cupo ese día"
-    /// (lista vacía) y "la API rechazó la consulta" — por ejemplo, cuando la
-    /// especialidad no tiene médico primario asignado. Confundir ambos casos
-    /// deja al paciente cambiando de fecha para siempre sin saber que el
-    /// problema es otro.
+    /// Devuelve todos los espacios libres de los médicos activos para una fecha.
+    /// El backend ya entrega el médico asociado a cada slot, por lo que el cliente
+    /// no necesita resolver especialidades ni asociaciones intermedias.
     /// </summary>
     public async Task<ResultadoOperacion<IReadOnlyList<SlotDisponibleDto>>> ListarDisponibilidadAsync(
-        Guid especialidadId,
         DateOnly fecha,
         CancellationToken ct = default)
     {
         HttpResponseMessage respuesta;
         try
         {
-            respuesta = await http.GetAsync(
-                $"api/citas/disponibilidad?especialidadId={especialidadId}&fecha={fecha:yyyy-MM-dd}", ct);
+            respuesta = await http.GetAsync($"api/citas/disponibilidad?fecha={fecha:yyyy-MM-dd}", ct);
         }
         catch (HttpRequestException)
         {
@@ -72,30 +68,19 @@ public sealed class CitasPacienteApiService(HttpClient http)
             return ResultadoOperacion<IReadOnlyList<SlotDisponibleDto>>.Ok(slots ?? []);
         }
 
-        try
-        {
-            var error = await respuesta.Content.ReadFromJsonAsync<ErrorResponse>(cancellationToken: ct);
-            return ResultadoOperacion<IReadOnlyList<SlotDisponibleDto>>.Fallo(
-                string.IsNullOrWhiteSpace(error?.Error)
-                    ? "No fue posible consultar los horarios disponibles."
-                    : error.Error);
-        }
-        catch
-        {
-            return ResultadoOperacion<IReadOnlyList<SlotDisponibleDto>>.Fallo(
-                "No fue posible consultar los horarios disponibles.");
-        }
+        return ResultadoOperacion<IReadOnlyList<SlotDisponibleDto>>.Fallo(
+            await ApiErrorReader.LeerAsync(respuesta, "No fue posible consultar los horarios disponibles.", ct));
     }
 
     public Task<ResultadoOperacion<CitaDto>> SolicitarAsync(
-        Guid especialidadId,
+        Guid medicoId,
         DateTime fechaHoraInicio,
         string motivoConsulta,
         CancellationToken ct = default)
         => EnviarAsync(
             () => http.PostAsJsonAsync(
                 "api/citas",
-                new SolicitarCitaRequest(especialidadId, fechaHoraInicio, motivoConsulta),
+                new SolicitarCitaRequest(medicoId, fechaHoraInicio, motivoConsulta),
                 ct),
             ct);
 

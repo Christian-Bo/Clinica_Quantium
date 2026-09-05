@@ -1,0 +1,49 @@
+@inject TokenStorageService TokenStorage
+@inject AuthApiService AuthApi
+@inject ApiAuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
+@code {
+    private bool validado;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || validado)
+        {
+            return;
+        }
+
+        validado = true;
+        var sesion = await TokenStorage.ObtenerAsync();
+        if (sesion is null)
+        {
+            return;
+        }
+
+        var resultado = await AuthApi.ObtenerUsuarioActualSeguroAsync();
+        if (!resultado.Exito || resultado.Valor is null)
+        {
+            // Un fallo de red no destruye una sesión que todavía podría ser válida.
+            // Un 401 sí es procesado por BearerTokenHandler y limpia la sesión.
+            return;
+        }
+
+        await TokenStorage.ActualizarDesdeServidorAsync(resultado.Valor);
+        AuthStateProvider.NotificarUsuarioValidado(resultado.Valor);
+
+        var rutaActual = new Uri(Navigation.Uri).AbsolutePath;
+        if (resultado.Valor.MustChangePassword
+            && !rutaActual.Equals(
+                RoleRoutes.CambioContrasenaObligatorio,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo(RoleRoutes.CambioContrasenaObligatorio, replace: true);
+            return;
+        }
+
+        if (rutaActual.Equals("/login", StringComparison.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo(RoleRoutes.Inicio(resultado.Valor.Roles), replace: true);
+        }
+    }
+}

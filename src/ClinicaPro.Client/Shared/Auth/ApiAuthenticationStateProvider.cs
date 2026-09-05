@@ -27,6 +27,16 @@ public sealed class ApiAuthenticationStateProvider(TokenStorageService tokenStor
         NotifyAuthenticationStateChanged(Task.FromResult(_estadoActual));
     }
 
+    /// <summary>
+    /// Refresca los claims de la UI con /api/auth/me sin sustituir el JWT.
+    /// Así cambios de rol o MustChangePassword se reflejan al arrancar la app.
+    /// </summary>
+    public void NotificarUsuarioValidado(UsuarioActualDto usuario)
+    {
+        _estadoActual = Construir(usuario);
+        NotifyAuthenticationStateChanged(Task.FromResult(_estadoActual));
+    }
+
     public void NotificarSesionCerrada()
     {
         _estadoActual = Anonimo;
@@ -34,14 +44,23 @@ public sealed class ApiAuthenticationStateProvider(TokenStorageService tokenStor
     }
 
     private static AuthenticationState Construir(AuthResponse sesion)
+        => Construir(sesion.UsuarioId, sesion.Email, sesion.Roles);
+
+    private static AuthenticationState Construir(UsuarioActualDto usuario)
+        => Construir(usuario.UsuarioId, usuario.Email, usuario.Roles);
+
+    private static AuthenticationState Construir(
+        Guid usuarioId,
+        string email,
+        IEnumerable<string> roles)
     {
         var claims = new List<Claim>
         {
-            new(ClaimTypes.NameIdentifier, sesion.UsuarioId.ToString()),
-            new(ClaimTypes.Name, sesion.Email)
+            new(ClaimTypes.NameIdentifier, usuarioId.ToString()),
+            new(ClaimTypes.Name, email)
         };
 
-        claims.AddRange(sesion.Roles.Select(rol => new Claim(ClaimTypes.Role, rol)));
+        claims.AddRange(roles.Select(rol => new Claim(ClaimTypes.Role, rol)));
 
         var identidad = new ClaimsIdentity(claims, authenticationType: "ClinicaProJwt");
         return new AuthenticationState(new ClaimsPrincipal(identidad));

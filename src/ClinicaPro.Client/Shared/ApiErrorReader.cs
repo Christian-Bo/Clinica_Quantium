@@ -1,13 +1,11 @@
+using System.Net;
 using System.Text.Json;
 
 namespace ClinicaPro.Client.Shared;
 
 /// <summary>
-/// Lee el cuerpo de una respuesta de error de la Api, que puede venir en dos formas distintas:
-/// - ErrorResponse { "error": "..." } cuando falla una regla de negocio (DomainException).
-/// - ValidationProblemDetails { "errors": { "Campo": ["mensaje"] } } cuando falla la validación
-///   automática de ASP.NET Core sobre el modelo de la petición, antes de llegar al controlador.
-/// Sin esto, un 400 de validación automática se veía como un mensaje genérico sin pistas.
+/// Traduce errores HTTP de la API a mensajes útiles sin exponer detalles técnicos.
+/// Reconoce ErrorResponse y ValidationProblemDetails de ASP.NET Core.
 /// </summary>
 public static class ApiErrorReader
 {
@@ -23,73 +21,79 @@ public static class ApiErrorReader
         }
         catch
         {
-            return mensajePorDefecto;
+            return MensajePorEstado(respuesta.StatusCode, mensajePorDefecto);
         }
 
-        if (string.IsNullOrWhiteSpace(cuerpo))
+        if (!string.IsNullOrWhiteSpace(cuerpo))
         {
-            return mensajePorDefecto;
-        }
-
-        try
-        {
-            using var documento = JsonDocument.Parse(cuerpo);
-            var raiz = documento.RootElement;
-
-            if (raiz.TryGetProperty("error", out var errorProp) && errorProp.ValueKind == JsonValueKind.String)
+            try
             {
-                var texto = errorProp.GetString();
-                if (!string.IsNullOrWhiteSpace(texto))
+                using var documento = JsonDocument.Parse(cuerpo);
+                var raiz = documento.RootElement;
+
+                if (raiz.TryGetProperty("error", out var errorProp)
+                    && errorProp.ValueKind == JsonValueKind.String
+                    && !string.IsNullOrWhiteSpace(errorProp.GetString()))
                 {
-                    return texto;
+                    return errorProp.GetString()!;
                 }
-            }
 
-            if (raiz.TryGetProperty("errors", out var erroresProp) && erroresProp.ValueKind == JsonValueKind.Object)
-            {
-                var mensajes = new List<string>();
-                foreach (var campo in erroresProp.EnumerateObject())
+                if (raiz.TryGetProperty("errors", out var erroresProp)
+                    && erroresProp.ValueKind == JsonValueKind.Object)
                 {
-                    if (campo.Value.ValueKind != JsonValueKind.Array)
+                    var mensajes = new List<string>();
+                    foreach (var propiedad in erroresProp.EnumerateObject())
                     {
-                        continue;
-                    }
-
-                    foreach (var item in campo.Value.EnumerateArray())
-                    {
-                        if (item.ValueKind != JsonValueKind.String)
+                        if (propiedad.Value.ValueKind != JsonValueKind.Array)
                         {
                             continue;
                         }
 
-                        var texto = item.GetString();
-                        if (!string.IsNullOrWhiteSpace(texto))
+                        foreach (var item in propiedad.Value.EnumerateArray())
                         {
-                            mensajes.Add(texto);
+                            var texto = item.GetString();
+                            if (!string.IsNullOrWhiteSpace(texto))
+                            {
+                                mensajes.Add(texto);
+                            }
                         }
+                    }
+
+                    if (mensajes.Count > 0)
+                    {
+                        return string.Join(" ", mensajes.Distinct());
                     }
                 }
 
-                if (mensajes.Count > 0)
+                if (raiz.TryGetProperty("title", out var titleProp)
+                    && titleProp.ValueKind == JsonValueKind.String
+                    && !string.IsNullOrWhiteSpace(titleProp.GetString()))
                 {
-                    return string.Join(" ", mensajes);
+                    return titleProp.GetString()!;
                 }
             }
-
-            if (raiz.TryGetProperty("title", out var tituloProp) && tituloProp.ValueKind == JsonValueKind.String)
+            catch (JsonException)
             {
-                var texto = tituloProp.GetString();
-                if (!string.IsNullOrWhiteSpace(texto))
-                {
-                    return texto;
-                }
+                // Nunca mostramos HTML ni cuerpos arbitrarios devueltos por un proxy.
             }
         }
-        catch (JsonException)
-        {
-            // El cuerpo no era JSON válido; se usa el mensaje por defecto.
-        }
 
-        return mensajePorDefecto;
+        return MensajePorEstado(respuesta.StatusCode, mensajePorDefecto);
     }
+
+    public static string MensajePorEstado(HttpStatusCode statusCode, string mensajePorDefecto)
+        => statusCode switch
+        {
+            HttpStatusCode.BadRequest => "Revisa la información ingresada e intenta nuevamente.",
+            HttpStatusCode.Unauthorized => "Tu sesión no es válida o las credenciales son incorrectas.",
+            HttpStatusCode.Forbidden => "Tu usuario no tiene permiso para realizar esta acción.",
+            HttpStatusCode.NotFound => "La información solicitada ya no está disponible.",
+            HttpStatusCode.Conflict => "La información cambió mientras trabajabas. Actualiza los datos e intenta nuevamente.",
+            (HttpStatusCode)422 => "Hay datos que no cumplen las reglas requeridas.",
+            (HttpStatusCode)423 => "La cuenta está bloqueada temporalmente por seguridad.",
+            (HttpStatusCode)429 => "Se realizaron demasiados intentos. Espera unos minutos y vuelve a intentar.",
+            HttpStatusCode.InternalServerError or HttpStatusCode.BadGateway or HttpStatusCode.ServiceUnavailable
+                => "El servidor no pudo completar la operación. Intenta nuevamente en unos momentos.",
+            _ => mensajePorDefecto
+        };
 }

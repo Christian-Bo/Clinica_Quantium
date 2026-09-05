@@ -1,0 +1,18 @@
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var estado = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (estado.User.Identity?.IsAuthenticated != true)
+        {
+            Navigation.NavigateTo("/login", replace: true);
+            return;
+        }
+
+        var ruta = new Uri(Navigation.Uri).PathAndQuery;
+        var destino = $"/acceso-denegado?from={Uri.EscapeDataString(ruta)}";
+        Navigation.NavigateTo(destino, replace: true);
+    }
+}

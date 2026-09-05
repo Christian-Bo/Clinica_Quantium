@@ -18,11 +18,11 @@
                 {
                     <div class="rounded-control border border-border p-3">
                         <div class="flex items-center justify-between gap-2">
-                            <p class="text-sm font-medium text-ink">@cita.EspecialidadNombre</p>
+                            <p class="text-sm font-medium text-ink">@cita.MedicoNombre</p>
                             <CitaStatusBadge Estado="@cita.Estado" />
                         </div>
                         <p class="mt-1 text-xs text-ink-muted">
-                            @cita.FechaHoraInicio.ToString("dd/MM/yyyy HH:mm") · @cita.MedicoNombre
+                            @cita.FechaHoraInicio.ToString("dd/MM/yyyy HH:mm")
                         </p>
                         @if (!string.IsNullOrWhiteSpace(cita.MotivoConsulta))
                         {

@@ -1,6 +1,8 @@
 @inject AuthApiService AuthApi
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
+@inject UiPermissionService Permisos
+@implements IDisposable
 
 <div class="flex h-full flex-col">
     <div class="flex items-center gap-2 px-5 py-5">
@@ -69,11 +71,30 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var estado = await AuthStateProvider.GetAuthenticationStateAsync();
-        esAdministrador = estado.User.IsInRole(Roles.Administrador);
-        esMedico = estado.User.IsInRole(Roles.Medico);
-        esSecretaria = estado.User.IsInRole(Roles.Secretaria);
+        AuthStateProvider.AuthenticationStateChanged += ManejarCambioAutenticacion;
+        await ActualizarRolAsync(await AuthStateProvider.GetAuthenticationStateAsync());
+    }
+
+    private void ManejarCambioAutenticacion(Task<AuthenticationState> tareaEstado)
+        => _ = ActualizarDesdeEventoAsync(tareaEstado);
+
+    private async Task ActualizarDesdeEventoAsync(Task<AuthenticationState> tareaEstado)
+    {
+        var estado = await tareaEstado;
+        await InvokeAsync(async () =>
+        {
+            await ActualizarRolAsync(estado);
+            StateHasChanged();
+        });
+    }
+
+    private Task ActualizarRolAsync(AuthenticationState estado)
+    {
+        esAdministrador = Permisos.Puede(estado.User, PermisoUi.GestionarUsuarios);
+        esMedico = Permisos.Puede(estado.User, PermisoUi.VerAgendaMedico);
+        esSecretaria = Permisos.Puede(estado.User, PermisoUi.VerAgendaSecretaria);
         rolCargado = true;
+        return Task.CompletedTask;
     }
 
     private void CambiarContrasena() => Navigation.NavigateTo("/cambiar-contrasena");
@@ -83,4 +104,7 @@
         await AuthApi.CerrarSesionAsync();
         Navigation.NavigateTo("/login", replace: true);
     }
+
+    public void Dispose()
+        => AuthStateProvider.AuthenticationStateChanged -= ManejarCambioAutenticacion;
 }

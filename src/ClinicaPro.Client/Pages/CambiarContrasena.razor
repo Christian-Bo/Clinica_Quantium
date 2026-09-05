@@ -75,7 +75,10 @@
             return;
         }
 
-        cambioObligatorio = sesion.MustChangePassword;
+        var actual = await AuthApi.ObtenerUsuarioActualSeguroAsync();
+        cambioObligatorio = actual.Exito && actual.Valor is not null
+            ? actual.Valor.MustChangePassword
+            : sesion.MustChangePassword;
     }
 
     private async Task GuardarAsync()

@@ -1,10 +1,10 @@
 namespace ClinicaPro.Client.Features.Secretaria.Services;
 
-public sealed class NotificacionesApiService(HttpClient http)
+public sealed class NotificacionesApiService(ApiClient api)
 {
     private const string FormatoFecha = "yyyy-MM-ddTHH:mm:ss";
 
-    public async Task<IReadOnlyList<NotificacionDto>> ListarAsync(
+    public Task<IReadOnlyList<NotificacionDto>> ListarAsync(
         string? estado = null,
         DateTime? desde = null,
         DateTime? hasta = null,
@@ -27,6 +27,9 @@ public sealed class NotificacionesApiService(HttpClient http)
         }
 
         var url = "api/notificaciones" + (query.Count > 0 ? "?" + string.Join('&', query) : string.Empty);
-        return await http.GetFromJsonAsync<List<NotificacionDto>>(url, ct) ?? [];
+        return api.ObtenerListaAsync<NotificacionDto>(
+            url,
+            "No fue posible cargar las notificaciones.",
+            ct);
     }
 }

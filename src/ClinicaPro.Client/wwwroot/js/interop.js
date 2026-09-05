@@ -1,23 +1,24 @@
-// Interop mínimo para persistir la sesión (JWT) del lado del navegador.
-// No contiene lógica de negocio: solo lee/escribe/borra una clave.
-//
-// Dos almacenes según lo que pida el usuario en el login:
-//   localStorage   -> "mantener sesión iniciada": sobrevive a cerrar el navegador.
-//   sessionStorage -> sesión de una sola pestaña: se borra al cerrarla.
-// Todo va envuelto en try/catch porque en modo incógnito o con las cookies
-// bloqueadas, acceder al almacenamiento lanza excepción.
+// Interop deliberadamente pequeño: almacenamiento de sesión, impresión segura,
+// foco accesible, visibilidad de página y temporizador de inactividad.
+// No contiene reglas clínicas ni acceso a datos de negocio.
+
 window.clinicaProStorage = {
     get: function (key) {
         try {
             return window.sessionStorage.getItem(key) || window.localStorage.getItem(key);
-        } catch (e) {
+        } catch (_) {
             return null;
         }
     },
+    isPersistent: function (key) {
+        try {
+            return window.localStorage.getItem(key) !== null;
+        } catch (_) {
+            return false;
+        }
+    },
     set: function (key, value, persistente) {
-        // Sin el tercer argumento se asume persistente, para no cambiar
-        // el comportamiento de las pantallas que ya existían.
-        var recordar = persistente !== false;
+        var recordar = persistente === true;
         try {
             if (recordar) {
                 window.localStorage.setItem(key, value);
@@ -26,50 +27,123 @@ window.clinicaProStorage = {
                 window.sessionStorage.setItem(key, value);
                 window.localStorage.removeItem(key);
             }
-        } catch (e) {
-            // Sin almacenamiento la sesión solo dura lo que dure la página.
+        } catch (_) {
+            // Si el navegador bloquea almacenamiento, el servicio .NET mantiene
+            // la sesión solo en memoria hasta que la página se recargue.
         }
     },
     remove: function (key) {
         try {
             window.localStorage.removeItem(key);
             window.sessionStorage.removeItem(key);
-        } catch (e) {
+        } catch (_) {
         }
     }
 };
 
-
-// Imprime un solo elemento de la página (el código QR de la cita) sin
-// arrastrar la barra lateral ni el resto del portal.
 window.clinicaProImpresion = {
     imprimirElemento: function (id) {
-        var origen = document.getElementById(id);
-        if (!origen) {
-            return;
+        var target = document.getElementById(id);
+        if (!target) return;
+
+        function cleanup() {
+            document.body.classList.remove('cp-print-mode');
+            target.classList.remove('cp-print-target');
         }
 
-        var ventana = window.open('', '_blank', 'width=420,height=640');
-        if (!ventana) {
-            // Si el navegador bloqueó la ventana emergente, se imprime la página.
+        document.body.classList.add('cp-print-mode');
+        target.classList.add('cp-print-target');
+        window.addEventListener('afterprint', cleanup, { once: true });
+
+        window.setTimeout(function () {
             window.print();
-            return;
-        }
-
-        ventana.document.write(
-            '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">' +
-            '<title>Codigo de cita</title><style>' +
-            'body{font-family:system-ui,-apple-system,sans-serif;margin:0;padding:28px;' +
-            'display:flex;justify-content:center;color:#1f2937}' +
-            '*{box-sizing:border-box}svg{display:block;margin:0 auto}' +
-            '</style></head><body>' + origen.innerHTML + '</body></html>');
-        ventana.document.close();
-        ventana.focus();
-
-        // Se le da un instante al navegador para pintar antes de imprimir.
-        ventana.setTimeout(function () {
-            ventana.print();
-            ventana.close();
-        }, 250);
+            // Algunos navegadores no disparan afterprint de forma consistente.
+            window.setTimeout(cleanup, 1000);
+        }, 50);
     }
 };
+
+window.clinicaProUi = {
+    focusFirst: function (container) {
+        if (!container) return;
+
+        var preferred = container.querySelector('[autofocus]') || container.querySelector([
+            'input:not([disabled]):not([type="hidden"])',
+            'select:not([disabled])',
+            'textarea:not([disabled])'
+        ].join(','));
+
+        var fallback = container.querySelector([
+            'button:not([disabled])',
+            'a[href]',
+            '[tabindex]:not([tabindex="-1"])'
+        ].join(','));
+
+        (preferred || fallback || container).focus({ preventScroll: true });
+    }
+};
+
+window.clinicaProPage = {
+    isVisible: function () {
+        return document.visibilityState === 'visible';
+    }
+};
+
+window.clinicaProIdle = (function () {
+    var dotnet = null;
+    var warningTimer = null;
+    var expireTimer = null;
+    var warningMs = 25 * 60 * 1000;
+    var graceMs = 5 * 60 * 1000;
+    var lastReset = 0;
+    var events = ['pointerdown', 'keydown', 'touchstart', 'scroll', 'mousemove'];
+
+    function clearTimers() {
+        if (warningTimer) window.clearTimeout(warningTimer);
+        if (expireTimer) window.clearTimeout(expireTimer);
+        warningTimer = null;
+        expireTimer = null;
+    }
+
+    function schedule() {
+        clearTimers();
+        warningTimer = window.setTimeout(function () {
+            if (dotnet) dotnet.invokeMethodAsync('AvisarInactividad');
+            expireTimer = window.setTimeout(function () {
+                if (dotnet) dotnet.invokeMethodAsync('ExpirarPorInactividad');
+            }, graceMs);
+        }, warningMs);
+    }
+
+    function activity() {
+        var now = Date.now();
+        if (now - lastReset < 5000) return;
+        lastReset = now;
+        schedule();
+    }
+
+    return {
+        register: function (dotnetRef, warnAfterMs, graceAfterMs) {
+            this.unregister();
+            dotnet = dotnetRef;
+            warningMs = warnAfterMs || warningMs;
+            graceMs = graceAfterMs || graceMs;
+            lastReset = Date.now();
+            events.forEach(function (eventName) {
+                window.addEventListener(eventName, activity, { passive: true });
+            });
+            schedule();
+        },
+        reset: function () {
+            lastReset = Date.now();
+            schedule();
+        },
+        unregister: function () {
+            clearTimers();
+            events.forEach(function (eventName) {
+                window.removeEventListener(eventName, activity);
+            });
+            dotnet = null;
+        }
+    };
+})();

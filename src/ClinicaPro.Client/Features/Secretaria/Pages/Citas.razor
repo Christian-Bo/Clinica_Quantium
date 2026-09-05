@@ -66,6 +66,9 @@
             else if (errorAgenda is not null)
             {
                 <EmptyState IconName="alert-triangle" Title="No se pudo cargar la agenda" Description="@errorAgenda" />
+                <div class="mt-3 flex justify-center">
+                    <Button Variant="ButtonVariant.Secondary" Size="sm" IconName="refresh" OnClick="CargarAgendaAsync">Reintentar</Button>
+                </div>
             }
             else if (vista == VistaAgenda.Mes)
             {
@@ -84,6 +87,15 @@
             {
                 <div class="p-4"><Skeleton Filas="4" HeightClass="h-16" /></div>
             }
+            else if (errorPendientes is not null)
+            {
+                <div class="p-4">
+                    <EmptyState IconName="alert-triangle" Title="No se pudieron cargar las solicitudes" Description="@errorPendientes" />
+                    <div class="mt-3 flex justify-center">
+                        <Button Variant="ButtonVariant.Secondary" Size="sm" IconName="refresh" OnClick="CargarPendientesAsync">Reintentar</Button>
+                    </div>
+                </div>
+            }
             else if (pendientes.Count == 0)
             {
                 <EmptyState IconName="check-circle" Title="No hay solicitudes pendientes"
@@ -98,12 +110,15 @@
                             <button type="button" class="text-left" @onclick="() => AbrirDetalle(cita)">
                                 <p class="text-sm font-medium text-ink">@cita.PacienteNombre</p>
                                 <p class="text-xs text-ink-muted">
-                                    @cita.FechaHoraInicio.ToString("dd/MM/yyyy HH:mm") · @cita.EspecialidadNombre
+                                    @cita.FechaHoraInicio.ToString("dd/MM/yyyy HH:mm") · @cita.MedicoNombre
                                 </p>
                             </button>
                             <div class="flex gap-2">
                                 <Button Variant="ButtonVariant.Secondary" Size="sm" OnClick="() => AbrirDetalle(cita)">Ver</Button>
-                                <Button Variant="ButtonVariant.Primary" Size="sm" IconName="check" OnClick="() => ConfirmarRapidoAsync(cita)">
+                                <Button Variant="ButtonVariant.Primary" Size="sm" IconName="check"
+                                        Loading="@(citaProcesando == cita.CitaId)"
+                                        Disabled="@(citaProcesando is not null)"
+                                        OnClick="() => ConfirmarRapidoAsync(cita)">
                                     Confirmar
                                 </Button>
                             </div>
@@ -140,6 +155,8 @@
 
     private List<CitaDto> pendientes = [];
     private bool cargandoPendientes = true;
+    private string? errorPendientes;
+    private Guid? citaProcesando;
 
     private bool modalNuevaAbierto;
     private bool drawerAbierto;
@@ -155,9 +172,22 @@
             ? Pestana.Pendientes
             : Pestana.Agenda;
 
-        medicos = (await MedicosApi.ListarAsync()).ToList();
-        await CargarAgendaAsync();
-        await CargarPendientesAsync();
+        var medicosTask = CargarMedicosAsync();
+        var agendaTask = CargarAgendaAsync();
+        var pendientesTask = CargarPendientesAsync();
+        await Task.WhenAll(medicosTask, agendaTask, pendientesTask);
+    }
+
+    private async Task CargarMedicosAsync()
+    {
+        try
+        {
+            medicos = (await MedicosApi.ListarAsync()).ToList();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            Toasts.Error(ex.Message);
+        }
     }
 
     private List<DateOnly> DiasVisibles => vista switch
@@ -194,7 +224,7 @@
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            errorAgenda = "No se pudo contactar a la API.";
+            errorAgenda = ex.Message;
         }
         finally
         {
@@ -225,13 +255,14 @@
     private async Task CargarPendientesAsync()
     {
         cargandoPendientes = true;
+        errorPendientes = null;
         try
         {
             pendientes = (await CitasApi.ListarPendientesAsync()).ToList();
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            pendientes = [];
+            errorPendientes = ex.Message;
         }
         finally
         {
@@ -305,16 +336,47 @@
 
     private async Task ConfirmarRapidoAsync(CitaDto cita)
     {
-        var resultado = await CitasApi.ConfirmarAsync(cita.CitaId);
-        if (resultado.Exito)
+        if (citaProcesando is not null)
         {
-            Toasts.Exito("Solicitud confirmada.");
-            await CargarAgendaAsync();
-            await CargarPendientesAsync();
+            return;
+        }
+
+        citaProcesando = cita.CitaId;
+        try
+        {
+            var resultado = await CitasApi.ConfirmarAsync(cita.CitaId);
+            if (resultado.Exito && resultado.Valor is not null)
+            {
+                Toasts.Exito("Solicitud confirmada.");
+                pendientes.RemoveAll(x => x.CitaId == cita.CitaId);
+                ReemplazarCitaEnAgenda(resultado.Valor);
+            }
+            else
+            {
+                Toasts.Error(resultado.Error ?? "No fue posible confirmar la solicitud.");
+            }
+        }
+        finally
+        {
+            citaProcesando = null;
+        }
+    }
+
+    private void ReemplazarCitaEnAgenda(CitaDto actualizada)
+    {
+        var indice = citasRango.FindIndex(x => x.CitaId == actualizada.CitaId);
+        if (indice >= 0)
+        {
+            citasRango[indice] = actualizada;
         }
         else
         {
-            Toasts.Error(resultado.Error ?? "No fue posible confirmar la solicitud.");
+            var (desde, hasta) = RangoParaConsulta();
+            var fecha = DateOnly.FromDateTime(actualizada.FechaHoraInicio);
+            if (fecha >= desde && fecha < hasta)
+            {
+                citasRango.Add(actualizada);
+            }
         }
     }
 

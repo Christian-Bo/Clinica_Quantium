@@ -1,11 +1,22 @@
+@inject IJSRuntime JS
+
 @if (IsOpen)
 {
     <div class="fixed inset-0 z-50 flex justify-end bg-black/40" @onclick="ManejarBackdrop">
-        <div class="flex h-full w-full max-w-md flex-col bg-surface shadow-modal" @onclick:stopPropagation="true">
+        <div @ref="drawerRef"
+             role="dialog"
+             aria-modal="true"
+             aria-label="@Title"
+             tabindex="-1"
+             class="flex h-full w-full max-w-md flex-col bg-surface shadow-modal outline-none"
+             @onclick:stopPropagation="true"
+             @onkeydown="ManejarTecla">
             <div class="flex items-center justify-between border-b border-border px-5 py-4">
                 <h2 class="text-base font-semibold text-ink">@Title</h2>
-                <button type="button" class="rounded-control p-1 text-ink-muted hover:bg-surface-muted hover:text-ink"
-                        @onclick="Cerrar" aria-label="Cerrar">
+                <button type="button"
+                        class="rounded-control p-1 text-ink-muted hover:bg-surface-muted hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                        @onclick="Cerrar"
+                        aria-label="Cerrar">
                     <Icon Name="x" Size="20" />
                 </button>
             </div>
@@ -28,15 +39,47 @@
     [Parameter] public bool IsOpen { get; set; }
     [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
     [Parameter] public string Title { get; set; } = string.Empty;
-    [Parameter] public bool CloseOnBackdrop { get; set; } = true;
+    [Parameter] public bool CloseOnBackdrop { get; set; } = false;
+    [Parameter] public bool CloseOnEscape { get; set; } = false;
     [Parameter] public RenderFragment? Body { get; set; }
     [Parameter] public RenderFragment? Footer { get; set; }
+
+    private ElementReference drawerRef;
+    private bool enfocarPendiente;
+    private bool estabaAbierto;
+
+    protected override void OnParametersSet()
+    {
+        if (IsOpen && !estabaAbierto)
+        {
+            enfocarPendiente = true;
+        }
+
+        estabaAbierto = IsOpen;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (IsOpen && enfocarPendiente)
+        {
+            enfocarPendiente = false;
+            await JS.InvokeVoidAsync("clinicaProUi.focusFirst", drawerRef);
+        }
+    }
 
     private async Task Cerrar() => await IsOpenChanged.InvokeAsync(false);
 
     private async Task ManejarBackdrop()
     {
         if (CloseOnBackdrop)
+        {
+            await Cerrar();
+        }
+    }
+
+    private async Task ManejarTecla(KeyboardEventArgs e)
+    {
+        if (CloseOnEscape && e.Key == "Escape")
         {
             await Cerrar();
         }

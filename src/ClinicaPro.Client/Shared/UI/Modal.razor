@@ -1,9 +1,17 @@
+@inject IJSRuntime JS
+
 @if (IsOpen)
 {
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @onclick="ManejarBackdrop">
-        <div role="dialog" aria-modal="true" aria-label="@Title"
-             class="flex max-h-[90vh] w-full @MaxWidthClass flex-col rounded-card bg-surface shadow-modal"
-             @onclick:stopPropagation="true">
+        <div @ref="dialogRef"
+             role="dialog"
+             aria-modal="true"
+             aria-label="@Title"
+             aria-describedby="@AriaDescribedBy"
+             tabindex="-1"
+             class="flex max-h-[90vh] w-full @MaxWidthClass flex-col rounded-card bg-surface shadow-modal outline-none"
+             @onclick:stopPropagation="true"
+             @onkeydown="ManejarTecla">
 
             <div class="flex items-center justify-between border-b border-border px-5 py-4">
                 <div class="flex items-center gap-2">
@@ -13,8 +21,10 @@
                     }
                     <h2 class="text-base font-semibold text-ink">@Title</h2>
                 </div>
-                <button type="button" class="rounded-control p-1 text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-                        @onclick="Cerrar" aria-label="Cerrar">
+                <button type="button"
+                        class="rounded-control p-1 text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                        @onclick="Cerrar"
+                        aria-label="Cerrar">
                     <Icon Name="x" Size="20" />
                 </button>
             </div>
@@ -38,16 +48,49 @@
     [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
     [Parameter] public string Title { get; set; } = string.Empty;
     [Parameter] public string? IconName { get; set; }
+    [Parameter] public string? AriaDescribedBy { get; set; }
     [Parameter] public string MaxWidthClass { get; set; } = "max-w-md";
     [Parameter] public bool CloseOnBackdrop { get; set; } = false;
+    [Parameter] public bool CloseOnEscape { get; set; } = false;
     [Parameter] public RenderFragment? Body { get; set; }
     [Parameter] public RenderFragment? Footer { get; set; }
+
+    private ElementReference dialogRef;
+    private bool enfocarPendiente;
+    private bool estabaAbierto;
+
+    protected override void OnParametersSet()
+    {
+        if (IsOpen && !estabaAbierto)
+        {
+            enfocarPendiente = true;
+        }
+
+        estabaAbierto = IsOpen;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (IsOpen && enfocarPendiente)
+        {
+            enfocarPendiente = false;
+            await JS.InvokeVoidAsync("clinicaProUi.focusFirst", dialogRef);
+        }
+    }
 
     private async Task Cerrar() => await IsOpenChanged.InvokeAsync(false);
 
     private async Task ManejarBackdrop()
     {
         if (CloseOnBackdrop)
+        {
+            await Cerrar();
+        }
+    }
+
+    private async Task ManejarTecla(KeyboardEventArgs e)
+    {
+        if (CloseOnEscape && e.Key == "Escape")
         {
             await Cerrar();
         }
