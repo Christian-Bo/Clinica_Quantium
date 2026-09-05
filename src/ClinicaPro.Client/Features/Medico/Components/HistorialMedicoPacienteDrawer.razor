@@ -38,7 +38,7 @@
                         var ultima = historial.UltimaAtencion;
                         <div class="rounded-control border border-border bg-surface p-3">
                             <div class="flex items-start justify-between gap-3">
-                                <div><p class="text-sm font-medium text-ink">@ultima.FechaHoraInicio.ToString("dd/MM/yyyy · HH:mm")</p><p class="mt-0.5 text-xs text-ink-muted">@ultima.EspecialidadNombre · @ultima.MotivoConsulta</p></div>
+                                <div><p class="text-sm font-medium text-ink">@ultima.FechaHoraInicio.ToString("dd/MM/yyyy · HH:mm")</p><p class="mt-0.5 text-xs text-ink-muted">@ultima.MotivoConsulta</p></div>
                                 <CitaStatusBadge Estado="@ultima.Estado" />
                             </div>
                         </div>
@@ -57,7 +57,7 @@
                             @foreach (var cita in historial.CitasProximas.OrderBy(x => x.FechaHoraInicio))
                             {
                                 <div class="rounded-control border border-border bg-surface p-3">
-                                    <div class="flex items-start justify-between gap-3"><div><p class="text-sm font-medium text-ink">@cita.FechaHoraInicio.ToString("dd/MM/yyyy · HH:mm")</p><p class="mt-0.5 text-xs text-ink-muted">@cita.EspecialidadNombre · @cita.MotivoConsulta</p></div><CitaStatusBadge Estado="@cita.Estado" /></div>
+                                    <div class="flex items-start justify-between gap-3"><div><p class="text-sm font-medium text-ink">@cita.FechaHoraInicio.ToString("dd/MM/yyyy · HH:mm")</p><p class="mt-0.5 text-xs text-ink-muted">@cita.MotivoConsulta</p></div><CitaStatusBadge Estado="@cita.Estado" /></div>
                                 </div>
                             }
                         </div>
@@ -76,7 +76,7 @@
                             @foreach (var cita in historial.CitasPasadas.OrderByDescending(x => x.FechaHoraInicio).Take(8))
                             {
                                 <div class="rounded-control border border-border bg-surface p-3">
-                                    <div class="flex items-start justify-between gap-3"><div><p class="text-sm font-medium text-ink">@cita.FechaHoraInicio.ToString("dd/MM/yyyy · HH:mm")</p><p class="mt-0.5 text-xs text-ink-muted">@cita.EspecialidadNombre · @cita.MotivoConsulta</p></div><CitaStatusBadge Estado="@cita.Estado" /></div>
+                                    <div class="flex items-start justify-between gap-3"><div><p class="text-sm font-medium text-ink">@cita.FechaHoraInicio.ToString("dd/MM/yyyy · HH:mm")</p><p class="mt-0.5 text-xs text-ink-muted">@cita.MotivoConsulta</p></div><CitaStatusBadge Estado="@cita.Estado" /></div>
                                 </div>
                             }
                         </div>
@@ -116,8 +116,16 @@
         cargando = true; error = null;
         try
         {
-            historial = await CitasApi.ObtenerHistorialMedicoPacienteAsync(PacienteId.Value);
-            if (historial is null) error = "No tienes acceso al historial de este paciente o no existe relación clínica registrada.";
+            var resultado = await CitasApi.ObtenerHistorialMedicoPacienteSeguroAsync(PacienteId.Value);
+            if (resultado.Exito && resultado.Valor is not null)
+            {
+                historial = resultado.Valor;
+            }
+            else
+            {
+                historial = null;
+                error = resultado.Error ?? "No fue posible cargar el contexto permitido del paciente.";
+            }
         }
         finally { cargando = false; }
     }

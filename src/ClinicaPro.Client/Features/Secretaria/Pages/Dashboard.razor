@@ -27,6 +27,9 @@
     {
         <Card>
             <EmptyState IconName="alert-triangle" Title="No se pudo cargar el dashboard" Description="@errorCarga" />
+            <div class="mt-3 flex justify-center">
+                <Button Variant="ButtonVariant.Secondary" Size="sm" IconName="refresh" OnClick="CargarAsync">Reintentar</Button>
+            </div>
         </Card>
     }
     else
@@ -124,21 +127,27 @@
         cargando = citasHoy.Count == 0;
         try
         {
-            var reporte = await ReportesApi.ObtenerReporteCitasAsync(hoy, manana);
-            var agenda = await CitasApi.ListarAgendaAsync(hoy, manana);
-            var fallidas = await NotificacionesApi.ListarAsync(NotificacionEstados.Fallida);
+            var reporteTask = ReportesApi.ObtenerReporteCitasAsync(hoy, manana);
+            var agendaTask = CitasApi.ListarAgendaAsync(hoy, manana);
+            var fallidasTask = NotificacionesApi.ListarAsync(NotificacionEstados.Fallida);
+
+            await Task.WhenAll(reporteTask, agendaTask, fallidasTask);
+
+            var reporte = await reporteTask;
+            var agenda = await agendaTask;
+            var fallidas = await fallidasTask;
 
             citasHoy = agenda.ToList();
-            totalHoy = reporte?.Total ?? citasHoy.Count;
+            totalHoy = reporte.Total;
             pendientesHoy = ContarPorEstado(reporte, CitaEstados.Solicitada);
             enSalaHoy = ContarPorEstado(reporte, CitaEstados.EnEspera) + ContarPorEstado(reporte, CitaEstados.EnAtencion);
-            noPresentadosHoy = reporte?.NoPresentadas ?? 0;
+            noPresentadosHoy = reporte.NoPresentadas;
             notificacionesFallidas = fallidas.Count;
             errorCarga = null;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            errorCarga = "No se pudo contactar a la API. Verifica que esté corriendo en https://localhost:7041.";
+            errorCarga = ex.Message;
         }
         finally
         {

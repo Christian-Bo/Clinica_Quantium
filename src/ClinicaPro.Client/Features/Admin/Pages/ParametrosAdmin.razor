@@ -17,7 +17,10 @@
     }
     else if (!string.IsNullOrWhiteSpace(error))
     {
-        <Card><EmptyState IconName="alert-triangle" Title="No se pudieron cargar los parámetros" Description="@error" /></Card>
+        <Card>
+            <EmptyState IconName="alert-triangle" Title="No se pudieron cargar los parámetros" Description="@error" />
+            <div class="mt-3 flex justify-center"><Button Variant="ButtonVariant.Secondary" Size="sm" IconName="refresh" OnClick="CargarAsync">Reintentar</Button></div>
+        </Card>
     }
     else
     {
@@ -58,8 +61,10 @@
 
     private async Task CargarAsync()
     {
-        try { parametros = await AdminApi.ListarParametrosAsync(); error = null; }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { error = "No se pudo contactar a la API."; }
+        cargando = parametros.Count == 0;
+        error = null;
+        try { parametros = await AdminApi.ListarParametrosAsync(); }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { error = ex.Message; }
         finally { cargando = false; }
     }
 

@@ -1,10 +1,10 @@
 namespace ClinicaPro.Client.Features.Secretaria.Services;
 
-public sealed class ReportesApiService(HttpClient http)
+public sealed class ReportesApiService(ApiClient api)
 {
     private const string FormatoFecha = "yyyy-MM-ddTHH:mm:ss";
 
-    public async Task<ReporteCitasDto?> ObtenerReporteCitasAsync(
+    public Task<ReporteCitasDto> ObtenerReporteCitasAsync(
         DateTime desde,
         DateTime hasta,
         Guid? medicoId = null,
@@ -18,6 +18,9 @@ public sealed class ReportesApiService(HttpClient http)
             url += $"&medicoId={medicoId}";
         }
 
-        return await http.GetFromJsonAsync<ReporteCitasDto>(url, ct);
+        return api.ObtenerRequeridoAsync<ReporteCitasDto>(
+            url,
+            "No fue posible generar el reporte.",
+            ct);
     }
 }

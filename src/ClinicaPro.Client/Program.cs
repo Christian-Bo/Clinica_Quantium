@@ -22,7 +22,7 @@ public static class Program
         builder.RootComponents.Add<App>("#app");
         builder.RootComponents.Add<HeadOutlet>("head::after");
 
-        var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "https://localhost:7041/";
+        var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "http://136.113.48.173:5030/";
 
         // --- Autenticación ---
         builder.Services.AddAuthorizationCore();
@@ -31,14 +31,21 @@ public static class Program
         builder.Services.AddScoped<AuthenticationStateProvider>(
             sp => sp.GetRequiredService<ApiAuthenticationStateProvider>());
         builder.Services.AddScoped<AuthApiService>();
+        builder.Services.AddScoped<UiPermissionService>();
 
         // --- HttpClient con el token Bearer inyectado automáticamente ---
         builder.Services.AddTransient<BearerTokenHandler>();
         builder.Services
-            .AddHttpClient(NombreClienteApi, cliente => cliente.BaseAddress = new Uri(apiBaseUrl))
+            .AddHttpClient(NombreClienteApi, cliente =>
+            {
+                cliente.BaseAddress = new Uri(apiBaseUrl);
+                cliente.Timeout = TimeSpan.FromSeconds(30);
+            })
             .AddHttpMessageHandler<BearerTokenHandler>();
         builder.Services.AddScoped(sp =>
             sp.GetRequiredService<IHttpClientFactory>().CreateClient(NombreClienteApi));
+
+        builder.Services.AddScoped<ApiClient>();
 
         // --- UI transversal (toasts, confirmaciones) ---
         builder.Services.AddScoped<ToastService>();
@@ -49,7 +56,7 @@ public static class Program
         builder.Services.AddScoped<AgendaMedicoRealtimeService>();
 
         // --- Servicios de API del módulo de Secretaría ---
-        builder.Services.AddScoped<EspecialidadesApiService>();
+        builder.Services.AddScoped<MedicosCacheService>();
         builder.Services.AddScoped<MedicosApiService>();
         builder.Services.AddScoped<PacientesApiService>();
         builder.Services.AddScoped<CitasApiService>();

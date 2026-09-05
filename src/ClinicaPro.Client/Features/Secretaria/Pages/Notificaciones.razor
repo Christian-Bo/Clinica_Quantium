@@ -27,7 +27,10 @@
         }
         else if (errorCarga is not null)
         {
-            <EmptyState IconName="alert-triangle" Title="No se pudo cargar" Description="@errorCarga" />
+            <div class="p-4">
+                <EmptyState IconName="alert-triangle" Title="No se pudo cargar" Description="@errorCarga" />
+                <div class="mt-3 flex justify-center"><Button Variant="ButtonVariant.Secondary" Size="sm" IconName="refresh" OnClick="CargarAsync">Reintentar</Button></div>
+            </div>
         }
         else if (notificaciones.Count == 0)
         {
@@ -87,7 +90,7 @@
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            errorCarga = "No se pudo contactar a la API.";
+            errorCarga = ex.Message;
         }
         finally
         {

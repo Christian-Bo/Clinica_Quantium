@@ -28,7 +28,10 @@
         }
         else if (errorCarga is not null)
         {
-            <EmptyState IconName="alert-triangle" Title="No se pudo cargar la lista" Description="@errorCarga" />
+            <div class="p-4">
+                <EmptyState IconName="alert-triangle" Title="No se pudo cargar la lista" Description="@errorCarga" />
+                <div class="mt-3 flex justify-center"><Button Variant="ButtonVariant.Secondary" Size="sm" IconName="refresh" OnClick="RecargarAsync">Reintentar</Button></div>
+            </div>
         }
         else if (pagina.Items.Count == 0)
         {
@@ -126,23 +129,32 @@
 
     protected override async Task OnInitializedAsync() => await CargarAsync();
 
-    private async Task CargarAsync()
+    private async Task CargarAsync(CancellationToken ct = default)
     {
         cargando = true;
         errorCarga = null;
         try
         {
-            pagina = await PacientesApi.BuscarAsync(texto, paginaActual, TamanoPagina);
+            pagina = await PacientesApi.BuscarAsync(texto, paginaActual, TamanoPagina, ct);
+        }
+        catch (TaskCanceledException) when (ct.IsCancellationRequested)
+        {
+            return;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            errorCarga = "No se pudo contactar a la API.";
+            errorCarga = ex.Message;
         }
         finally
         {
-            cargando = false;
+            if (!ct.IsCancellationRequested)
+            {
+                cargando = false;
+            }
         }
     }
+
+    private Task RecargarAsync() => CargarAsync();
 
     private async Task ManejarBusqueda(ChangeEventArgs e)
     {
@@ -156,7 +168,7 @@
         try
         {
             await Task.Delay(350, cts.Token);
-            await CargarAsync();
+            await CargarAsync(cts.Token);
         }
         catch (TaskCanceledException)
         {

@@ -5,26 +5,16 @@ using Microsoft.AspNetCore.Components;
 namespace ClinicaPro.Client.Shared.Auth;
 
 /// <summary>
-/// Adjunta el token a cada petición y, sobre todo, reacciona cuando la API
-/// responde 401 con una sesión que creíamos válida: eso significa que el token
-/// venció o fue revocado.
-///
-/// Sin esto, el vencimiento se veía como pantallas vacías —"No tienes citas"—
-/// porque los servicios capturaban el error y devolvían listas vacías. El
-/// paciente veía una mentira en vez de un aviso.
+/// Adjunta el JWT únicamente a endpoints protegidos y centraliza la reacción
+/// ante una sesión vencida. Las rutas públicas de autenticación nunca reciben
+/// un Bearer residual de una sesión anterior.
 /// </summary>
 public sealed class BearerTokenHandler(
     TokenStorageService tokenStorage,
     ApiAuthenticationStateProvider authStateProvider,
     NavigationManager navigation) : DelegatingHandler
 {
-    /// <summary>
-    /// El login devuelve 401 cuando las credenciales son incorrectas. Ese 401
-    /// es una respuesta normal del formulario, no una sesión vencida: si lo
-    /// tratáramos igual, recargaríamos la página y el usuario perdería el
-    /// mensaje de "correo o contraseña incorrectos".
-    /// </summary>
-    private static readonly string[] RutasQueDevuelven401SinSesion =
+    private static readonly string[] RutasPublicasAuth =
     [
         "/api/auth/login",
         "/api/auth/register/paciente",
@@ -36,17 +26,23 @@ public sealed class BearerTokenHandler(
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
+        var esPublica = EsRutaPublicaDeAuth(request);
         var sesion = await tokenStorage.ObtenerAsync();
-        if (sesion is not null)
+
+        if (!esPublica && sesion is not null)
         {
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", sesion.AccessToken);
+        }
+        else
+        {
+            request.Headers.Authorization = null;
         }
 
         var respuesta = await base.SendAsync(request, cancellationToken);
 
         if (respuesta.StatusCode == HttpStatusCode.Unauthorized
             && sesion is not null
-            && !EsRutaPublicaDeAuth(request))
+            && !esPublica)
         {
             await CerrarSesionVencidaAsync();
         }
@@ -57,7 +53,7 @@ public sealed class BearerTokenHandler(
     private static bool EsRutaPublicaDeAuth(HttpRequestMessage request)
     {
         var ruta = request.RequestUri?.AbsolutePath ?? string.Empty;
-        return RutasQueDevuelven401SinSesion.Any(
+        return RutasPublicasAuth.Any(
             publica => ruta.EndsWith(publica, StringComparison.OrdinalIgnoreCase));
     }
 
@@ -65,9 +61,6 @@ public sealed class BearerTokenHandler(
     {
         await tokenStorage.LimpiarAsync();
         authStateProvider.NotificarSesionCerrada();
-
-        // forceLoad: false conserva la app cargada; el login lee el parámetro
-        // para explicar por qué se cerró la sesión.
         navigation.NavigateTo("/login?sesion=vencida", forceLoad: false, replace: true);
     }
 }

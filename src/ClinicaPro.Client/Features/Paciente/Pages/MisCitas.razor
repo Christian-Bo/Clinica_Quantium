@@ -219,7 +219,7 @@ else
     private async Task AnularSolicitud(CitaDto cita)
     {
         var confirmado = await Confirmaciones.ConfirmarAsync(
-            $"Vas a anular tu solicitud de {cita.EspecialidadNombre} del {cita.FechaHoraInicio:dd/MM/yyyy} a las {cita.FechaHoraInicio:HH:mm}.",
+            $"Vas a anular tu solicitud con {cita.MedicoNombre} del {cita.FechaHoraInicio:dd/MM/yyyy} a las {cita.FechaHoraInicio:HH:mm}.",
             titulo: "Anular solicitud",
             textoConfirmar: "Anular solicitud",
             esPeligroso: true);
@@ -239,7 +239,7 @@ else
     private async Task Cancelar(CitaDto cita)
     {
         var confirmado = await Confirmaciones.ConfirmarAsync(
-            $"Vas a cancelar tu cita de {cita.EspecialidadNombre} del {cita.FechaHoraInicio:dd/MM/yyyy} a las {cita.FechaHoraInicio:HH:mm}.",
+            $"Vas a cancelar tu cita con {cita.MedicoNombre} del {cita.FechaHoraInicio:dd/MM/yyyy} a las {cita.FechaHoraInicio:HH:mm}.",
             titulo: "Cancelar cita",
             textoConfirmar: "Cancelar cita",
             esPeligroso: true);

@@ -25,7 +25,7 @@ public sealed class AgendaMedicoRealtimeService(
             await connection.DisposeAsync();
         }
 
-        var baseUrl = configuration["ApiBaseUrl"] ?? "https://localhost:7041/";
+        var baseUrl = configuration["ApiBaseUrl"] ?? "http://136.113.48.173:5030/";
         var hubUrl = new Uri(new Uri(baseUrl), "hubs/agenda-medico");
         connection = new HubConnectionBuilder()
             .WithUrl(hubUrl, options =>
