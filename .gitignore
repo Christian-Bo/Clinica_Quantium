@@ -30,3 +30,7 @@ Thumbs.db
 TestResults/
 coverage/
 src/ClinicaPro.Api/App_Data/
+
+
+# Vercel local build output
+.vercel_publish/
