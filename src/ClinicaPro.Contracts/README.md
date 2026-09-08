@@ -23,12 +23,13 @@ Header: `Authorization: Bearer {accessToken}`. En Swagger pegar solo el token.
 | PUT | `/api/pacientes/{pacienteId}` | Secretaria / Admin. Mismo body; sí puede corregir DPI |
 | GET | `/api/pacientes?q=&page=1&pageSize=20` | Secretaria / Admin. `{ items, total, page, pageSize }`. pageSize máx. 50 |
 | POST | `/api/pacientes` | Secretaria / Admin |
+| DELETE | `/api/pacientes/{pacienteId}` | **Solo Admin.** Secretaria marca el no-show (`POST /api/citas/{id}/no-presentada`). Admin borra cuenta, perfil y citas si la **primera cita** está en `No presentada` y nunca lo atendieron. 204. 400 si no aplica. Secretaria recibe 403 |
 
 Password: 8+, mayúscula, minúscula, dígito y símbolo. `sexo`: `M`, `F`, `X` o null.
 
 ## Citas
 
-El paciente pide con `medicoId` + `fechaHoraInicio` (Guatemala, **sin Z**) + `motivoConsulta` (≥ 5). Al **registrarse** (`POST /api/auth/register/paciente`) esos tres campos van en el mismo body: no se crea la cuenta si no agenda la primera cita.
+El paciente pide con `medicoId` + `fechaHoraInicio` (Guatemala, **sin Z**) + `motivoConsulta` (≥ 5). La fecha/hora se valida **en el instante del request** (`HoraClinica.Ahora()`): no se crea ni se reprograma a un horario ya pasado. Al **registrarse** (`POST /api/auth/register/paciente`) esos tres campos van en el mismo body: no se crea la cuenta si no agenda la primera cita.
 
 Secretaria/Admin también: `POST /api/citas/para-paciente` con `pacienteId` extra. `POST /api/pacientes` crea el paciente **sin** exigir cita (mostrador).
 
@@ -56,7 +57,7 @@ Aviso de llegada: `POST /api/citas/{id}/llegada` publica SignalR `pacienteLlego`
 
 ## Admin (`/api/admin`, solo Administrador)
 
-Especialidades crear/editar. `GET /api/admin/medicos` lista activos e inactivos (`isActive`). Médicos crear/editar. Especialidades del médico: GET/POST/PUT/DELETE `/api/admin/medicos/{id}/especialidades` (un primario activo por especialidad). Horarios crear/editar (`PUT .../horarios/{horarioId}` con `vigenteDesde`/`vigenteHasta`)/desactivar. Usuarios listar y activar/desactivar (no se desactiva un admin). `POST /api/admin/usuarios` crea Secretaria o Administrador. `PUT /api/admin/usuarios/{id}/roles` cambia esos roles. Médico se crea en `POST /api/admin/medicos`. Autorizaciones de 3.ª reprogramación: GET/aprobar/rechazar. Parámetros PUT valor (no `Citas.MaximoReprogramaciones`). `GET /api/admin/auditoria`.
+Especialidades crear/editar. `GET /api/admin/medicos` lista activos e inactivos (`isActive`). Médicos crear/editar. Especialidades del médico: GET/POST/PUT/DELETE `/api/admin/medicos/{id}/especialidades` (un primario activo por especialidad). Horarios crear/editar (`PUT .../horarios/{horarioId}` con `vigenteDesde`/`vigenteHasta`)/desactivar. Usuarios listar y activar/desactivar (no se desactiva un admin). `POST /api/admin/usuarios` crea Secretaria o Administrador. `PUT /api/admin/usuarios/{id}` actualiza email, contraseña opcional (`mustChangePassword`) y activo. `PUT /api/admin/usuarios/{id}/roles` cambia Admin/Secretaria y el **tipo clínico** (`tipoClinico`: `Ninguno` | `Medico` | `Paciente`). Médico y Paciente no se combinan; al asignar se crea la ficha (nombres/colegiado o DPI) en el mismo request. Quitar médico o paciente exige no tener citas activas futuras. El cambio de rol invalida el JWT (401 → volver a entrar). Médico se crea también en `POST /api/admin/medicos`. Autorizaciones de 3.ª reprogramación: GET/aprobar/rechazar. Parámetros PUT valor (no `Citas.MaximoReprogramaciones`). `GET /api/admin/auditoria`.
 
 ## Reportes y notificaciones
 

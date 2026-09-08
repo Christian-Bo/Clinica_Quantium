@@ -6,14 +6,18 @@ public sealed record CrearMedicoRequest(
     string Nombres,
     string Apellidos,
     string? NumeroColegiado,
-    string? Telefono);
+    string? Telefono,
+    Guid? EspecialidadId = null,
+    bool EsPrimario = false);
 
 public sealed record ActualizarMedicoRequest(
     string Nombres,
     string Apellidos,
     string? NumeroColegiado,
     string? Telefono,
-    bool IsActive);
+    bool IsActive,
+    string? Email = null,
+    string? Password = null);
 
 public sealed record CrearHorarioRequest(
     byte DiaSemana,
@@ -39,7 +43,9 @@ public sealed record AdminMedicoDto(
     string NombreCompleto,
     string? NumeroColegiado,
     string? Telefono,
-    bool IsActive);
+    bool IsActive,
+    IReadOnlyList<Guid>? EspecialidadIds = null,
+    Guid? EspecialidadPrimariaId = null);
 
 public sealed record AutorizacionReprogramacionDto(
     Guid AutorizacionId,
@@ -54,11 +60,31 @@ public sealed record AutorizacionReprogramacionDto(
 
 public sealed record ActualizarParametroRequest(string Valor);
 
-public sealed record ActualizarUsuarioRequest(bool IsActive);
+public sealed record ActualizarUsuarioRequest(
+    bool IsActive,
+    string? Email = null,
+    string? Password = null);
 
 public sealed record CrearUsuarioStaffRequest(string Email, string Password, string Rol);
 
-public sealed record ActualizarRolesUsuarioRequest(IReadOnlyList<string> Roles);
+public sealed record FichaMedicoAccesoRequest(
+    string Nombres,
+    string Apellidos,
+    string? NumeroColegiado,
+    string? Telefono);
+
+public sealed record FichaPacienteAccesoRequest(
+    string Nombres,
+    string Apellidos,
+    string Documento,
+    DateOnly? FechaNacimiento,
+    string? Telefono);
+
+public sealed record ActualizarRolesUsuarioRequest(
+    IReadOnlyList<string> Roles,
+    string? TipoClinico = null,
+    FichaMedicoAccesoRequest? Medico = null,
+    FichaPacienteAccesoRequest? Paciente = null);
 
 public sealed record UsuarioAdminDto(
     Guid UsuarioId,

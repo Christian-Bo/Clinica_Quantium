@@ -36,6 +36,7 @@ public sealed class ReprogramarCitaService(
                 ?? throw new DomainException("La tercera reprogramación requiere autorización de un Administrador.");
             autorizacion = aprobada.AutorizadaPorUsuarioId;
             aprobada.MarcarUsada();
+            await autorizaciones.RegistrarCambioAsync(aprobada, cancellationToken);
         }
 
         cita.Reprogramar(nuevaFechaHoraInicio, duracion, autorizacion);

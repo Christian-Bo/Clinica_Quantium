@@ -140,6 +140,8 @@ public sealed class Paciente
         return sexo;
     }
 
+    public void CambiarActivo(bool activo) => IsActive = activo;
+
     private static string Obligatorio(string valor, string campo, int maxLength)
     {
         if (string.IsNullOrWhiteSpace(valor))

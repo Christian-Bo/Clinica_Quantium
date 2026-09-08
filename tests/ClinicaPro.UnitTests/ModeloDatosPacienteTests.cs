@@ -18,7 +18,7 @@ public sealed class ModeloDatosPacienteTests
         PasswordConfirmacion = "Clinica2026!",
         Nombres = "Ana Lucía",
         Apellidos = "López Ramírez",
-        Documento = "2547889130101",
+        Documento = "2547889120101",
         FechaNacimiento = new DateTime(1994, 3, 18),
         Sexo = "F",
         Telefono = "5512 4478"
@@ -212,14 +212,93 @@ public sealed class ModeloDatosPacienteTests
     }
 
     [Fact]
-    public void Validar_ConTelefonoConLetras_SenalaElCampo()
+    public void Telefono_ConLetras_DescartaLoQueNoSeaDigito()
     {
         var modelo = ModeloValido();
-        modelo.Telefono = "cinco cinco uno dos";
+        modelo.Telefono = "5712dasd";
+
+        // El campo no guarda letras: se filtran al escribir, así el paciente
+        // ve enseguida qué acepta el sistema en vez de enterarse al enviar.
+        Assert.Equal("5712", modelo.Telefono);
+    }
+
+    [Fact]
+    public void Validar_ConTelefonoIncompleto_SenalaElCampo()
+    {
+        var modelo = ModeloValido();
+        modelo.Telefono = "5712";
 
         var errores = modelo.Validar(incluyeCredenciales: false);
 
         Assert.True(errores.ContainsKey(nameof(modelo.Telefono)));
+    }
+
+    [Fact]
+    public void Telefono_ConGuionesYEspacios_LosDescarta()
+    {
+        var modelo = ModeloValido();
+        modelo.Telefono = "5512-4478";
+
+        Assert.Equal("55124478", modelo.Telefono);
+    }
+
+    // ── DPI ────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Documento_ConLetras_DescartaLoQueNoSeaDigito()
+    {
+        var modelo = ModeloValido();
+        modelo.Documento = "sdfsdfasasdasdas";
+
+        Assert.Equal(string.Empty, modelo.Documento);
+    }
+
+    [Fact]
+    public void Validar_SinDocumento_NoEsError()
+    {
+        // El DPI es opcional: un extranjero se registra sin él.
+        var modelo = ModeloValido();
+        modelo.Documento = "";
+
+        var errores = modelo.Validar(incluyeCredenciales: false);
+
+        Assert.Empty(errores);
+    }
+
+    [Theory]
+    [InlineData("1111111111111")]
+    [InlineData("5456465489894")]
+    [InlineData("3045291800101")]
+    public void Validar_ConDpiDeDigitoDeControlIncorrecto_SenalaElCampo(string dpi)
+    {
+        var modelo = ModeloValido();
+        modelo.Documento = dpi;
+
+        var errores = modelo.Validar(incluyeCredenciales: false);
+
+        Assert.True(errores.ContainsKey(nameof(modelo.Documento)));
+    }
+
+    [Theory]
+    [InlineData("2547889120101")]
+    [InlineData("3045291840101")]
+    [InlineData("1234567890101")]
+    public void Validar_ConDpiReal_NoSenalaElCampo(string dpi)
+    {
+        var modelo = ModeloValido();
+        modelo.Documento = dpi;
+
+        var errores = modelo.Validar(incluyeCredenciales: false);
+
+        Assert.False(errores.ContainsKey(nameof(modelo.Documento)));
+    }
+
+    [Fact]
+    public void EsCuiValido_ConCorrelativoEnCeros_EsFalso()
+    {
+        // 0 % 11 da 0, así que la fórmula sola aceptaría este número aunque no
+        // corresponda a ninguna persona.
+        Assert.False(ModeloDatosPaciente.EsCuiValido("0000000000101"));
     }
 
     [Fact]

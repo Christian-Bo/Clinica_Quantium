@@ -67,6 +67,7 @@ public interface IAutorizacionReprogramacionRepository
     Task<AutorizacionReprogramacion?> ObtenerAprobadaPorCitaAsync(Guid citaId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AutorizacionReprogramacion>> ListarAsync(string? estado, CancellationToken cancellationToken = default);
     Task AgregarAsync(AutorizacionReprogramacion autorizacion, CancellationToken cancellationToken = default);
+    Task RegistrarCambioAsync(AutorizacionReprogramacion autorizacion, CancellationToken cancellationToken = default);
 }
 
 public interface IParametroRepository

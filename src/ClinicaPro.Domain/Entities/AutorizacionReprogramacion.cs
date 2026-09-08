@@ -29,7 +29,7 @@ public sealed class AutorizacionReprogramacion
 
         return new AutorizacionReprogramacion
         {
-            Id = Guid.NewGuid(),
+            Id = citaId,
             CitaId = citaId,
             SolicitadaPorUsuarioId = solicitadaPorUsuarioId,
             Estado = AutorizacionReprogramacionEstados.Pendiente,
@@ -37,6 +37,28 @@ public sealed class AutorizacionReprogramacion
             CreatedAtUtc = DateTime.UtcNow
         };
     }
+
+    public static AutorizacionReprogramacion Reconstruir(
+        Guid citaId,
+        Guid solicitadaPorUsuarioId,
+        Guid? autorizadaPorUsuarioId,
+        string estado,
+        string motivoSolicitud,
+        string? motivoDecision,
+        DateTime createdAtUtc,
+        DateTime? decididaAtUtc)
+        => new()
+        {
+            Id = citaId,
+            CitaId = citaId,
+            SolicitadaPorUsuarioId = solicitadaPorUsuarioId,
+            AutorizadaPorUsuarioId = autorizadaPorUsuarioId,
+            Estado = estado,
+            MotivoSolicitud = motivoSolicitud,
+            MotivoDecision = motivoDecision,
+            CreatedAtUtc = createdAtUtc,
+            DecididaAtUtc = decididaAtUtc
+        };
 
     public void Aprobar(Guid administradorUsuarioId, string? motivo)
     {
