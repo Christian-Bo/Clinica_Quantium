@@ -34,6 +34,10 @@ public sealed class JwtTokenGenerator(IOptions<JwtOptions> options)
         };
 
         claims.AddRange(roles.Select(rol => new Claim(ClaimTypes.Role, rol)));
+        if (!string.IsNullOrWhiteSpace(user.SecurityStamp))
+        {
+            claims.Add(new Claim(SecurityStampAccess.ClaimType, user.SecurityStamp));
+        }
         if (mustChangePassword)
         {
             claims.Add(new Claim(MustChangePasswordAccess.ClaimType, MustChangePasswordAccess.ClaimValue));

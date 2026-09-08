@@ -134,22 +134,27 @@ public sealed class AdminApiService(ApiClient api, MedicosCacheService medicosCa
     public Task<ResultadoOperacion<UsuarioAdminDto>> ActualizarRolesAsync(
         Guid usuarioId,
         IReadOnlyList<string> roles,
+        string? tipoClinico = null,
+        FichaMedicoAccesoRequest? medico = null,
+        FichaPacienteAccesoRequest? paciente = null,
         CancellationToken ct = default)
         => api.EnviarAsync<UsuarioAdminDto>(
             HttpMethod.Put,
             $"api/admin/usuarios/{usuarioId}/roles",
-            new ActualizarRolesUsuarioRequest(roles),
+            new ActualizarRolesUsuarioRequest(roles, tipoClinico, medico, paciente),
             "No fue posible actualizar los roles.",
             ct);
 
     public Task<ResultadoOperacion<bool>> ActualizarUsuarioAsync(
         Guid usuarioId,
         bool isActive,
+        string? email = null,
+        string? password = null,
         CancellationToken ct = default)
         => api.EnviarSinContenidoAsync(
             HttpMethod.Put,
             $"api/admin/usuarios/{usuarioId}",
-            new ActualizarUsuarioRequest(isActive),
+            new ActualizarUsuarioRequest(isActive, email, password),
             "No fue posible actualizar el usuario.",
             ct);
 

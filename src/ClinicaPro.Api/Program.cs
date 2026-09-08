@@ -121,10 +121,14 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseExceptionHandler();
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 app.UseCors("Client");
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<ClinicaPro.Api.Security.SecurityStampMiddleware>();
 app.UseMiddleware<ClinicaPro.Api.Security.MustChangePasswordMiddleware>();
 
 app.MapControllers();

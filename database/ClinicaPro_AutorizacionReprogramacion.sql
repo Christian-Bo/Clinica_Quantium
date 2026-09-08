@@ -1,6 +1,9 @@
--- Incremental Somee: no re-ejecutar ClinicaPro_BD_Somee.sql completo.
--- 1) Cola de autorización para la tercera reprogramación.
--- 2) El máximo de reprogramaciones queda fijo en 3 (deja de ser parámetro editable).
+-- Opcional. El API ya no requiere esta tabla: la cola de 3.ª reprogramación
+-- se guarda en dbo.HistorialCitas (TipoCambio = Autorizacion) y en
+-- Citas.AutorizacionTerceraPorUsuarioId. No ejecutar si infraestructura
+-- no autorizó un objeto nuevo.
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
 
 IF OBJECT_ID(N'dbo.AutorizacionesReprogramacion', N'U') IS NULL
 BEGIN

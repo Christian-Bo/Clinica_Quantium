@@ -41,6 +41,7 @@ public static class DependencyInjection
         services.AddScoped<ListarNotificacionesPacienteService>();
         services.AddScoped<ListarNotificacionesStaffService>();
         services.AddScoped<ActualizarPerfilPacienteService>();
+        services.AddScoped<DarDeBajaPacientePorInasistenciaService>();
         
         services.AddScoped<AdministrarHorariosService>();
         services.AddScoped<AdministrarParametrosService>();

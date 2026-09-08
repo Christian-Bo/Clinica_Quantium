@@ -84,6 +84,8 @@ public sealed class AdminController(
             request.Telefono,
             request.IsActive,
             usuarioId.Value,
+            request.Email,
+            request.Password,
             cancellationToken);
         return Ok(MapMedico(medico));
     }
@@ -175,7 +177,13 @@ public sealed class AdminController(
             return Unauthorized();
         }
 
-        await staff.CambiarActivoUsuarioAsync(usuarioId, request.IsActive, actorId.Value, cancellationToken);
+        await staff.ActualizarIdentidadUsuarioAsync(
+            usuarioId,
+            request.IsActive,
+            request.Email,
+            request.Password,
+            actorId.Value,
+            cancellationToken);
         return Ok();
     }
 
@@ -219,6 +227,22 @@ public sealed class AdminController(
             usuarioId,
             request.Roles ?? [],
             actorId.Value,
+            request.TipoClinico,
+            request.Medico is null
+                ? null
+                : new FichaMedicoAccesoInput(
+                    request.Medico.Nombres,
+                    request.Medico.Apellidos,
+                    request.Medico.NumeroColegiado,
+                    request.Medico.Telefono),
+            request.Paciente is null
+                ? null
+                : new FichaPacienteAccesoInput(
+                    request.Paciente.Nombres,
+                    request.Paciente.Apellidos,
+                    request.Paciente.Documento,
+                    request.Paciente.FechaNacimiento,
+                    request.Paciente.Telefono),
             cancellationToken);
 
         return Ok(new UsuarioAdminDto(actualizado.UsuarioId, actualizado.Email, actualizado.IsActive, actualizado.Roles));

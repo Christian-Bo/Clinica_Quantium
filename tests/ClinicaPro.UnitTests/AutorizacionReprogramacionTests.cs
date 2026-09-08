@@ -31,6 +31,19 @@ public sealed class AutorizacionReprogramacionTests
     }
 
     [Fact]
+    public void Solicitar_UsaElIdDeLaCita()
+    {
+        var citaId = Guid.NewGuid();
+        var autorizacion = AutorizacionReprogramacion.Solicitar(
+            citaId,
+            Guid.NewGuid(),
+            "Tercera reprogramación del paciente");
+
+        Assert.Equal(citaId, autorizacion.Id);
+        Assert.Equal(citaId, autorizacion.CitaId);
+    }
+
+    [Fact]
     public void Rechazar_YaAprobada_LanzaExcepcion()
     {
         var autorizacion = AutorizacionReprogramacion.Solicitar(

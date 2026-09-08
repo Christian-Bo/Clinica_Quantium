@@ -68,7 +68,6 @@
                     <tbody class="divide-y divide-border">
                         @foreach (var usuario in Filtrados)
                         {
-                            var esStaffEditable = EsStaffEditable(usuario);
                             <tr class="hover:bg-surface-muted/60">
                                 <td class="px-5 py-3"><p class="font-medium text-ink">@usuario.Email</p><p class="mt-0.5 text-xs text-ink-muted">ID: @Corto(usuario.UsuarioId)</p></td>
                                 <td class="px-5 py-3">
@@ -82,10 +81,8 @@
                                 <td class="px-5 py-3"><span class="inline-flex rounded-pill px-2.5 py-1 text-xs font-medium @(usuario.IsActive ? "bg-brand-100 text-brand-700" : "bg-state-rechazada/10 text-state-rechazada")">@(usuario.IsActive ? "Activo" : "Inactivo")</span></td>
                                 <td class="px-5 py-3">
                                     <div class="flex justify-end gap-1">
-                                        @if (esStaffEditable)
-                                        {
-                                            <Button Variant="ButtonVariant.Ghost" Size="sm" IconName="key" Disabled="@procesando" OnClick="() => EditarRoles(usuario)">Roles</Button>
-                                        }
+                                        <Button Variant="ButtonVariant.Ghost" Size="sm" IconName="edit" Disabled="@procesando" OnClick="() => EditarIdentidad(usuario)">Editar</Button>
+                                        <Button Variant="ButtonVariant.Ghost" Size="sm" IconName="key" Disabled="@procesando" OnClick="() => EditarRoles(usuario)">Roles</Button>
                                         <Button Variant="ButtonVariant.Ghost" Size="sm" IconName="@(usuario.IsActive ? "lock" : "unlock")"
                                                 Loading="@(procesando && usuarioProcesando == usuario.UsuarioId)"
                                                 Disabled="@(procesando || NoPuedeDesactivar(usuario))"
@@ -101,7 +98,7 @@
     </Card>
 </div>
 
-<UsuarioAdminModal IsOpen="modalAbierto" IsOpenChanged="@(v => modalAbierto = v)" Usuario="usuarioEdicion" OnGuardado="CargarAsync" />
+<UsuarioAdminModal IsOpen="modalAbierto" IsOpenChanged="@(v => modalAbierto = v)" Usuario="usuarioEdicion" Modo="@modoModal" OnGuardado="CargarAsync" />
 
 @code {
     private bool cargando = true;
@@ -111,6 +108,7 @@
     private string estadoFiltro = string.Empty;
     private IReadOnlyList<UsuarioAdminDto> usuarios = [];
     private bool modalAbierto;
+    private string modoModal = "roles";
     private UsuarioAdminDto? usuarioEdicion;
     private bool procesando;
     private Guid? usuarioProcesando;
@@ -138,8 +136,9 @@
         finally { cargando = false; }
     }
 
-    private void NuevoUsuario() { usuarioEdicion = null; modalAbierto = true; }
-    private void EditarRoles(UsuarioAdminDto usuario) { usuarioEdicion = usuario; modalAbierto = true; }
+    private void NuevoUsuario() { usuarioEdicion = null; modoModal = "roles"; modalAbierto = true; }
+    private void EditarRoles(UsuarioAdminDto usuario) { usuarioEdicion = usuario; modoModal = "roles"; modalAbierto = true; }
+    private void EditarIdentidad(UsuarioAdminDto usuario) { usuarioEdicion = usuario; modoModal = "identidad"; modalAbierto = true; }
 
     private async Task CambiarEstadoAsync(UsuarioAdminDto usuario)
     {
@@ -169,10 +168,6 @@
             usuarioProcesando = null;
         }
     }
-
-    private static bool EsStaffEditable(UsuarioAdminDto usuario) =>
-        usuario.Roles.Any(r => r == Roles.Administrador || r == Roles.Secretaria)
-        && !usuario.Roles.Any(r => r == Roles.Medico || r == Roles.Paciente);
 
     private static bool NoPuedeDesactivar(UsuarioAdminDto usuario) =>
         usuario.IsActive && usuario.Roles.Contains(Roles.Administrador);

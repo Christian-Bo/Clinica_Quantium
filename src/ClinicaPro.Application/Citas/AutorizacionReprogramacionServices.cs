@@ -102,7 +102,8 @@ public sealed class ResolverAutorizacionReprogramacionService(
                 adminId,
                 aprobar
                     ? $"Administrador aprobó la tercera reprogramación. {autorizacion.MotivoDecision}"
-                    : $"Administrador rechazó la tercera reprogramación. {autorizacion.MotivoDecision}"),
+                    : $"Administrador rechazó la tercera reprogramación. {autorizacion.MotivoDecision}",
+                autorizacion.Estado),
             cancellationToken);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
