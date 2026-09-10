@@ -1,0 +1,47 @@
+@implements IDisposable
+@inject CitasApiService CitasApi
+@inject NavigationManager Navigation
+
+<AutoRefresh Enabled="true" IntervalSeconds="30" OnRefresh="ActualizarSilenciosoAsync" />
+
+<button type="button"
+        class="relative rounded-control p-2 text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink"
+        title="@Titulo"
+        aria-label="Abrir solicitudes pendientes"
+        @onclick="IrPendientes">
+    <Icon Name="bell" Size="20" />
+    @if (cantidad > 0)
+    {
+        <span style="right:-0.25rem;top:-0.25rem" class="absolute inline-flex h-5 w-5 items-center justify-center rounded-full bg-state-solicitada text-xs font-semibold leading-tight text-white">
+            @(cantidad > 9 ? "9+" : cantidad.ToString())
+        </span>
+    }
+</button>
+
+@code {
+    private int cantidad;
+    private string Titulo => cantidad == 1 ? "1 solicitud pendiente" : $"{cantidad} solicitudes pendientes";
+    private bool disposed;
+
+    protected override async Task OnInitializedAsync()
+        => await ActualizarSilenciosoAsync();
+
+    private async Task ActualizarSilenciosoAsync()
+    {
+        if (disposed) return;
+
+        try
+        {
+            cantidad = (await CitasApi.ListarPendientesAsync()).Count;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            // Indicador no crítico: conserva el último valor válido y reintenta en segundo plano.
+        }
+    }
+
+    private void IrPendientes() => Navigation.NavigateTo("/citas?tab=pendientes");
+
+    public void Dispose() => disposed = true;
+}

@@ -7,7 +7,7 @@
 
 <PageTitle>Cambiar contraseña · Clínica Pro</PageTitle>
 
-<div class="flex min-h-screen items-center justify-center bg-surface-muted px-4 ">
+<div class="flex min-h-screen items-center justify-center bg-surface-muted px-4">
     <div class="w-full max-w-md rounded-card border border-border bg-surface p-8 shadow-card">
         <div class="mb-6">
             <div class="mb-3 flex h-11 w-11 items-center justify-center rounded-control bg-brand-100 text-brand-700">
@@ -23,22 +23,18 @@
 
         <EditForm Model="modelo" OnValidSubmit="GuardarAsync">
             <div class="space-y-4">
-                <div>
-                    <label class="text-sm font-medium text-ink" for="pwd-actual">Contraseña actual</label>
-                    <input id="pwd-actual" type="password" required autocomplete="current-password" class="@ClaseInput"
-                           @bind="modelo.Actual" @bind:event="oninput" />
-                </div>
-                <div>
-                    <label class="text-sm font-medium text-ink" for="pwd-nueva">Nueva contraseña</label>
-                    <input id="pwd-nueva" type="password" required autocomplete="new-password" class="@ClaseInput"
-                           @bind="modelo.Nueva" @bind:event="oninput" />
-                    <p class="mt-1 text-xs text-ink-muted">Mínimo 8 caracteres, con mayúscula, minúscula, número y símbolo.</p>
-                </div>
-                <div>
-                    <label class="text-sm font-medium text-ink" for="pwd-confirmar">Confirmar nueva contraseña</label>
-                    <input id="pwd-confirmar" type="password" required autocomplete="new-password" class="@ClaseInput"
-                           @bind="modelo.Confirmacion" @bind:event="oninput" />
-                </div>
+                <PasswordField Id="pwd-actual" Label="Contraseña actual" Value="@modelo.Actual" ValueChanged="v => modelo.Actual = v"
+                               ValidatePolicy="false" Placeholder="Ingresa tu contraseña actual" Autocomplete="current-password"
+                               ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
+
+                <PasswordField Id="pwd-nueva" Label="Nueva contraseña" Value="@modelo.Nueva" ValueChanged="v => modelo.Nueva = v"
+                               Placeholder="Ej. Nueva@2026" Autocomplete="new-password" ShowRules="true"
+                               ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
+
+                <PasswordField Id="pwd-confirmar" Label="Confirmar nueva contraseña" Value="@modelo.Confirmacion" ValueChanged="v => modelo.Confirmacion = v"
+                               ValidatePolicy="false" ValidateMatch="true" MatchValue="@modelo.Nueva"
+                               Placeholder="Repite la contraseña nueva" Autocomplete="new-password"
+                               ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
 
                 @if (!string.IsNullOrWhiteSpace(error))
                 {
@@ -60,11 +56,12 @@
 </div>
 
 @code {
-    private const string ClaseInput = "mt-1 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100";
     private readonly ModeloCambio modelo = new();
     private bool cambioObligatorio;
     private bool guardando;
     private string? error;
+    private bool mostrarValidaciones;
+    private int cicloValidacion = 1;
 
     protected override async Task OnInitializedAsync()
     {
@@ -74,27 +71,18 @@
             Navigation.NavigateTo("/login", replace: true);
             return;
         }
-
         var actual = await AuthApi.ObtenerUsuarioActualSeguroAsync();
-        cambioObligatorio = actual.Exito && actual.Valor is not null
-            ? actual.Valor.MustChangePassword
-            : sesion.MustChangePassword;
+        cambioObligatorio = actual.Exito && actual.Valor is not null ? actual.Valor.MustChangePassword : sesion.MustChangePassword;
     }
 
     private async Task GuardarAsync()
     {
+        if (guardando) return;
         error = null;
-        if (!PasswordValida(modelo.Nueva))
-        {
-            error = "La nueva contraseña debe tener mínimo 8 caracteres e incluir mayúscula, minúscula, número y símbolo.";
-            return;
-        }
+        mostrarValidaciones = true;
 
-        if (!string.Equals(modelo.Nueva, modelo.Confirmacion, StringComparison.Ordinal))
-        {
-            error = "La confirmación no coincide con la nueva contraseña.";
-            return;
-        }
+        if (string.IsNullOrWhiteSpace(modelo.Actual) || !FormValidation.IsPasswordValid(modelo.Nueva)
+            || !string.Equals(modelo.Nueva, modelo.Confirmacion, StringComparison.Ordinal)) return;
 
         if (string.Equals(modelo.Actual, modelo.Nueva, StringComparison.Ordinal))
         {
@@ -103,16 +91,17 @@
         }
 
         guardando = true;
-        var resultado = await AuthApi.CambiarContrasenaAsync(modelo.Actual, modelo.Nueva);
-        guardando = false;
-
-        if (!resultado.Exito || resultado.Valor is null)
+        try
         {
-            error = resultado.Error ?? "No fue posible cambiar la contraseña.";
-            return;
+            var resultado = await AuthApi.CambiarContrasenaAsync(modelo.Actual, modelo.Nueva);
+            if (!resultado.Exito || resultado.Valor is null)
+            {
+                error = resultado.Error ?? "No fue posible cambiar la contraseña.";
+                return;
+            }
+            Navigation.NavigateTo(RoleRoutes.Inicio(resultado.Valor.Roles), replace: true);
         }
-
-        Navigation.NavigateTo(RoleRoutes.Inicio(resultado.Valor.Roles), replace: true);
+        finally { guardando = false; }
     }
 
     private void Volver()
@@ -120,14 +109,6 @@
         var sesion = TokenStorage.Actual;
         Navigation.NavigateTo(sesion is null ? "/login" : RoleRoutes.Inicio(sesion.Roles));
     }
-
-    private static bool PasswordValida(string valor) =>
-        !string.IsNullOrWhiteSpace(valor)
-        && valor.Length >= 8
-        && valor.Any(char.IsUpper)
-        && valor.Any(char.IsLower)
-        && valor.Any(char.IsDigit)
-        && valor.Any(c => !char.IsLetterOrDigit(c));
 
     private sealed class ModeloCambio
     {

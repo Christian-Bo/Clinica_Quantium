@@ -22,16 +22,33 @@ public sealed class BearerTokenHandler(
         "/api/auth/reset-password"
     ];
 
+    private int cierreEnCurso;
+
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
         var esPublica = EsRutaPublicaDeAuth(request);
-        var sesion = await tokenStorage.ObtenerAsync();
+        AuthResponse? sesion = null;
+        var envioBearer = false;
 
-        if (!esPublica && sesion is not null)
+        if (!esPublica)
         {
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", sesion.AccessToken);
+            // Primero usamos la sesión compartida en memoria. Si este handler fue
+            // construido antes del login, hacemos una lectura fresca del navegador.
+            sesion = tokenStorage.Actual ?? await tokenStorage.ObtenerFrescoAsync();
+
+            if (sesion is not null && !string.IsNullOrWhiteSpace(sesion.AccessToken))
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue(
+                    "Bearer",
+                    sesion.AccessToken);
+                envioBearer = true;
+            }
+            else
+            {
+                request.Headers.Authorization = null;
+            }
         }
         else
         {
@@ -40,11 +57,13 @@ public sealed class BearerTokenHandler(
 
         var respuesta = await base.SendAsync(request, cancellationToken);
 
+        // Solo tratamos un 401 como sesión vencida si REALMENTE enviamos un JWT.
+        // Un 401 sin Bearer no debe destruir una sesión recién creada por otro flujo.
         if (respuesta.StatusCode == HttpStatusCode.Unauthorized
-            && sesion is not null
+            && envioBearer
             && !esPublica)
         {
-            await CerrarSesionVencidaAsync();
+            await CerrarSesionVencidaUnaVezAsync();
         }
 
         return respuesta;
@@ -57,10 +76,22 @@ public sealed class BearerTokenHandler(
             publica => ruta.EndsWith(publica, StringComparison.OrdinalIgnoreCase));
     }
 
-    private async Task CerrarSesionVencidaAsync()
+    private async Task CerrarSesionVencidaUnaVezAsync()
     {
-        await tokenStorage.LimpiarAsync();
-        authStateProvider.NotificarSesionCerrada();
-        navigation.NavigateTo("/login?sesion=vencida", forceLoad: false, replace: true);
+        if (Interlocked.Exchange(ref cierreEnCurso, 1) == 1)
+        {
+            return;
+        }
+
+        try
+        {
+            await tokenStorage.LimpiarAsync();
+            authStateProvider.NotificarSesionCerrada();
+            navigation.NavigateTo("/login?sesion=vencida", forceLoad: false, replace: true);
+        }
+        finally
+        {
+            Interlocked.Exchange(ref cierreEnCurso, 0);
+        }
     }
 }

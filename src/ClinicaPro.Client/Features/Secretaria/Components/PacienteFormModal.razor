@@ -1,6 +1,6 @@
 @inject PacientesApiService PacientesApi
 
-<Modal IsOpen="IsOpen" IsOpenChanged="IsOpenChanged" Title="@TituloModal" IconName="user-plus" MaxWidthClass="max-w-lg" CloseOnBackdrop="false">
+<Modal IsOpen="IsOpen" IsOpenChanged="IsOpenChanged" Title="@TituloModal" IconName="user-plus" MaxWidthClass="max-w-2xl" CloseOnBackdrop="false">
     <Body>
         <EditForm EditContext="editContext" OnValidSubmit="GuardarAsync">
             <DataAnnotationsValidator />
@@ -8,40 +8,43 @@
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 @if (!EsEdicion)
                 {
-                    <div class="sm:col-span-2">
-                        <label class="text-sm font-medium text-ink" for="pf-email">Correo electrónico *</label>
-                        <InputText id="pf-email" class="@ClaseInput" placeholder="Ej. paciente@correo.com" @bind-Value="modelo.Email" />
-                        <ValidationMessage For="() => modelo.Email" />
-                        @if (!string.IsNullOrEmpty(errorEmail))
-                        {
-                            <p class="mt-1 text-xs text-state-rechazada">@errorEmail</p>
-                        }
-                        <p class="mt-1 text-xs text-ink-muted">Debe ser único. Se usará como usuario de acceso del paciente al portal.</p>
-                    </div>
+                    <ValidatedTextInput Id="pf-email" Label="Correo electrónico" Required="true"
+                                        Kind="FormFieldKind.Email" Value="@modelo.Email" ValueChanged="v => modelo.Email = v"
+                                        Placeholder="Ej. maria.lopez@gmail.com" Autocomplete="email" MaxLength="254"
+                                        HelperText="Se usará como usuario de acceso del paciente y debe ser único."
+                                        ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" CssClass="sm:col-span-2" />
                 }
-                <div>
-                    <label class="text-sm font-medium text-ink" for="pf-nombres">Nombres *</label>
-                    <InputText id="pf-nombres" class="@ClaseInput" placeholder="Ej. María José" @bind-Value="modelo.Nombres" />
-                    <ValidationMessage For="() => modelo.Nombres" />
-                </div>
-                <div>
-                    <label class="text-sm font-medium text-ink" for="pf-apellidos">Apellidos *</label>
-                    <InputText id="pf-apellidos" class="@ClaseInput" placeholder="Ej. López García" @bind-Value="modelo.Apellidos" />
-                    <ValidationMessage For="() => modelo.Apellidos" />
-                </div>
-                <div>
-                    <label class="text-sm font-medium text-ink" for="pf-documento">Documento</label>
-                    <InputText id="pf-documento" class="@ClaseInput" placeholder="Ej. 1234567890101" @bind-Value="modelo.Documento" />
-                    <ValidationMessage For="() => modelo.Documento" />
-                    @if (!string.IsNullOrEmpty(errorDocumento))
-                    {
-                        <p class="mt-1 text-xs text-state-rechazada">@errorDocumento</p>
-                    }
-                </div>
+
+                <ValidatedTextInput Id="pf-nombres" Label="Nombres" Required="true"
+                                    Kind="FormFieldKind.Name" Value="@modelo.Nombres" ValueChanged="v => modelo.Nombres = v"
+                                    Placeholder="Ej. María José" Autocomplete="given-name" MaxLength="100"
+                                    ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
+
+                <ValidatedTextInput Id="pf-apellidos" Label="Apellidos" Required="true"
+                                    Kind="FormFieldKind.Name" Value="@modelo.Apellidos" ValueChanged="v => modelo.Apellidos = v"
+                                    Placeholder="Ej. López García" Autocomplete="family-name" MaxLength="100"
+                                    ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
+
+                <ValidatedTextInput Id="pf-documento" Label="DPI / CUI"
+                                    Kind="FormFieldKind.Dpi" Value="@modelo.Documento" ValueChanged="v => modelo.Documento = v"
+                                    Placeholder="Ej. 1234567890101" Autocomplete="off"
+                                    HelperText="Si lo registras, debe contener exactamente 13 dígitos."
+                                    ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
+
                 <div>
                     <label class="text-sm font-medium text-ink" for="pf-nacimiento">Fecha de nacimiento</label>
-                    <InputDate id="pf-nacimiento" class="@ClaseInput" @bind-Value="modelo.FechaNacimiento" />
+                    <input id="pf-nacimiento" type="date" max="@HoyTexto" value="@FechaNacimientoTexto" @onchange="CambiarNacimiento"
+                           class="@ClaseFechaNacimiento" />
+                    @if (nacimientoTocado && ErrorNacimiento is not null)
+                    {
+                        <p role="alert" class="mt-1 text-xs text-state-rechazada">@ErrorNacimiento</p>
+                    }
+                    else
+                    {
+                        <p class="mt-1 text-xs text-ink-muted">No se permiten fechas futuras.</p>
+                    }
                 </div>
+
                 <div>
                     <label class="text-sm font-medium text-ink" for="pf-sexo">Sexo</label>
                     <InputSelect id="pf-sexo" class="@ClaseInput" @bind-Value="modelo.Sexo">
@@ -50,62 +53,69 @@
                         <option value="M">Masculino</option>
                         <option value="X">Otro / no especificado</option>
                     </InputSelect>
-                </div>
-                <div>
-                    <label class="text-sm font-medium text-ink" for="pf-telefono">Teléfono</label>
-                    <InputText id="pf-telefono" class="@ClaseInput" placeholder="Ej. 5512-3456" @bind-Value="modelo.Telefono" />
-                    <ValidationMessage For="() => modelo.Telefono" />
-                </div>
-                <div class="sm:col-span-2">
-                    <label class="text-sm font-medium text-ink" for="pf-direccion">Dirección</label>
-                    <InputText id="pf-direccion" class="@ClaseInput" placeholder="Ej. Zona 1, Ciudad de Guatemala" @bind-Value="modelo.Direccion" />
-                    <ValidationMessage For="() => modelo.Direccion" />
+                    <p class="mt-1 text-xs text-ink-muted">Selecciona la opción registrada por el paciente.</p>
                 </div>
 
-                <div class="sm:col-span-2">
-                    <label class="text-sm font-medium text-ink" for="pf-alergias">Alergias conocidas</label>
-                    <InputTextArea id="pf-alergias" rows="2" class="@ClaseInput" placeholder="Ej. penicilina, ninguna conocida..." @bind-Value="modelo.Alergias" />
-                    <ValidationMessage For="() => modelo.Alergias" />
-                </div>
+                <ValidatedTextInput Id="pf-telefono" Label="Teléfono"
+                                    Kind="FormFieldKind.GuatemalaPhone" Value="@modelo.Telefono" ValueChanged="v => modelo.Telefono = v"
+                                    Placeholder="55123456" Autocomplete="tel-national"
+                                    HelperText="Ingresa 8 dígitos. El prefijo +502 se agrega automáticamente."
+                                    ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
 
-                <div>
-                    <label class="text-sm font-medium text-ink" for="pf-contacto-nombre">Contacto de emergencia</label>
-                    <InputText id="pf-contacto-nombre" class="@ClaseInput" placeholder="Ej. Juan Pérez (padre)" @bind-Value="modelo.ContactoEmergenciaNombre" />
-                    <ValidationMessage For="() => modelo.ContactoEmergenciaNombre" />
-                </div>
-                <div>
-                    <label class="text-sm font-medium text-ink" for="pf-contacto-telefono">Teléfono de emergencia</label>
-                    <InputText id="pf-contacto-telefono" class="@ClaseInput" placeholder="Ej. 5500-1122" @bind-Value="modelo.ContactoEmergenciaTelefono" />
-                    <ValidationMessage For="() => modelo.ContactoEmergenciaTelefono" />
-                </div>
+                <ValidatedTextInput Id="pf-direccion" Label="Dirección"
+                                    Kind="FormFieldKind.Text" Value="@modelo.Direccion" ValueChanged="v => modelo.Direccion = v"
+                                    Placeholder="Ej. 6a avenida 10-25, zona 1, Guatemala" Autocomplete="street-address" MaxLength="250"
+                                    HelperText="Incluye zona, municipio o referencias si ayudan a identificar la dirección."
+                                    ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
+
+                <ValidatedTextArea Id="pf-alergias" Label="Alergias conocidas"
+                                   Value="@modelo.Alergias" ValueChanged="v => modelo.Alergias = v"
+                                   Placeholder="Ej. Penicilina. Si no conoce alergias, puede dejarlo vacío."
+                                   MaxLength="500" Rows="2" ShowCounter="true"
+                                   ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" CssClass="sm:col-span-2" />
+
+                <ValidatedTextInput Id="pf-contacto-nombre" Label="Contacto de emergencia"
+                                    Kind="FormFieldKind.Text" Value="@modelo.ContactoEmergenciaNombre" ValueChanged="v => modelo.ContactoEmergenciaNombre = v"
+                                    Placeholder="Ej. Juan Pérez (padre)" Autocomplete="off" MaxLength="150"
+                                    ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
+
+                <ValidatedTextInput Id="pf-contacto-telefono" Label="Teléfono de emergencia"
+                                    Kind="FormFieldKind.GuatemalaPhone" Value="@modelo.ContactoEmergenciaTelefono" ValueChanged="v => modelo.ContactoEmergenciaTelefono = v"
+                                    Placeholder="55001122" Autocomplete="tel-national"
+                                    HelperText="Ingresa 8 dígitos; +502 se agrega automáticamente."
+                                    ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
 
                 @if (!EsEdicion)
                 {
-                    <div class="sm:col-span-2">
-                        <label class="text-sm font-medium text-ink" for="pf-password">Contraseña temporal *</label>
-                        <InputText id="pf-password" type="password" class="@ClaseInputPassword" placeholder="Mínimo 8 caracteres" @bind-Value="modelo.Password" />
-                        @if (!string.IsNullOrEmpty(errorPassword))
-                        {
-                            <p class="mt-1 text-xs text-state-rechazada">@errorPassword</p>
-                        }
-                        <p class="mt-1 text-xs text-ink-muted">Mínimo 8 caracteres e incluye mayúscula, minúscula, número y símbolo. El paciente deberá cambiarla al ingresar.</p>
-                    </div>
+                    <PasswordField Id="pf-password" Label="Contraseña temporal" Required="true"
+                                   Value="@modelo.Password" ValueChanged="v => modelo.Password = v"
+                                   Placeholder="Ej. Clinica@2026" Autocomplete="new-password" ShowRules="true"
+                                   ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" CssClass="sm:col-span-2" />
                 }
             </div>
 
+            @if (!string.IsNullOrEmpty(errorEmail))
+            {
+                <p class="mt-3 rounded-control bg-state-rechazada/10 px-3 py-2 text-sm text-state-rechazada">@errorEmail</p>
+            }
+            @if (!string.IsNullOrEmpty(errorDocumento))
+            {
+                <p class="mt-3 rounded-control bg-state-rechazada/10 px-3 py-2 text-sm text-state-rechazada">@errorDocumento</p>
+            }
+            @if (!string.IsNullOrEmpty(errorPassword))
+            {
+                <p class="mt-3 rounded-control bg-state-rechazada/10 px-3 py-2 text-sm text-state-rechazada">@errorPassword</p>
+            }
             @if (!string.IsNullOrEmpty(errorGeneral))
             {
-                <p class="mt-4 rounded-control bg-state-rechazada/10 px-3 py-2 text-sm text-state-rechazada">@errorGeneral</p>
+                <p class="mt-3 rounded-control bg-state-rechazada/10 px-3 py-2 text-sm text-state-rechazada">@errorGeneral</p>
             }
 
-            <div class="hidden">
-                <!-- El botón real vive en Footer; este submit oculto permite Enter para enviar el formulario. -->
-                <button type="submit"></button>
-            </div>
+            <div class="hidden"><button type="submit"></button></div>
         </EditForm>
     </Body>
     <Footer>
-        <Button Variant="ButtonVariant.Secondary" OnClick="Cerrar">Cancelar</Button>
+        <Button Variant="ButtonVariant.Secondary" Disabled="guardando" OnClick="Cerrar">Cancelar</Button>
         <Button Variant="ButtonVariant.Primary" Loading="guardando" OnClick="SolicitarEnvio">
             @(EsEdicion ? "Guardar cambios" : "Guardar paciente")
         </Button>
@@ -118,11 +128,7 @@
     [Parameter] public PacienteDto? Paciente { get; set; }
     [Parameter] public EventCallback<PacienteDto> OnGuardado { get; set; }
 
-    private const string ClaseInputBase =
-        "mt-1 w-full rounded-control border px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-100";
-    private const string ClaseInput = ClaseInputBase + " border-border focus:border-brand-500";
-    private const string ClaseInputPassword = ClaseInputBase + " border-border focus:border-brand-500";
-
+    private const string ClaseInput = "mt-1 w-full rounded-control border border-border bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100";
     private ModeloPaciente modelo = new();
     private EditContext editContext = new(new ModeloPaciente());
     private string? errorGeneral;
@@ -132,67 +138,70 @@
     private bool guardando;
     private bool isOpenAnterior;
     private Guid? pacienteIdAnterior;
+    private bool mostrarValidaciones;
+    private int cicloValidacion;
+    private bool nacimientoTocado;
 
     private bool EsEdicion => Paciente is not null;
     private string TituloModal => EsEdicion ? "Editar paciente" : "Nuevo paciente";
+    private static string HoyTexto => DateTime.Today.ToString("yyyy-MM-dd");
+    private string FechaNacimientoTexto => modelo.FechaNacimiento?.ToString("yyyy-MM-dd") ?? string.Empty;
+    private string? ErrorNacimiento => modelo.FechaNacimiento is not null && modelo.FechaNacimiento.Value.Date > DateTime.Today
+        ? "La fecha de nacimiento no puede estar en el futuro."
+        : null;
+    private string ClaseFechaNacimiento => nacimientoTocado && ErrorNacimiento is not null
+        ? "mt-1 w-full rounded-control border border-state-rechazada bg-state-rechazada/5 px-3 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-state-rechazada/10"
+        : nacimientoTocado && modelo.FechaNacimiento is not null
+            ? "mt-1 w-full rounded-control border border-state-atendida bg-surface px-3 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-100"
+            : ClaseInput;
 
     protected override void OnParametersSet()
     {
         var cambioDePaciente = Paciente?.PacienteId != pacienteIdAnterior;
-
         if (IsOpen && (!isOpenAnterior || cambioDePaciente))
         {
             modelo = Paciente is null ? new ModeloPaciente() : ModeloPaciente.DesdeExistente(Paciente);
             modelo.EsEdicion = EsEdicion;
             editContext = new EditContext(modelo);
-            errorGeneral = null;
-            errorEmail = null;
-            errorDocumento = null;
-            errorPassword = null;
+            errorGeneral = errorEmail = errorDocumento = errorPassword = null;
             pacienteIdAnterior = Paciente?.PacienteId;
+            mostrarValidaciones = false;
+            nacimientoTocado = false;
+            cicloValidacion++;
         }
-
         isOpenAnterior = IsOpen;
     }
 
-    /// <summary>El botón visible del Footer vive fuera del &lt;form&gt; real (por el layout de Modal),
-    /// así que dispara la validación manualmente contra el mismo EditContext que usan los
-    /// ValidationMessage, en vez de depender de un submit nativo.</summary>
+    private void CambiarNacimiento(ChangeEventArgs e)
+    {
+        nacimientoTocado = true;
+        var valor = e.Value?.ToString();
+        modelo.FechaNacimiento = DateTime.TryParse(valor, out var fecha) ? fecha : null;
+    }
+
     private void SolicitarEnvio()
     {
-        if (editContext.Validate())
-        {
-            _ = GuardarAsync();
-        }
+        mostrarValidaciones = true;
+        if (ValidacionLocal() && editContext.Validate()) _ = GuardarAsync();
+    }
+
+    private bool ValidacionLocal()
+    {
+        if (FormValidation.Validate(FormFieldKind.Name, modelo.Nombres, true, 100, "Nombres") is not null) return false;
+        if (FormValidation.Validate(FormFieldKind.Name, modelo.Apellidos, true, 100, "Apellidos") is not null) return false;
+        if (!EsEdicion && FormValidation.Validate(FormFieldKind.Email, modelo.Email, true, 254, "Correo electrónico") is not null) return false;
+        if (!string.IsNullOrWhiteSpace(modelo.Documento) && FormValidation.Validate(FormFieldKind.Dpi, modelo.Documento, false) is not null) return false;
+        if (!string.IsNullOrWhiteSpace(modelo.Telefono) && FormValidation.Validate(FormFieldKind.GuatemalaPhone, modelo.Telefono, false) is not null) return false;
+        if (!string.IsNullOrWhiteSpace(modelo.ContactoEmergenciaTelefono) && FormValidation.Validate(FormFieldKind.GuatemalaPhone, modelo.ContactoEmergenciaTelefono, false) is not null) return false;
+        if (ErrorNacimiento is not null) { nacimientoTocado = true; return false; }
+        if (!EsEdicion && !FormValidation.IsPasswordValid(modelo.Password)) return false;
+        return true;
     }
 
     private async Task GuardarAsync()
     {
-        if (guardando)
-        {
-            return;
-        }
-
-        errorGeneral = null;
-        errorEmail = null;
-        errorDocumento = null;
-        errorPassword = null;
-
-        if (!EsEdicion)
-        {
-            if (string.IsNullOrWhiteSpace(modelo.Email))
-            {
-                errorEmail = "El correo es obligatorio.";
-                return;
-            }
-
-            if (!PasswordValida(modelo.Password, out var mensajePassword))
-            {
-                errorPassword = mensajePassword;
-                return;
-            }
-        }
-
+        if (guardando) return;
+        errorGeneral = errorEmail = errorDocumento = errorPassword = null;
         guardando = true;
         try
         {
@@ -206,157 +215,89 @@
                 await Cerrar();
                 return;
             }
-
             MostrarErrorServidor(resultado.Error ?? "No fue posible guardar al paciente.");
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
-            errorGeneral = "No se pudo contactar a la API. Verifica que el servidor esté iniciado e inténtalo nuevamente.";
+            errorGeneral = ex.Message.Contains("CP-FE-", StringComparison.OrdinalIgnoreCase)
+                ? ex.Message
+                : FrontendErrorCatalog.WithCode("No se pudo contactar a la API. Intenta nuevamente.", FrontendErrorCatalog.Connection);
         }
         catch (TaskCanceledException)
         {
-            errorGeneral = "La operación tardó demasiado. Inténtalo nuevamente.";
+            errorGeneral = FrontendErrorCatalog.WithCode("La operación tardó demasiado. Intenta nuevamente.", FrontendErrorCatalog.Timeout);
         }
-        finally
-        {
-            guardando = false;
-        }
-    }
-
-    private static bool PasswordValida(string? password, out string mensaje)
-    {
-        if (string.IsNullOrWhiteSpace(password) || password.Length < 8)
-        {
-            mensaje = "La contraseña debe tener al menos 8 caracteres.";
-            return false;
-        }
-
-        if (!password.Any(char.IsUpper))
-        {
-            mensaje = "La contraseña debe incluir al menos una letra mayúscula.";
-            return false;
-        }
-
-        if (!password.Any(char.IsLower))
-        {
-            mensaje = "La contraseña debe incluir al menos una letra minúscula.";
-            return false;
-        }
-
-        if (!password.Any(char.IsDigit))
-        {
-            mensaje = "La contraseña debe incluir al menos un número.";
-            return false;
-        }
-
-        if (!password.Any(c => !char.IsLetterOrDigit(c)))
-        {
-            mensaje = "La contraseña debe incluir al menos un símbolo, por ejemplo !, @ o #.";
-            return false;
-        }
-
-        mensaje = string.Empty;
-        return true;
+        finally { guardando = false; }
     }
 
     private void MostrarErrorServidor(string mensaje)
     {
-        if (mensaje.Contains("correo", StringComparison.OrdinalIgnoreCase)
-            && mensaje.Contains("registr", StringComparison.OrdinalIgnoreCase))
+        if (mensaje.Contains("correo", StringComparison.OrdinalIgnoreCase) && mensaje.Contains("registr", StringComparison.OrdinalIgnoreCase))
         {
-            errorEmail = "Ese correo ya está registrado. Usa otro correo o busca al paciente existente antes de crear un registro duplicado.";
+            errorEmail = "Ese correo ya está registrado. Usa otro correo o busca al paciente existente.";
             return;
         }
-
-        if (mensaje.Contains("documento", StringComparison.OrdinalIgnoreCase))
+        if (mensaje.Contains("documento", StringComparison.OrdinalIgnoreCase) || mensaje.Contains("DPI", StringComparison.OrdinalIgnoreCase))
         {
-            errorDocumento = "Ese documento/DPI ya está asociado a un paciente. Verifica el número o busca el registro existente.";
+            errorDocumento = "Ese DPI/CUI ya está asociado a un paciente. Verifica los 13 dígitos o busca el registro existente.";
             return;
         }
-
-        if (mensaje.Contains("contraseña", StringComparison.OrdinalIgnoreCase)
-            || mensaje.Contains("password", StringComparison.OrdinalIgnoreCase))
+        if (mensaje.Contains("contraseña", StringComparison.OrdinalIgnoreCase) || mensaje.Contains("password", StringComparison.OrdinalIgnoreCase))
         {
-            errorPassword = "La contraseña no cumple la política: mínimo 8 caracteres, mayúscula, minúscula, número y símbolo.";
+            errorPassword = "La contraseña no cumple la política de seguridad indicada.";
             return;
         }
-
         errorGeneral = mensaje;
     }
 
     private RegisterPacienteRequest ConstruirCrearRequest() => new(
-        modelo.Email.Trim().ToLowerInvariant(),
+        FormValidation.NormalizeEmail(modelo.Email),
         modelo.Password,
-        modelo.Nombres.Trim(),
-        modelo.Apellidos.Trim(),
-        Limpio(modelo.Documento),
-        Limpio(modelo.Telefono),
+        FormValidation.NormalizeName(modelo.Nombres),
+        FormValidation.NormalizeName(modelo.Apellidos),
+        Limpio(FormValidation.NormalizeDpi(modelo.Documento)),
+        FormValidation.ToApiGuatemalaPhone(modelo.Telefono),
         Limpio(modelo.Direccion),
         modelo.FechaNacimiento is null ? null : DateOnly.FromDateTime(modelo.FechaNacimiento.Value),
         Limpio(modelo.Sexo),
         Limpio(modelo.Alergias),
         Limpio(modelo.ContactoEmergenciaNombre),
-        Limpio(modelo.ContactoEmergenciaTelefono));
+        FormValidation.ToApiGuatemalaPhone(modelo.ContactoEmergenciaTelefono));
 
     private ActualizarPerfilRequest ConstruirActualizarRequest() => new(
-        modelo.Nombres.Trim(),
-        modelo.Apellidos.Trim(),
-        Limpio(modelo.Documento),
-        Limpio(modelo.Telefono),
+        FormValidation.NormalizeName(modelo.Nombres),
+        FormValidation.NormalizeName(modelo.Apellidos),
+        Limpio(FormValidation.NormalizeDpi(modelo.Documento)),
+        FormValidation.ToApiGuatemalaPhone(modelo.Telefono),
         Limpio(modelo.Direccion),
         modelo.FechaNacimiento is null ? null : DateOnly.FromDateTime(modelo.FechaNacimiento.Value),
         Limpio(modelo.Sexo),
         Limpio(modelo.Alergias),
         Limpio(modelo.ContactoEmergenciaNombre),
-        Limpio(modelo.ContactoEmergenciaTelefono));
+        FormValidation.ToApiGuatemalaPhone(modelo.ContactoEmergenciaTelefono));
 
     private static string? Limpio(string? texto) => string.IsNullOrWhiteSpace(texto) ? null : texto.Trim();
 
     private async Task Cerrar()
     {
-        errorGeneral = null;
-        errorEmail = null;
-        errorDocumento = null;
-        errorPassword = null;
+        errorGeneral = errorEmail = errorDocumento = errorPassword = null;
         await IsOpenChanged.InvokeAsync(false);
     }
 
     private sealed class ModeloPaciente
     {
-        /// <summary>No se valida contra el servidor; solo le indica a Validate() si Email/Password
-        /// son obligatorios (no lo son en modo edición, donde ni siquiera se muestran esos campos).</summary>
         public bool EsEdicion { get; set; }
-
-        [Required(ErrorMessage = "El nombre es obligatorio.")]
-        [StringLength(100, ErrorMessage = "Los nombres no pueden superar 100 caracteres.")]
-        public string Nombres { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "El apellido es obligatorio.")]
-        [StringLength(100, ErrorMessage = "Los apellidos no pueden superar 100 caracteres.")]
-        public string Apellidos { get; set; } = string.Empty;
-
-        [EmailAddress(ErrorMessage = "Ingresa un correo válido.")]
-        public string Email { get; set; } = string.Empty;
-
+        [Required, StringLength(100)] public string Nombres { get; set; } = string.Empty;
+        [Required, StringLength(100)] public string Apellidos { get; set; } = string.Empty;
+        [EmailAddress] public string Email { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
-
-        [StringLength(30, ErrorMessage = "El documento no puede superar 30 caracteres.")]
         public string Documento { get; set; } = string.Empty;
         public DateTime? FechaNacimiento { get; set; }
         public string Sexo { get; set; } = string.Empty;
-        [StringLength(30, ErrorMessage = "El teléfono no puede superar 30 caracteres.")]
         public string Telefono { get; set; } = string.Empty;
-
-        [StringLength(250, ErrorMessage = "La dirección no puede superar 250 caracteres.")]
-        public string Direccion { get; set; } = string.Empty;
-
-        [StringLength(500, ErrorMessage = "Las alergias no pueden superar 500 caracteres.")]
-        public string Alergias { get; set; } = string.Empty;
-
-        [StringLength(150, ErrorMessage = "El contacto de emergencia no puede superar 150 caracteres.")]
-        public string ContactoEmergenciaNombre { get; set; } = string.Empty;
-
-        [StringLength(30, ErrorMessage = "El teléfono de emergencia no puede superar 30 caracteres.")]
+        [StringLength(250)] public string Direccion { get; set; } = string.Empty;
+        [StringLength(500)] public string Alergias { get; set; } = string.Empty;
+        [StringLength(150)] public string ContactoEmergenciaNombre { get; set; } = string.Empty;
         public string ContactoEmergenciaTelefono { get; set; } = string.Empty;
 
         public static ModeloPaciente DesdeExistente(PacienteDto paciente) => new()
@@ -364,14 +305,14 @@
             EsEdicion = true,
             Nombres = paciente.Nombres,
             Apellidos = paciente.Apellidos,
-            Documento = paciente.Documento ?? string.Empty,
+            Documento = FormValidation.NormalizeDpi(paciente.Documento),
             FechaNacimiento = paciente.FechaNacimiento?.ToDateTime(TimeOnly.MinValue),
             Sexo = paciente.Sexo ?? string.Empty,
-            Telefono = paciente.Telefono ?? string.Empty,
+            Telefono = FormValidation.FromApiGuatemalaPhone(paciente.Telefono),
             Direccion = paciente.Direccion ?? string.Empty,
             Alergias = paciente.Alergias ?? string.Empty,
             ContactoEmergenciaNombre = paciente.ContactoEmergenciaNombre ?? string.Empty,
-            ContactoEmergenciaTelefono = paciente.ContactoEmergenciaTelefono ?? string.Empty
+            ContactoEmergenciaTelefono = FormValidation.FromApiGuatemalaPhone(paciente.ContactoEmergenciaTelefono)
         };
     }
 }

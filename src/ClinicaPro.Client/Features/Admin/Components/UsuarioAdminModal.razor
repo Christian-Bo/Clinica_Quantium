@@ -6,38 +6,43 @@
         <div class="space-y-4">
             @if (Usuario is null)
             {
-                <div class="rounded-control border border-brand-500 bg-brand-50 px-3 py-2 text-xs text-brand-700">
+                <div class="rounded-control border border-brand-200 bg-brand-50 px-3 py-2 text-xs text-brand-700">
                     Crea únicamente cuentas de personal administrativo. Los médicos se crean desde su módulo y deberán cambiar la contraseña temporal al ingresar.
                 </div>
+
+                <ValidatedTextInput Id="usr-email" Label="Correo" Required="true" Kind="FormFieldKind.Email"
+                                    Value="@email" ValueChanged="v => email = v" Placeholder="Ej. secretaria@clinicapro.com"
+                                    Autocomplete="email" MaxLength="254" HelperText="Este correo será el nombre de usuario."
+                                    ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
+
+                <PasswordField Id="usr-password" Label="Contraseña temporal"
+                               Value="@password" ValueChanged="v => password = v"
+                               Placeholder="Ej. Acceso@2026" ShowRules="true"
+                               ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
+
                 <div>
-                    <label class="text-sm font-medium text-ink">Correo *</label>
-                    <input type="email" autocomplete="off" class="@ClaseInput" @bind="email" />
-                </div>
-                <div>
-                    <label class="text-sm font-medium text-ink">Contraseña temporal *</label>
-                    <input type="password" autocomplete="new-password" class="@ClaseInput" @bind="password" />
-                    <p class="mt-1 text-xs text-ink-muted">Mínimo 8 caracteres, con mayúscula, minúscula, número y símbolo.</p>
-                </div>
-                <div>
-                    <label class="text-sm font-medium text-ink">Rol *</label>
-                    <select class="@ClaseInput" @bind="rolCrear">
+                    <label class="text-sm font-medium text-ink" for="usr-rol">Rol <span class="text-state-rechazada">*</span></label>
+                    <select id="usr-rol" class="@ClaseInput" @bind="rolCrear">
                         <option value="Secretaria">Secretaría</option>
                         <option value="Administrador">Administrador</option>
                     </select>
+                    <p class="mt-1 text-xs text-ink-muted">Secretaría opera agenda y pacientes; Administrador también accede a configuración y seguridad.</p>
                 </div>
             }
             else if (EsIdentidad)
             {
-                <p class="text-xs text-ink-muted">Correo, contraseña temporal y estado. El usuario deberá volver a entrar si cambia la clave o se desactiva.</p>
-                <div>
-                    <label class="text-sm font-medium text-ink">Correo *</label>
-                    <input type="email" autocomplete="off" class="@ClaseInput" @bind="email" />
-                </div>
-                <div>
-                    <label class="text-sm font-medium text-ink">Nueva contraseña (opcional)</label>
-                    <input type="password" autocomplete="new-password" class="@ClaseInput" @bind="password" />
-                    <p class="mt-1 text-xs text-ink-muted">Si la indica, el usuario deberá cambiarla al iniciar sesión.</p>
-                </div>
+                <p class="text-xs text-ink-muted">Actualiza correo, contraseña temporal y estado. Un cambio de credenciales requiere un nuevo inicio de sesión.</p>
+
+                <ValidatedTextInput Id="usr-edit-email" Label="Correo" Required="true" Kind="FormFieldKind.Email"
+                                    Value="@email" ValueChanged="v => email = v" Placeholder="Ej. usuario@clinicapro.com"
+                                    Autocomplete="email" MaxLength="254" ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
+
+                <PasswordField Id="usr-edit-password" Label="Nueva contraseña"
+                               Value="@password" ValueChanged="v => password = v"
+                               Placeholder="Déjala vacía para conservar la actual" Required="false" ShowRules="true"
+                               HelperText="Si defines una nueva clave, el usuario deberá cambiarla al iniciar sesión."
+                               ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
+
                 <label class="flex items-center gap-2 rounded-control border border-border px-3 py-3 text-sm text-ink">
                     <input type="checkbox" class="h-4 w-4 rounded border-border" @bind="isActive" /> Cuenta activa
                 </label>
@@ -46,54 +51,62 @@
             {
                 <div class="rounded-control bg-surface-muted px-3 py-2 text-sm text-ink">
                     <strong>@Usuario.Email</strong>
-                    <p class="mt-0.5 text-xs text-ink-muted">Médico y paciente no pueden combinarse. Al cambiar el tipo, la sesión actual se cierra.</p>
+                    <p class="mt-0.5 text-xs text-ink-muted">Médico y paciente no pueden combinarse. Al cambiar el tipo clínico, la sesión actual se cierra.</p>
                 </div>
+
                 <label class="flex items-center gap-2 rounded-control border border-border px-3 py-3 text-sm text-ink">
                     <input type="checkbox" class="h-4 w-4 rounded border-border" @bind="rolAdministrador" /> Administrador
                 </label>
                 <label class="flex items-center gap-2 rounded-control border border-border px-3 py-3 text-sm text-ink">
                     <input type="checkbox" class="h-4 w-4 rounded border-border" @bind="rolSecretaria" /> Secretaría
                 </label>
+
                 <div>
-                    <label class="text-sm font-medium text-ink">Tipo clínico</label>
-                    <select class="@ClaseInput" @bind="tipoClinico">
+                    <label class="text-sm font-medium text-ink" for="usr-tipo-clinico">Tipo clínico</label>
+                    <select id="usr-tipo-clinico" class="@ClaseInput" @bind="tipoClinico">
                         <option value="Ninguno">Ninguno (solo staff)</option>
                         <option value="Medico">Médico</option>
                         <option value="Paciente">Paciente</option>
                     </select>
+                    <p class="mt-1 text-xs text-ink-muted">El tipo clínico define si la cuenta también representa a un médico o a un paciente.</p>
                 </div>
+
                 @if (tipoClinico == "Medico")
                 {
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <div>
-                            <label class="text-sm font-medium text-ink">Nombres *</label>
-                            <input class="@ClaseInput" @bind="medicoNombres" />
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium text-ink">Apellidos *</label>
-                            <input class="@ClaseInput" @bind="medicoApellidos" />
-                        </div>
-                        <div class="sm:col-span-2">
-                            <label class="text-sm font-medium text-ink">Colegiado</label>
-                            <input class="@ClaseInput" @bind="medicoColegiado" />
-                        </div>
+                        <ValidatedTextInput Id="usr-med-nombres" Label="Nombres" Required="true" Kind="FormFieldKind.Name"
+                                            Value="@medicoNombres" ValueChanged="v => medicoNombres = v" Placeholder="Ej. Ana Lucía"
+                                            Autocomplete="given-name" MaxLength="100" ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
+                        <ValidatedTextInput Id="usr-med-apellidos" Label="Apellidos" Required="true" Kind="FormFieldKind.Name"
+                                            Value="@medicoApellidos" ValueChanged="v => medicoApellidos = v" Placeholder="Ej. Morales Pérez"
+                                            Autocomplete="family-name" MaxLength="100" ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
+                        <ValidatedTextInput Id="usr-med-colegiado" Label="No. colegiado" Kind="FormFieldKind.Collegiate"
+                                            Value="@medicoColegiado" ValueChanged="v => medicoColegiado = v" Placeholder="Ej. 15422"
+                                            MaxLength="50" HelperText="Opcional." ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
+                        <ValidatedTextInput Id="usr-med-telefono" Label="Teléfono" Kind="FormFieldKind.GuatemalaPhone"
+                                            Value="@medicoTelefono" ValueChanged="v => medicoTelefono = v" Placeholder="55123456"
+                                            Autocomplete="tel-national" HelperText="8 dígitos; +502 se agrega automáticamente."
+                                            ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
                     </div>
                 }
+
                 @if (tipoClinico == "Paciente")
                 {
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <div>
-                            <label class="text-sm font-medium text-ink">Nombres *</label>
-                            <input class="@ClaseInput" @bind="pacienteNombres" />
-                        </div>
-                        <div>
-                            <label class="text-sm font-medium text-ink">Apellidos *</label>
-                            <input class="@ClaseInput" @bind="pacienteApellidos" />
-                        </div>
-                        <div class="sm:col-span-2">
-                            <label class="text-sm font-medium text-ink">DPI *</label>
-                            <input class="@ClaseInput" @bind="pacienteDocumento" />
-                        </div>
+                        <ValidatedTextInput Id="usr-pac-nombres" Label="Nombres" Required="true" Kind="FormFieldKind.Name"
+                                            Value="@pacienteNombres" ValueChanged="v => pacienteNombres = v" Placeholder="Ej. María José"
+                                            Autocomplete="given-name" MaxLength="100" ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
+                        <ValidatedTextInput Id="usr-pac-apellidos" Label="Apellidos" Required="true" Kind="FormFieldKind.Name"
+                                            Value="@pacienteApellidos" ValueChanged="v => pacienteApellidos = v" Placeholder="Ej. López García"
+                                            Autocomplete="family-name" MaxLength="100" ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
+                        <ValidatedTextInput Id="usr-pac-dpi" Label="DPI / CUI" Required="true" Kind="FormFieldKind.Dpi"
+                                            Value="@pacienteDocumento" ValueChanged="v => pacienteDocumento = v" Placeholder="Ej. 1234567890101"
+                                            HelperText="Debe contener exactamente 13 dígitos." ForceTouched="mostrarValidaciones"
+                                            ValidationCycle="cicloValidacion" CssClass="sm:col-span-2" />
+                        <ValidatedTextInput Id="usr-pac-telefono" Label="Teléfono" Kind="FormFieldKind.GuatemalaPhone"
+                                            Value="@pacienteTelefono" ValueChanged="v => pacienteTelefono = v" Placeholder="55123456"
+                                            Autocomplete="tel-national" HelperText="Opcional. 8 dígitos; +502 se agrega automáticamente."
+                                            ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" CssClass="sm:col-span-2" />
                     </div>
                 }
             }
@@ -117,7 +130,7 @@
     [Parameter] public string Modo { get; set; } = "roles";
     [Parameter] public EventCallback OnGuardado { get; set; }
 
-    private const string ClaseInput = "mt-1 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100";
+    private const string ClaseInput = "mt-1 w-full rounded-control border border-border bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100";
     private bool aperturaAnterior;
     private Guid? usuarioAnterior;
     private string modoAnterior = string.Empty;
@@ -131,11 +144,16 @@
     private string medicoNombres = string.Empty;
     private string medicoApellidos = string.Empty;
     private string medicoColegiado = string.Empty;
+    private string medicoTelefono = string.Empty;
     private string pacienteNombres = string.Empty;
     private string pacienteApellidos = string.Empty;
     private string pacienteDocumento = string.Empty;
+    private string pacienteTelefono = string.Empty;
     private bool guardando;
     private string? error;
+    private bool mostrarValidaciones;
+    private int cicloValidacion;
+
     private bool EsIdentidad => Usuario is not null && Modo == "identidad";
     private string Titulo => Usuario is null ? "Nuevo usuario" : EsIdentidad ? "Editar usuario" : "Editar roles";
 
@@ -157,58 +175,98 @@
             medicoNombres = string.Empty;
             medicoApellidos = string.Empty;
             medicoColegiado = string.Empty;
+            medicoTelefono = string.Empty;
             pacienteNombres = string.Empty;
             pacienteApellidos = string.Empty;
             pacienteDocumento = string.Empty;
+            pacienteTelefono = string.Empty;
             error = null;
+            mostrarValidaciones = false;
+            cicloValidacion++;
             usuarioAnterior = Usuario?.UsuarioId;
             modoAnterior = Modo;
         }
+
         aperturaAnterior = IsOpen;
+    }
+
+    private bool ValidarFormulario()
+    {
+        if (Usuario is null)
+        {
+            return FormValidation.Validate(FormFieldKind.Email, email, true, 254, "Correo") is null
+                && FormValidation.IsPasswordValid(password);
+        }
+
+        if (EsIdentidad)
+        {
+            return FormValidation.Validate(FormFieldKind.Email, email, true, 254, "Correo") is null
+                && (string.IsNullOrWhiteSpace(password) || FormValidation.IsPasswordValid(password));
+        }
+
+        if (!rolAdministrador && !rolSecretaria && tipoClinico == "Ninguno")
+        {
+            error = "Selecciona al menos un rol administrativo o un tipo clínico.";
+            return false;
+        }
+
+        if (tipoClinico == "Medico")
+        {
+            if (FormValidation.Validate(FormFieldKind.Name, medicoNombres, true, 100, "Nombres") is not null) return false;
+            if (FormValidation.Validate(FormFieldKind.Name, medicoApellidos, true, 100, "Apellidos") is not null) return false;
+            if (!string.IsNullOrWhiteSpace(medicoTelefono)
+                && FormValidation.Validate(FormFieldKind.GuatemalaPhone, medicoTelefono, false) is not null) return false;
+        }
+        else if (tipoClinico == "Paciente")
+        {
+            if (FormValidation.Validate(FormFieldKind.Name, pacienteNombres, true, 100, "Nombres") is not null) return false;
+            if (FormValidation.Validate(FormFieldKind.Name, pacienteApellidos, true, 100, "Apellidos") is not null) return false;
+            if (FormValidation.Validate(FormFieldKind.Dpi, pacienteDocumento, true, FormValidation.DpiLength, "DPI / CUI") is not null) return false;
+            if (!string.IsNullOrWhiteSpace(pacienteTelefono)
+                && FormValidation.Validate(FormFieldKind.GuatemalaPhone, pacienteTelefono, false) is not null) return false;
+        }
+
+        return true;
     }
 
     private async Task GuardarAsync()
     {
+        if (guardando) return;
+
         error = null;
+        mostrarValidaciones = true;
+        if (!ValidarFormulario()) return;
+
         guardando = true;
         try
         {
             if (Usuario is null)
             {
-                if (string.IsNullOrWhiteSpace(email) || !new EmailAddressAttribute().IsValid(email))
+                var resultado = await AdminApi.CrearUsuarioAsync(
+                    new CrearUsuarioStaffRequest(FormValidation.NormalizeEmail(email), password, rolCrear));
+
+                if (!resultado.Exito)
                 {
-                    error = "Ingresa un correo electrónico válido.";
-                    return;
-                }
-                if (!PasswordValida(password))
-                {
-                    error = "La contraseña temporal no cumple la política de seguridad.";
+                    error = resultado.Error;
                     return;
                 }
 
-                var resultado = await AdminApi.CrearUsuarioAsync(new CrearUsuarioStaffRequest(email.Trim().ToLowerInvariant(), password, rolCrear));
-                if (!resultado.Exito) { error = resultado.Error; return; }
                 Toast.Exito("Usuario creado. Deberá cambiar su contraseña temporal al iniciar sesión.");
             }
             else if (EsIdentidad)
             {
-                if (string.IsNullOrWhiteSpace(email) || !new EmailAddressAttribute().IsValid(email))
-                {
-                    error = "Ingresa un correo electrónico válido.";
-                    return;
-                }
-                if (!string.IsNullOrWhiteSpace(password) && !PasswordValida(password))
-                {
-                    error = "La contraseña temporal no cumple la política de seguridad.";
-                    return;
-                }
-
                 var resultado = await AdminApi.ActualizarUsuarioAsync(
                     Usuario.UsuarioId,
                     isActive,
-                    email.Trim().ToLowerInvariant(),
+                    FormValidation.NormalizeEmail(email),
                     string.IsNullOrWhiteSpace(password) ? null : password);
-                if (!resultado.Exito) { error = resultado.Error; return; }
+
+                if (!resultado.Exito)
+                {
+                    error = resultado.Error;
+                    return;
+                }
+
                 Toast.Exito("Usuario actualizado. Si cambió la clave, deberá volver a entrar.");
             }
             else
@@ -219,29 +277,32 @@
 
                 FichaMedicoAccesoRequest? medico = null;
                 FichaPacienteAccesoRequest? paciente = null;
+
                 if (tipoClinico == "Medico")
                 {
-                    if (string.IsNullOrWhiteSpace(medicoNombres) || string.IsNullOrWhiteSpace(medicoApellidos))
-                    {
-                        error = "Indique nombres y apellidos del médico.";
-                        return;
-                    }
-
-                    medico = new FichaMedicoAccesoRequest(medicoNombres.Trim(), medicoApellidos.Trim(), Limpio(medicoColegiado), null);
+                    medico = new FichaMedicoAccesoRequest(
+                        FormValidation.NormalizeName(medicoNombres),
+                        FormValidation.NormalizeName(medicoApellidos),
+                        Limpio(medicoColegiado),
+                        FormValidation.ToApiGuatemalaPhone(medicoTelefono));
                 }
                 else if (tipoClinico == "Paciente")
                 {
-                    if (string.IsNullOrWhiteSpace(pacienteNombres) || string.IsNullOrWhiteSpace(pacienteApellidos) || string.IsNullOrWhiteSpace(pacienteDocumento))
-                    {
-                        error = "Indique nombres, apellidos y DPI del paciente.";
-                        return;
-                    }
-
-                    paciente = new FichaPacienteAccesoRequest(pacienteNombres.Trim(), pacienteApellidos.Trim(), pacienteDocumento.Trim(), null, null);
+                    paciente = new FichaPacienteAccesoRequest(
+                        FormValidation.NormalizeName(pacienteNombres),
+                        FormValidation.NormalizeName(pacienteApellidos),
+                        FormValidation.NormalizeDpi(pacienteDocumento),
+                        null,
+                        FormValidation.ToApiGuatemalaPhone(pacienteTelefono));
                 }
 
                 var resultado = await AdminApi.ActualizarRolesAsync(Usuario.UsuarioId, roles, tipoClinico, medico, paciente);
-                if (!resultado.Exito) { error = resultado.Error; return; }
+                if (!resultado.Exito)
+                {
+                    error = resultado.Error;
+                    return;
+                }
+
                 Toast.Exito("Roles actualizados. El usuario deberá volver a iniciar sesión.");
             }
 
@@ -257,7 +318,4 @@
     private Task Cancelar() => IsOpenChanged.InvokeAsync(false);
     private Task CambiarApertura(bool valor) => IsOpenChanged.InvokeAsync(valor);
     private static string? Limpio(string? valor) => string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
-    private static bool PasswordValida(string valor) =>
-        !string.IsNullOrWhiteSpace(valor) && valor.Length >= 8 && valor.Any(char.IsUpper)
-        && valor.Any(char.IsLower) && valor.Any(char.IsDigit) && valor.Any(c => !char.IsLetterOrDigit(c));
 }

@@ -15,7 +15,7 @@
                     }
                 </div>
                 <div>
-                    <label class="text-sm font-medium text-ink" for="adm-param-valor">Valor *</label>
+                    <label class="text-sm font-medium text-ink" for="adm-param-valor">Valor <span class="text-state-rechazada">*</span></label>
                     @if (Parametro.TipoDato.Equals("Bool", StringComparison.OrdinalIgnoreCase))
                     {
                         <select id="adm-param-valor" class="@ClaseInput" @bind="valor">
@@ -26,9 +26,16 @@
                     else
                     {
                         <input id="adm-param-valor" type="@TipoInput" step="@(Parametro.TipoDato.Equals("Decimal", StringComparison.OrdinalIgnoreCase) ? "any" : null)"
-                               class="@ClaseInput" @bind="valor" />
+                               placeholder="@PlaceholderValor" class="@ClaseValor" value="@valor" @oninput="CambiarValor" @onblur="() => valorTocado = true" />
                     }
-                    <p class="mt-1 text-xs text-ink-muted">Tipo esperado: @Parametro.TipoDato</p>
+                    @if (valorTocado && ErrorValor is not null)
+                    {
+                        <p role="alert" class="mt-1 text-xs text-state-rechazada">@ErrorValor</p>
+                    }
+                    else
+                    {
+                        <p class="mt-1 text-xs text-ink-muted">Tipo esperado: @Parametro.TipoDato. @EjemploTipo</p>
+                    }
                 </div>
                 @if (!string.IsNullOrWhiteSpace(error))
                 {
@@ -49,20 +56,39 @@
     [Parameter] public ParametroDto? Parametro { get; set; }
     [Parameter] public EventCallback OnGuardado { get; set; }
 
-    private const string ClaseInput = "mt-1 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100";
+    private const string ClaseInput = "mt-1 w-full rounded-control border border-border bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100";
     private string valor = string.Empty;
     private string? error;
     private bool guardando;
     private bool aperturaAnterior;
     private string? claveAnterior;
+    private bool valorTocado;
 
-    private string TipoInput => Parametro?.TipoDato switch
+    private string TipoInput => Parametro?.TipoDato switch { "Int" => "number", "Decimal" => "number", "Time" => "time", _ => "text" };
+    private string PlaceholderValor => Parametro?.TipoDato switch { "Int" => "Ej. 30", "Decimal" => "Ej. 2.5", "Time" => "Ej. 08:00", _ => "Ej. valor de configuración" };
+    private string EjemploTipo => Parametro?.TipoDato switch
     {
-        "Int" => "number",
-        "Decimal" => "number",
-        "Time" => "time",
-        _ => "text"
+        "Int" => "Ingresa un número entero.",
+        "Decimal" => "Ingresa un número; usa punto como separador decimal.",
+        "Time" => "Selecciona una hora válida.",
+        "Bool" => "Selecciona Verdadero o Falso.",
+        _ => "Respeta el formato descrito para este parámetro."
     };
+    private string? ErrorValor
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(valor)) return "El valor es obligatorio.";
+            if (Parametro is null) return null;
+            if (Parametro.TipoDato.Equals("Int", StringComparison.OrdinalIgnoreCase) && !int.TryParse(valor, out _)) return "Ingresa un número entero válido.";
+            if (Parametro.TipoDato.Equals("Decimal", StringComparison.OrdinalIgnoreCase) && !decimal.TryParse(valor, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out _)) return "Ingresa un número decimal válido usando punto como separador.";
+            if (Parametro.TipoDato.Equals("Time", StringComparison.OrdinalIgnoreCase) && !TimeOnly.TryParse(valor, out _)) return "Ingresa una hora válida.";
+            return null;
+        }
+    }
+    private string ClaseValor => !valorTocado ? ClaseInput : ErrorValor is null
+        ? "mt-1 w-full rounded-control border border-state-atendida bg-surface px-3 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-100"
+        : "mt-1 w-full rounded-control border border-state-rechazada bg-state-rechazada/5 px-3 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-state-rechazada/10";
 
     protected override void OnParametersSet()
     {
@@ -70,19 +96,19 @@
         {
             valor = Parametro?.Valor ?? string.Empty;
             error = null;
+            valorTocado = false;
             claveAnterior = Parametro?.Clave;
         }
         aperturaAnterior = IsOpen;
     }
 
+    private void CambiarValor(ChangeEventArgs e) { valor = e.Value?.ToString() ?? string.Empty; valorTocado = true; }
+
     private async Task GuardarAsync()
     {
-        if (Parametro is null) return;
-        if (string.IsNullOrWhiteSpace(valor))
-        {
-            error = "El valor es obligatorio.";
-            return;
-        }
+        if (Parametro is null || guardando) return;
+        valorTocado = true;
+        if (ErrorValor is not null) return;
 
         guardando = true;
         error = null;
@@ -90,15 +116,11 @@
         {
             var resultado = await AdminApi.ActualizarParametroAsync(Parametro.Clave, valor.Trim());
             if (!resultado.Exito) { error = resultado.Error; return; }
-
             Toast.Exito("Parámetro actualizado correctamente.");
             await OnGuardado.InvokeAsync();
             await IsOpenChanged.InvokeAsync(false);
         }
-        finally
-        {
-            guardando = false;
-        }
+        finally { guardando = false; }
     }
 
     private Task Cancelar() => IsOpenChanged.InvokeAsync(false);

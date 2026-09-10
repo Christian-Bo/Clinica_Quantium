@@ -1,10 +1,13 @@
 @page "/citas"
-@attribute [Authorize(Roles = Roles.Secretaria)]
+@attribute [Authorize(Roles = "Secretaria,Administrador")]
 @inject CitasApiService CitasApi
 @inject MedicosApiService MedicosApi
 @inject ToastService Toasts
+@inject NavigationManager Navigation
 
 <PageTitle>Citas · Clínica Pro</PageTitle>
+<AutoRefresh Enabled="true" IntervalSeconds="45" OnRefresh="CargarAgendaSilenciosaAsync" />
+<AutoRefresh Enabled="true" IntervalSeconds="30" OnRefresh="CargarPendientesSilenciosoAsync" />
 
 <div class="space-y-6">
     <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
@@ -63,7 +66,7 @@
             {
                 <Skeleton Filas="6" HeightClass="h-10" />
             }
-            else if (errorAgenda is not null)
+            else if (errorAgenda is not null && !agendaCargada)
             {
                 <EmptyState IconName="alert-triangle" Title="No se pudo cargar la agenda" Description="@errorAgenda" />
                 <div class="mt-3 flex justify-center">
@@ -87,7 +90,7 @@
             {
                 <div class="p-4"><Skeleton Filas="4" HeightClass="h-16" /></div>
             }
-            else if (errorPendientes is not null)
+            else if (errorPendientes is not null && !pendientesCargados)
             {
                 <div class="p-4">
                     <EmptyState IconName="alert-triangle" Title="No se pudieron cargar las solicitudes" Description="@errorPendientes" />
@@ -151,10 +154,12 @@
 
     private List<CitaDto> citasRango = [];
     private bool cargandoAgenda = true;
+    private bool agendaCargada;
     private string? errorAgenda;
 
     private List<CitaDto> pendientes = [];
     private bool cargandoPendientes = true;
+    private bool pendientesCargados;
     private string? errorPendientes;
     private Guid? citaProcesando;
 
@@ -168,15 +173,21 @@
 
     protected override async Task OnInitializedAsync()
     {
-        pestana = string.Equals(TabQuery, "pendientes", StringComparison.OrdinalIgnoreCase)
-            ? Pestana.Pendientes
-            : Pestana.Agenda;
+        AplicarPestanaDesdeQuery();
 
         var medicosTask = CargarMedicosAsync();
         var agendaTask = CargarAgendaAsync();
         var pendientesTask = CargarPendientesAsync();
         await Task.WhenAll(medicosTask, agendaTask, pendientesTask);
     }
+
+    protected override void OnParametersSet()
+        => AplicarPestanaDesdeQuery();
+
+    private void AplicarPestanaDesdeQuery()
+        => pestana = string.Equals(TabQuery, "pendientes", StringComparison.OrdinalIgnoreCase)
+            ? Pestana.Pendientes
+            : Pestana.Agenda;
 
     private async Task CargarMedicosAsync()
     {
@@ -207,9 +218,12 @@
         _ => fechaSeleccionada.ToString("MMMM yyyy", CulturaEs)
     };
 
-    private async Task CargarAgendaAsync()
+    private Task CargarAgendaSilenciosaAsync() => CargarAgendaAsync(silencioso: true);
+    private Task CargarAgendaAsync() => CargarAgendaAsync(silencioso: false);
+
+    private async Task CargarAgendaAsync(bool silencioso)
     {
-        cargandoAgenda = true;
+        if (!silencioso || citasRango.Count == 0) cargandoAgenda = true;
         errorAgenda = null;
 
         var (desde, hasta) = RangoParaConsulta();
@@ -221,10 +235,14 @@
                 desde.ToDateTime(TimeOnly.MinValue),
                 hasta.ToDateTime(TimeOnly.MinValue),
                 medicoId)).ToList();
+            agendaCargada = true;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            errorAgenda = ex.Message;
+            if (!silencioso || !agendaCargada)
+            {
+                errorAgenda = ex.Message;
+            }
         }
         finally
         {
@@ -252,17 +270,24 @@
         return (inicioCuadricula, inicioCuadricula.AddDays(42));
     }
 
-    private async Task CargarPendientesAsync()
+    private Task CargarPendientesSilenciosoAsync() => CargarPendientesAsync(silencioso: true);
+    private Task CargarPendientesAsync() => CargarPendientesAsync(silencioso: false);
+
+    private async Task CargarPendientesAsync(bool silencioso)
     {
-        cargandoPendientes = true;
+        if (!silencioso || pendientes.Count == 0) cargandoPendientes = true;
         errorPendientes = null;
         try
         {
             pendientes = (await CitasApi.ListarPendientesAsync()).ToList();
+            pendientesCargados = true;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            errorPendientes = ex.Message;
+            if (!silencioso || !pendientesCargados)
+            {
+                errorPendientes = ex.Message;
+            }
         }
         finally
         {
@@ -270,7 +295,11 @@
         }
     }
 
-    private void CambiarPestana(Pestana nueva) => pestana = nueva;
+    private void CambiarPestana(Pestana nueva)
+    {
+        pestana = nueva;
+        Navigation.NavigateTo(nueva == Pestana.Pendientes ? "/citas?tab=pendientes" : "/citas", replace: true);
+    }
 
     private async Task CambiarVista(VistaAgenda nueva)
     {

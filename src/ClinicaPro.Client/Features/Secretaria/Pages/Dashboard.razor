@@ -1,11 +1,10 @@
 @page "/dashboard"
-@attribute [Authorize(Roles = Roles.Secretaria)]
-@inject ReportesApiService ReportesApi
+@attribute [Authorize(Roles = "Secretaria,Administrador")]
 @inject CitasApiService CitasApi
-@inject NotificacionesApiService NotificacionesApi
 @inject NavigationManager Navigation
 
 <PageTitle>Dashboard · Clínica Pro</PageTitle>
+<AutoRefresh Enabled="true" IntervalSeconds="45" OnRefresh="CargarSilenciosoAsync" />
 
 <div class="space-y-6">
     <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
@@ -19,14 +18,20 @@
         </div>
     </div>
 
-    @if (cargando)
+    @if (cargando && !TieneDatos)
     {
-        <Skeleton Filas="1" HeightClass="h-24" />
+        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            @for (var i = 0; i < 4; i++)
+            {
+                <Skeleton Filas="1" HeightClass="h-24" />
+            }
+        </div>
+        <Card><Skeleton Filas="6" /></Card>
     }
-    else if (errorCarga is not null)
+    else if (!TieneDatos && errorCarga is not null)
     {
         <Card>
-            <EmptyState IconName="alert-triangle" Title="No se pudo cargar el dashboard" Description="@errorCarga" />
+            <EmptyState IconName="alert-triangle" Title="No se pudo cargar el resumen" Description="No fue posible obtener la información operativa. El sistema volverá a intentarlo automáticamente." />
             <div class="mt-3 flex justify-center">
                 <Button Variant="ButtonVariant.Secondary" Size="sm" IconName="refresh" OnClick="CargarAsync">Reintentar</Button>
             </div>
@@ -34,21 +39,25 @@
     }
     else
     {
-        @if (notificacionesFallidas > 0)
+        @if (pendientesTotal > 0)
         {
-            <button type="button" class="flex w-full items-center justify-between rounded-card border border-state-rechazada/30 bg-state-rechazada/5 px-4 py-3 text-left transition-colors hover:bg-state-rechazada/10"
-                    @onclick="IrANotificaciones">
-                <span class="flex items-center gap-2 text-sm text-state-rechazada">
-                    <Icon Name="alert-triangle" Size="16" />
-                    @notificacionesFallidas notificación@(notificacionesFallidas == 1 ? "" : "es") sin enviar — revisar
+            <button type="button"
+                    class="flex w-full items-center justify-between rounded-card border border-state-solicitada/30 bg-state-solicitada/10 px-4 py-3 text-left transition-colors hover:bg-brand-50"
+                    @onclick="IrAPendientes">
+                <span class="flex items-center gap-2 text-sm font-medium text-state-solicitada">
+                    <Icon Name="clock" Size="16" />
+                    @TextoPendientesConfirmar
                 </span>
-                <Icon Name="arrow-right" Size="16" CssClass="text-state-rechazada" />
+                <span class="hidden items-center gap-2 text-xs text-state-solicitada sm:flex">
+                    Revisar solicitudes
+                    <Icon Name="arrow-right" Size="16" CssClass="text-state-solicitada" />
+                </span>
             </button>
         }
 
         <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <TarjetaKpi Titulo="Citas hoy" Valor="totalHoy" IconName="calendar" OnClick="IrACitas" />
-            <TarjetaKpi Titulo="Pendientes de confirmar" Valor="pendientesHoy" IconName="clock" OnClick="IrAPendientes" />
+            <TarjetaKpi Titulo="Pendientes de confirmar" Valor="pendientesTotal" IconName="clock" OnClick="IrAPendientes" />
             <TarjetaKpi Titulo="Pacientes en sala" Valor="enSalaHoy" IconName="users" OnClick="IrACitas" />
             <TarjetaKpi Titulo="No se presentaron" Valor="noPresentadosHoy" IconName="alert-triangle" OnClick="IrACitas" />
         </div>
@@ -99,13 +108,19 @@
 
 @code {
     private bool cargando = true;
+    private bool refrescando;
     private string? errorCarga;
     private int totalHoy;
-    private int pendientesHoy;
+    private int pendientesTotal;
     private int enSalaHoy;
     private int noPresentadosHoy;
-    private int notificacionesFallidas;
     private List<CitaDto> citasHoy = [];
+
+    private bool TieneDatos => citasHoy.Count > 0 || totalHoy > 0 || pendientesTotal > 0 || enSalaHoy > 0 || noPresentadosHoy > 0;
+
+    private string TextoPendientesConfirmar => pendientesTotal == 1
+        ? "1 solicitud de cita pendiente de confirmar"
+        : $"{pendientesTotal} solicitudes de cita pendientes de confirmar";
 
     private bool drawerAbierto;
     private CitaDto? citaSeleccionada;
@@ -117,32 +132,32 @@
         _ => "Buenas noches"
     };
 
-    protected override async Task OnInitializedAsync() => await CargarAsync();
+    protected override async Task OnInitializedAsync() => await CargarAsync(silencioso: false);
 
-    private async Task CargarAsync()
+    private Task CargarSilenciosoAsync() => CargarAsync(silencioso: true);
+    private Task CargarAsync() => CargarAsync(silencioso: false);
+
+    private async Task CargarAsync(bool silencioso)
     {
+        if (refrescando) return;
+        refrescando = true;
+
         var hoy = DateTime.Today;
         var manana = hoy.AddDays(1);
+        if (!silencioso && !TieneDatos) cargando = true;
 
-        cargando = citasHoy.Count == 0;
         try
         {
-            var reporteTask = ReportesApi.ObtenerReporteCitasAsync(hoy, manana);
             var agendaTask = CitasApi.ListarAgendaAsync(hoy, manana);
-            var fallidasTask = NotificacionesApi.ListarAsync(NotificacionEstados.Fallida);
+            var pendientesTask = CitasApi.ListarPendientesAsync();
 
-            await Task.WhenAll(reporteTask, agendaTask, fallidasTask);
+            await Task.WhenAll(agendaTask, pendientesTask);
 
-            var reporte = await reporteTask;
-            var agenda = await agendaTask;
-            var fallidas = await fallidasTask;
-
-            citasHoy = agenda.ToList();
-            totalHoy = reporte.Total;
-            pendientesHoy = ContarPorEstado(reporte, CitaEstados.Solicitada);
-            enSalaHoy = ContarPorEstado(reporte, CitaEstados.EnEspera) + ContarPorEstado(reporte, CitaEstados.EnAtencion);
-            noPresentadosHoy = reporte.NoPresentadas;
-            notificacionesFallidas = fallidas.Count;
+            citasHoy = (await agendaTask).ToList();
+            pendientesTotal = (await pendientesTask).Count;
+            totalHoy = citasHoy.Count;
+            enSalaHoy = citasHoy.Count(c => c.Estado is CitaEstados.EnEspera or CitaEstados.EnAtencion);
+            noPresentadosHoy = citasHoy.Count(c => c.Estado == CitaEstados.NoPresentada);
             errorCarga = null;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
@@ -152,11 +167,10 @@
         finally
         {
             cargando = false;
+            refrescando = false;
         }
     }
 
-    private static int ContarPorEstado(ReporteCitasDto? reporte, string estado)
-        => reporte?.PorEstado.FirstOrDefault(p => p.Estado == estado)?.Cantidad ?? 0;
 
     private Guid? ProximaCitaId => citasHoy
         .Where(c => c.FechaHoraInicio >= DateTime.Now && c.Estado is CitaEstados.Programada or CitaEstados.Confirmada)
@@ -174,13 +188,8 @@
         drawerAbierto = true;
     }
 
-    private async Task ManejarCitaActualizada(CitaDto cita) => await CargarAsync();
-
+    private Task ManejarCitaActualizada(CitaDto cita) => CargarAsync(silencioso: true);
     private void IrACitas() => Navigation.NavigateTo("/citas");
-
     private void IrAPendientes() => Navigation.NavigateTo("/citas?tab=pendientes");
-
     private void IrAPacientes() => Navigation.NavigateTo("/pacientes");
-
-    private void IrANotificaciones() => Navigation.NavigateTo("/notificaciones");
 }
