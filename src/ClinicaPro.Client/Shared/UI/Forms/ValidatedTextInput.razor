@@ -1,0 +1,115 @@
+@namespace ClinicaPro.Client.Shared.UI.Forms
+
+<div class="@CssClass">
+    <label class="text-sm font-medium text-ink" for="@Id">
+        @Label
+        @if (Required)
+        {
+            <span class="text-state-rechazada"> *</span>
+        }
+    </label>
+
+    <div class="@WrapperClass">
+        @if (Kind == FormFieldKind.GuatemalaPhone)
+        {
+            <span class="select-none border-r border-border pr-3 text-sm font-semibold text-ink-muted">+502</span>
+        }
+        <input id="@Id"
+               type="@InputType"
+               inputmode="@InputMode"
+               autocomplete="@Autocomplete"
+               placeholder="@Placeholder"
+               maxlength="@EffectiveMaxLength"
+               disabled="@Disabled"
+               aria-invalid="@(ShowError ? "true" : "false")"
+               aria-describedby="@DescriptionId"
+               class="w-full min-w-0 bg-transparent text-sm text-ink placeholder:text-ink-muted/60 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+               value="@Value"
+               @oninput="HandleInput"
+               @onblur="MarkTouched" />
+        @if (ShowValid)
+        {
+            <span class="shrink-0 text-sm font-bold text-state-atendida" aria-hidden="true">✓</span>
+        }
+        else if (ShowError)
+        {
+            <span class="shrink-0 text-sm font-bold text-state-rechazada" aria-hidden="true">!</span>
+        }
+    </div>
+
+    @if (ShowError)
+    {
+        <p id="@DescriptionId" role="alert" class="mt-1 text-xs text-state-rechazada">@Error</p>
+    }
+    else if (!string.IsNullOrWhiteSpace(HelperText))
+    {
+        <p id="@DescriptionId" class="mt-1 text-xs text-ink-muted">@HelperText</p>
+    }
+
+    @if (ShowCounter && EffectiveMaxLength is not null)
+    {
+        <p class="mt-1 text-right text-[11px] text-ink-muted">@Value.Length/@EffectiveMaxLength</p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Id { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+    [Parameter] public string Value { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public FormFieldKind Kind { get; set; } = FormFieldKind.Text;
+    [Parameter] public string Placeholder { get; set; } = string.Empty;
+    [Parameter] public string HelperText { get; set; } = string.Empty;
+    [Parameter] public string Autocomplete { get; set; } = "off";
+    [Parameter] public bool Required { get; set; }
+    [Parameter] public int? MaxLength { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool ShowCounter { get; set; }
+    [Parameter] public bool ForceTouched { get; set; }
+    [Parameter] public int ValidationCycle { get; set; }
+    [Parameter] public string CssClass { get; set; } = string.Empty;
+
+    private bool touched;
+    private int previousCycle = -1;
+    private string? Error => FormValidation.Validate(Kind, Value, Required, MaxLength, Label);
+    private bool ShowError => (touched || ForceTouched) && Error is not null;
+    private bool ShowValid => (touched || ForceTouched) && !string.IsNullOrWhiteSpace(Value) && Error is null;
+    private string DescriptionId => $"{Id}-help";
+    private int? EffectiveMaxLength => Kind switch
+    {
+        FormFieldKind.Dpi => FormValidation.DpiLength,
+        FormFieldKind.GuatemalaPhone => FormValidation.GuatemalaPhoneLength,
+        _ => MaxLength
+    };
+    private string InputType => Kind == FormFieldKind.Email ? "email" : "text";
+    private string InputMode => Kind is FormFieldKind.Dpi or FormFieldKind.GuatemalaPhone ? "numeric" : Kind == FormFieldKind.Email ? "email" : "text";
+    private string WrapperClass
+    {
+        get
+        {
+            const string baseCss = "mt-1 flex items-center gap-3 rounded-control border bg-surface px-3 py-2.5 transition-colors focus-within:ring-2";
+            if (ShowError) return $"{baseCss} border-state-rechazada bg-state-rechazada/5 focus-within:ring-state-rechazada/10";
+            if (ShowValid) return $"{baseCss} border-state-atendida focus-within:ring-brand-100";
+            return $"{baseCss} border-border focus-within:border-brand-500 focus-within:ring-brand-100";
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (previousCycle != ValidationCycle)
+        {
+            touched = false;
+            previousCycle = ValidationCycle;
+        }
+    }
+
+    private async Task HandleInput(ChangeEventArgs e)
+    {
+        var raw = e.Value?.ToString() ?? string.Empty;
+        var normalized = FormValidation.Normalize(Kind, raw, MaxLength);
+        touched = true;
+        await ValueChanged.InvokeAsync(normalized);
+    }
+
+    private void MarkTouched(FocusEventArgs _) => touched = true;
+}

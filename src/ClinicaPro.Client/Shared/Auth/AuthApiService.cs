@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 
 namespace ClinicaPro.Client.Shared.Auth;
 
@@ -43,12 +44,14 @@ public sealed class AuthApiService(
                 ? ResultadoOperacion<AuthResponse>.Fallo("El servidor no devolvió una sesión válida.")
                 : await GuardarSesionAsync(sesion, recordarme);
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        catch (JsonException)
         {
             return ResultadoOperacion<AuthResponse>.Fallo(
-                ex is TaskCanceledException
-                    ? "El servidor tardó demasiado en responder. Intenta nuevamente."
-                    : "No se pudo contactar al servidor. Verifica tu conexión y vuelve a intentar.");
+                FrontendErrorCatalog.WithCode("El servidor respondió con una sesión que no coincide con el formato esperado.", FrontendErrorCatalog.InvalidResponse));
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            return ResultadoOperacion<AuthResponse>.Fallo(MensajeConexion(ex, "No fue posible iniciar sesión."));
         }
     }
 
@@ -79,10 +82,14 @@ public sealed class AuthApiService(
                     "La cuenta se creó pero no se pudo iniciar sesión. Ingresa desde la pantalla de acceso.")
                 : await GuardarSesionAsync(sesion, persistente: false);
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        catch (JsonException)
         {
             return ResultadoOperacion<AuthResponse>.Fallo(
-                "No se pudo contactar al servidor. Verifica tu conexión y vuelve a intentar.");
+                FrontendErrorCatalog.WithCode("La respuesta del registro no coincide con el formato esperado.", FrontendErrorCatalog.InvalidResponse));
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            return ResultadoOperacion<AuthResponse>.Fallo(MensajeConexion(ex, "No fue posible completar el registro."));
         }
     }
 
@@ -116,9 +123,14 @@ public sealed class AuthApiService(
                     "La contraseña cambió, pero no se pudo actualizar la sesión.")
                 : await GuardarSesionAsync(sesion, persistente: false);
         }
+        catch (JsonException)
+        {
+            return ResultadoOperacion<AuthResponse>.Fallo(
+                FrontendErrorCatalog.WithCode("La respuesta del cambio de contraseña no coincide con el formato esperado.", FrontendErrorCatalog.InvalidResponse));
+        }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            return ResultadoOperacion<AuthResponse>.Fallo("No se pudo contactar al servidor.");
+            return ResultadoOperacion<AuthResponse>.Fallo(MensajeConexion(ex, "No fue posible cambiar la contraseña."));
         }
     }
 
@@ -144,8 +156,7 @@ public sealed class AuthApiService(
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            return ResultadoOperacion<bool>.Fallo(
-                "No se pudo contactar al servidor. Verifica tu conexión y vuelve a intentar.");
+            return ResultadoOperacion<bool>.Fallo(MensajeConexion(ex, "No fue posible enviar el código."));
         }
     }
 
@@ -173,8 +184,7 @@ public sealed class AuthApiService(
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            return ResultadoOperacion<bool>.Fallo(
-                "No se pudo contactar al servidor. Verifica tu conexión y vuelve a intentar.");
+            return ResultadoOperacion<bool>.Fallo(MensajeConexion(ex, "No fue posible restablecer la contraseña."));
         }
     }
 
@@ -201,10 +211,14 @@ public sealed class AuthApiService(
                 ? ResultadoOperacion<UsuarioActualDto>.Fallo("La sesión no devolvió un usuario válido.")
                 : ResultadoOperacion<UsuarioActualDto>.Ok(usuario);
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        catch (JsonException)
         {
             return ResultadoOperacion<UsuarioActualDto>.Fallo(
-                "No se pudo validar la sesión porque no hay conexión con el servidor.");
+                FrontendErrorCatalog.WithCode("La sesión recibida no coincide con el formato esperado.", FrontendErrorCatalog.InvalidResponse));
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            return ResultadoOperacion<UsuarioActualDto>.Fallo(MensajeConexion(ex, "No fue posible validar la sesión."));
         }
     }
 
@@ -220,6 +234,11 @@ public sealed class AuthApiService(
         await tokenStorage.LimpiarAsync();
         authStateProvider.NotificarSesionCerrada();
     }
+
+    private static string MensajeConexion(Exception ex, string contexto)
+        => ex is TaskCanceledException
+            ? FrontendErrorCatalog.WithCode($"{contexto} El servidor tardó demasiado en responder. Intenta nuevamente.", FrontendErrorCatalog.Timeout)
+            : FrontendErrorCatalog.WithCode($"{contexto} No se pudo contactar al servidor. Verifica tu conexión y vuelve a intentar.", FrontendErrorCatalog.Connection);
 
     private async Task<ResultadoOperacion<AuthResponse>> GuardarSesionAsync(
         AuthResponse sesion,

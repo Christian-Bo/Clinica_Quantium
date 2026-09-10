@@ -1,0 +1,67 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@code {
+    [Parameter] public bool Enabled { get; set; } = true;
+    [Parameter] public int IntervalSeconds { get; set; } = 15;
+    [Parameter] public EventCallback OnRefresh { get; set; }
+
+    private PeriodicTimer? timer;
+    private CancellationTokenSource? cts;
+    private bool ejecutando;
+
+    protected override void OnInitialized()
+    {
+        cts = new CancellationTokenSource();
+        timer = new PeriodicTimer(TimeSpan.FromSeconds(Math.Clamp(IntervalSeconds, 5, 300)));
+        _ = EjecutarAsync(cts.Token);
+    }
+
+    private async Task EjecutarAsync(CancellationToken ct)
+    {
+        try
+        {
+            while (timer is not null && await timer.WaitForNextTickAsync(ct))
+            {
+                if (!Enabled || ejecutando || !OnRefresh.HasDelegate)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    var visible = await JS.InvokeAsync<bool>("clinicaProPage.isVisible");
+                    if (!visible)
+                    {
+                        continue;
+                    }
+                }
+                catch
+                {
+                    // Si JS no está disponible todavía, el refresco puede continuar.
+                }
+
+                ejecutando = true;
+                try
+                {
+                    await InvokeAsync(() => OnRefresh.InvokeAsync());
+                }
+                finally
+                {
+                    ejecutando = false;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        cts?.Cancel();
+        timer?.Dispose();
+        cts?.Dispose();
+        return ValueTask.CompletedTask;
+    }
+}

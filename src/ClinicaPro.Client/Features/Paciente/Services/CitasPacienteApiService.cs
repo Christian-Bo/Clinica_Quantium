@@ -45,7 +45,7 @@ public sealed class CitasPacienteApiService(HttpClient http)
     /// <summary>
     /// Devuelve todos los espacios libres de los médicos activos para una fecha.
     /// El backend ya entrega el médico asociado a cada slot, por lo que el cliente
-    /// no necesita resolver especialidades ni asociaciones intermedias.
+    /// utiliza directamente la disponibilidad publicada por médico.
     /// </summary>
     public async Task<ResultadoOperacion<IReadOnlyList<SlotDisponibleDto>>> ListarDisponibilidadAsync(
         DateOnly fecha,

@@ -1,0 +1,95 @@
+@namespace ClinicaPro.Client.Shared.UI.Forms
+
+<div class="@CssClass">
+    <label class="text-sm font-medium text-ink" for="@Id">
+        @Label
+        @if (Required)
+        {
+            <span class="text-state-rechazada"> *</span>
+        }
+    </label>
+    @if (!string.IsNullOrWhiteSpace(HelperText) && !ShowError)
+    {
+        <p class="mt-0.5 text-xs text-ink-muted">@HelperText</p>
+    }
+    <div class="relative mt-1">
+        <textarea id="@Id"
+                  rows="@Rows"
+                  maxlength="@MaxLength"
+                  placeholder="@Placeholder"
+                  aria-invalid="@(ShowError ? "true" : "false")"
+                  class="@TextAreaClass"
+                  value="@Value"
+                  @oninput="HandleInput"
+                  @onblur="MarkTouched"></textarea>
+        @if (ShowValid)
+        {
+            <span class="absolute right-3 top-2 text-sm font-bold text-state-atendida" aria-hidden="true">✓</span>
+        }
+        else if (ShowError)
+        {
+            <span class="absolute right-3 top-2 text-sm font-bold text-state-rechazada" aria-hidden="true">!</span>
+        }
+    </div>
+    <div class="mt-1 flex items-start justify-between gap-3">
+        @if (ShowError)
+        {
+            <p role="alert" class="text-xs text-state-rechazada">@Error</p>
+        }
+        else
+        {
+            <span></span>
+        }
+        @if (ShowCounter)
+        {
+            <p class="shrink-0 text-[11px] text-ink-muted">@Value.Length/@MaxLength</p>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Id { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+    [Parameter] public string Value { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public string Placeholder { get; set; } = string.Empty;
+    [Parameter] public string HelperText { get; set; } = string.Empty;
+    [Parameter] public bool Required { get; set; }
+    [Parameter] public int MinLength { get; set; }
+    [Parameter] public int MaxLength { get; set; } = 500;
+    [Parameter] public int Rows { get; set; } = 3;
+    [Parameter] public bool ShowCounter { get; set; } = true;
+    [Parameter] public bool ForceTouched { get; set; }
+    [Parameter] public int ValidationCycle { get; set; }
+    [Parameter] public string CssClass { get; set; } = string.Empty;
+
+    private bool touched;
+    private int previousCycle = -1;
+    private string? Error => FormValidation.ValidateText(Value, Required, MinLength, MaxLength, Label);
+    private bool ShowError => (touched || ForceTouched) && Error is not null;
+    private bool ShowValid => (touched || ForceTouched) && !string.IsNullOrWhiteSpace(Value) && Error is null;
+    private string TextAreaClass => ShowError
+        ? "w-full rounded-control border border-state-rechazada bg-state-rechazada/5 px-3 py-2 pr-8 text-sm text-ink placeholder:text-ink-muted/60 focus:outline-none focus:ring-2 focus:ring-state-rechazada/10"
+        : ShowValid
+            ? "w-full rounded-control border border-state-atendida bg-surface px-3 py-2 pr-8 text-sm text-ink placeholder:text-ink-muted/60 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            : "w-full rounded-control border border-border bg-surface px-3 py-2 pr-8 text-sm text-ink placeholder:text-ink-muted/60 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100";
+
+    protected override void OnParametersSet()
+    {
+        if (previousCycle != ValidationCycle)
+        {
+            touched = false;
+            previousCycle = ValidationCycle;
+        }
+    }
+
+    private async Task HandleInput(ChangeEventArgs e)
+    {
+        var raw = e.Value?.ToString() ?? string.Empty;
+        if (raw.Length > MaxLength) raw = raw[..MaxLength];
+        touched = true;
+        await ValueChanged.InvokeAsync(raw);
+    }
+
+    private void MarkTouched(FocusEventArgs _) => touched = true;
+}

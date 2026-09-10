@@ -1,31 +1,37 @@
 @page "/admin"
 @attribute [Authorize(Roles = Roles.Administrador)]
 @inject AdminApiService AdminApi
+@inject CitasApiService CitasApi
 @inject NavigationManager Navigation
 
 <PageTitle>Administración · Clínica Pro</PageTitle>
+<AutoRefresh Enabled="true" IntervalSeconds="60" OnRefresh="CargarSilenciosoAsync" />
 
 <div class="space-y-6">
-    <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">Administración</p>
-            <h1 class="mt-1 text-xl font-semibold text-ink">Panel de control</h1>
-            <p class="mt-1 text-sm text-ink-muted">Supervisa personal, accesos, autorizaciones y configuración general del sistema.</p>
-        </div>
-        <div class="inline-flex items-center gap-2 rounded-pill px-3 py-1.5 text-xs font-medium @ClaseConexion">
-            <span class="h-2 w-2 rounded-pill @ClasePuntoConexion"></span>
-            @TextoConexion
-        </div>
+    <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">Administración</p>
+        <h1 class="mt-1 text-xl font-semibold text-ink">Panel de control</h1>
+        <p class="mt-1 text-sm text-ink-muted">Personal, accesos, solicitudes y control administrativo en un solo lugar.</p>
     </div>
 
-    @if (cargando)
+    @if (cargandoInicial && !TieneAlgunDato)
     {
-        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">@for (var i = 0; i < 4; i++) { <Skeleton Filas="1" HeightClass="h-24" /> }</div>
+        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            @for (var i = 0; i < 4; i++)
+            {
+                <Skeleton Filas="1" HeightClass="h-24" />
+            }
+        </div>
+        <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <Card><Skeleton Filas="5" /></Card>
+            <Card><Skeleton Filas="5" /></Card>
+            <Card><Skeleton Filas="5" /></Card>
+        </div>
     }
-    else if (!string.IsNullOrWhiteSpace(error))
+    else if (!TieneAlgunDato && TieneErrores)
     {
         <Card>
-            <EmptyState IconName="alert-triangle" Title="No se pudo cargar el panel" Description="@error" />
+            <EmptyState IconName="alert-triangle" Title="No se pudo cargar el panel" Description="No fue posible obtener la información administrativa. Se volverá a intentar automáticamente." />
             <div class="mt-3 flex justify-center">
                 <Button Variant="ButtonVariant.Secondary" Size="sm" IconName="refresh" OnClick="CargarAsync">Reintentar</Button>
             </div>
@@ -33,34 +39,56 @@
     }
     else
     {
+        @if (solicitudesCargadas && solicitudesPendientes > 0)
+        {
+            <button type="button"
+                    class="flex w-full items-center justify-between rounded-card border border-state-solicitada/30 bg-state-solicitada/10 px-4 py-3 text-left transition-colors hover:bg-brand-50"
+                    @onclick="IrPendientes">
+                <span class="flex items-center gap-2 text-sm font-medium text-state-solicitada">
+                    <Icon Name="clock" Size="16" />
+                    @TextoSolicitudesPendientes
+                </span>
+                <span class="hidden items-center gap-2 text-xs text-state-solicitada sm:flex">
+                    Revisar solicitudes
+                    <Icon Name="arrow-right" Size="16" CssClass="text-state-solicitada" />
+                </span>
+            </button>
+        }
+
         <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <TarjetaKpi Titulo="Médicos activos" Valor="medicosActivos" IconName="stethoscope" OnClick="IrMedicos" />
-            <TarjetaKpi Titulo="Médicos inactivos" Valor="medicosInactivos" IconName="lock" OnClick="IrMedicos" />
-            <TarjetaKpi Titulo="Usuarios activos" Valor="usuariosActivos" IconName="users" OnClick="IrUsuarios" />
-            <TarjetaKpi Titulo="Autorizaciones pendientes" Valor="autorizacionesPendientes" IconName="shield" OnClick="IrAutorizaciones" />
+            <TarjetaKpi Titulo="Solicitudes pendientes" Valor="solicitudesPendientes" ValorTexto="@(ValorOIndicador(solicitudesCargadas, solicitudesPendientes))" IconName="clock" OnClick="IrPendientes" />
+            <TarjetaKpi Titulo="Autorizaciones pendientes" Valor="autorizacionesPendientes" ValorTexto="@(ValorOIndicador(autorizacionesCargadas, autorizacionesPendientes))" IconName="shield" OnClick="IrAutorizaciones" />
+            <TarjetaKpi Titulo="Médicos activos" Valor="medicosActivos" ValorTexto="@(ValorOIndicador(medicosCargados, medicosActivos))" IconName="stethoscope" OnClick="IrMedicos" />
+            <TarjetaKpi Titulo="Usuarios activos" Valor="usuariosActivos" ValorTexto="@(ValorOIndicador(usuariosCargados, usuariosActivos))" IconName="users" OnClick="IrUsuarios" />
         </div>
 
         <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
             <Card Title="Acciones rápidas" IconName="settings">
                 <div class="space-y-2">
+                    <button class="@ClaseAccion" @onclick="IrPendientes"><span class="flex items-center gap-2"><Icon Name="clock" Size="17" CssClass="text-brand-600" /> Solicitudes pendientes</span><Icon Name="chevron-right" Size="16" CssClass="text-ink-muted" /></button>
                     <button class="@ClaseAccion" @onclick="IrMedicos"><span class="flex items-center gap-2"><Icon Name="stethoscope" Size="17" CssClass="text-brand-600" /> Médicos y horarios</span><Icon Name="chevron-right" Size="16" CssClass="text-ink-muted" /></button>
                     <button class="@ClaseAccion" @onclick="IrUsuarios"><span class="flex items-center gap-2"><Icon Name="key" Size="17" CssClass="text-brand-600" /> Usuarios y roles</span><Icon Name="chevron-right" Size="16" CssClass="text-ink-muted" /></button>
-                    <button class="@ClaseAccion" @onclick="IrAutorizaciones"><span class="flex items-center gap-2"><Icon Name="shield" Size="17" CssClass="text-brand-600" /> Revisar autorizaciones</span><Icon Name="chevron-right" Size="16" CssClass="text-ink-muted" /></button>
-                    <button class="@ClaseAccion" @onclick="IrReportes"><span class="flex items-center gap-2"><Icon Name="chart" Size="17" CssClass="text-brand-600" /> Consultar reportes</span><Icon Name="chevron-right" Size="16" CssClass="text-ink-muted" /></button>
+                    <button class="@ClaseAccion" @onclick="IrAutorizaciones"><span class="flex items-center gap-2"><Icon Name="shield" Size="17" CssClass="text-brand-600" /> Autorizaciones</span><Icon Name="chevron-right" Size="16" CssClass="text-ink-muted" /></button>
+                    <button class="@ClaseAccion" @onclick="IrReportes"><span class="flex items-center gap-2"><Icon Name="chart" Size="17" CssClass="text-brand-600" /> Reportes</span><Icon Name="chevron-right" Size="16" CssClass="text-ink-muted" /></button>
                 </div>
             </Card>
 
             <Card Title="Resumen administrativo" IconName="chart">
                 <dl class="space-y-4 text-sm">
-                    <div class="flex items-center justify-between"><dt class="text-ink-muted">Médicos registrados</dt><dd class="font-semibold text-ink">@medicosTotal</dd></div>
-                    <div class="flex items-center justify-between"><dt class="text-ink-muted">Cuentas registradas</dt><dd class="font-semibold text-ink">@usuariosTotal</dd></div>
-                    <div class="flex items-center justify-between"><dt class="text-ink-muted">Parámetros configurados</dt><dd class="font-semibold text-ink">@parametrosTotal</dd></div>
-                    <div class="flex items-center justify-between"><dt class="text-ink-muted">Cuentas inactivas</dt><dd class="font-semibold text-ink">@(usuariosTotal - usuariosActivos)</dd></div>
+                    <div class="flex items-center justify-between"><dt class="text-ink-muted">Médicos registrados</dt><dd class="font-semibold text-ink">@ValorOIndicador(medicosCargados, medicosTotal)</dd></div>
+                    <div class="flex items-center justify-between"><dt class="text-ink-muted">Médicos inactivos</dt><dd class="font-semibold text-ink">@ValorOIndicador(medicosCargados, medicosInactivos)</dd></div>
+                    <div class="flex items-center justify-between"><dt class="text-ink-muted">Cuentas registradas</dt><dd class="font-semibold text-ink">@ValorOIndicador(usuariosCargados, usuariosTotal)</dd></div>
+                    <div class="flex items-center justify-between"><dt class="text-ink-muted">Cuentas inactivas</dt><dd class="font-semibold text-ink">@(usuariosCargados ? (usuariosTotal - usuariosActivos).ToString() : "—")</dd></div>
+                    <div class="flex items-center justify-between"><dt class="text-ink-muted">Parámetros configurados</dt><dd class="font-semibold text-ink">@ValorOIndicador(parametrosCargados, parametrosTotal)</dd></div>
                 </dl>
             </Card>
 
             <Card Title="Actividad reciente" IconName="history">
-                @if (auditoria.Count == 0)
+                @if (!auditoriaCargada && auditoria.Count == 0)
+                {
+                    <EmptyState IconName="history" Title="Actividad no disponible" Description="La auditoría se actualizará automáticamente." />
+                }
+                else if (auditoria.Count == 0)
                 {
                     <EmptyState IconName="history" Title="Sin actividad reciente" Description="Los cambios administrativos aparecerán aquí." />
                 }
@@ -86,12 +114,17 @@
 </div>
 
 @code {
-    private const string ClaseAccion = "flex w-full items-center justify-between rounded-control border border-border px-3 py-3 text-left text-sm text-ink hover:bg-surface-muted";
-    private string TextoConexion => cargando ? "Verificando conexión" : error is null ? "Backend conectado" : "Backend no disponible";
-    private string ClaseConexion => error is null ? "bg-brand-50 text-brand-700" : "bg-state-rechazada/10 text-state-rechazada";
-    private string ClasePuntoConexion => error is null ? "bg-brand-500" : "bg-state-rechazada";
-    private bool cargando = true;
-    private string? error;
+    private const string ClaseAccion = "flex w-full items-center justify-between rounded-control border border-border px-3 py-3 text-left text-sm text-ink transition-colors hover:border-brand-500 hover:bg-brand-50";
+    private bool cargandoInicial = true;
+    private bool sincronizando;
+    private bool medicosCargados;
+    private bool usuariosCargados;
+    private bool parametrosCargados;
+    private bool auditoriaCargada;
+    private bool autorizacionesCargadas;
+    private bool solicitudesCargadas;
+    private readonly HashSet<string> errores = new(StringComparer.OrdinalIgnoreCase);
+
     private int medicosTotal;
     private int medicosActivos;
     private int medicosInactivos;
@@ -99,48 +132,109 @@
     private int usuariosActivos;
     private int parametrosTotal;
     private int autorizacionesPendientes;
+    private int solicitudesPendientes;
     private IReadOnlyList<AuditoriaDto> auditoria = [];
 
-    protected override async Task OnInitializedAsync() => await CargarAsync();
+    private bool TieneErrores => errores.Count > 0;
+    private bool TieneAlgunDato => medicosCargados || usuariosCargados || parametrosCargados || auditoriaCargada || autorizacionesCargadas || solicitudesCargadas;
+    private string TextoSolicitudesPendientes => solicitudesPendientes == 1
+        ? "1 solicitud de cita pendiente de confirmar"
+        : $"{solicitudesPendientes} solicitudes de cita pendientes de confirmar";
 
-    private async Task CargarAsync()
+    protected override async Task OnInitializedAsync() => await CargarAsync(silencioso: false);
+
+    private Task CargarSilenciosoAsync() => CargarAsync(silencioso: true);
+    private Task CargarAsync() => CargarAsync(silencioso: false);
+
+    private async Task CargarAsync(bool silencioso)
     {
-        cargando = true;
-        error = null;
+        if (sincronizando) return;
+        sincronizando = true;
+        if (!silencioso && !TieneAlgunDato) cargandoInicial = true;
+
         try
         {
-            var medicosTask = AdminApi.ListarMedicosAsync();
-            var usuariosTask = AdminApi.ListarUsuariosAsync();
-            var parametrosTask = AdminApi.ListarParametrosAsync();
-            var auditoriaTask = AdminApi.ListarAuditoriaAsync();
-            var autorizacionesTask = AdminApi.ListarAutorizacionesAsync("Pendiente");
-            await Task.WhenAll(medicosTask, usuariosTask, parametrosTask, auditoriaTask, autorizacionesTask);
+            var medicosTask = IntentarAsync("medicos", () => AdminApi.ListarMedicosAsync());
+            var usuariosTask = IntentarAsync("usuarios", () => AdminApi.ListarUsuariosAsync());
+            var parametrosTask = IntentarAsync("parametros", () => AdminApi.ListarParametrosAsync());
+            var auditoriaTask = IntentarAsync("auditoria", () => AdminApi.ListarAuditoriaAsync());
+            var autorizacionesTask = IntentarAsync("autorizaciones", () => AdminApi.ListarAutorizacionesAsync("Pendiente"));
+            var solicitudesTask = IntentarAsync("solicitudes", () => CitasApi.ListarPendientesAsync());
+
+            await Task.WhenAll(medicosTask, usuariosTask, parametrosTask, auditoriaTask, autorizacionesTask, solicitudesTask);
 
             var medicos = await medicosTask;
+            if (medicos is not null)
+            {
+                medicosTotal = medicos.Count;
+                medicosActivos = medicos.Count(x => x.IsActive);
+                medicosInactivos = medicos.Count(x => !x.IsActive);
+                medicosCargados = true;
+            }
+
             var usuarios = await usuariosTask;
-            medicosTotal = medicos.Count;
-            medicosActivos = medicos.Count(x => x.IsActive);
-            medicosInactivos = medicos.Count(x => !x.IsActive);
-            usuariosTotal = usuarios.Count;
-            usuariosActivos = usuarios.Count(x => x.IsActive);
-            parametrosTotal = (await parametrosTask).Count;
-            auditoria = await auditoriaTask;
-            autorizacionesPendientes = (await autorizacionesTask).Count;
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
-        {
-            error = ex.Message;
+            if (usuarios is not null)
+            {
+                usuariosTotal = usuarios.Count;
+                usuariosActivos = usuarios.Count(x => x.IsActive);
+                usuariosCargados = true;
+            }
+
+            var parametros = await parametrosTask;
+            if (parametros is not null)
+            {
+                parametrosTotal = parametros.Count;
+                parametrosCargados = true;
+            }
+
+            var auditoriaNueva = await auditoriaTask;
+            if (auditoriaNueva is not null)
+            {
+                auditoria = auditoriaNueva;
+                auditoriaCargada = true;
+            }
+
+            var autorizaciones = await autorizacionesTask;
+            if (autorizaciones is not null)
+            {
+                autorizacionesPendientes = autorizaciones.Count;
+                autorizacionesCargadas = true;
+            }
+
+            var solicitudes = await solicitudesTask;
+            if (solicitudes is not null)
+            {
+                solicitudesPendientes = solicitudes.Count;
+                solicitudesCargadas = true;
+            }
         }
         finally
         {
-            cargando = false;
+            cargandoInicial = false;
+            sincronizando = false;
         }
     }
 
+    private async Task<IReadOnlyList<T>?> IntentarAsync<T>(string clave, Func<Task<IReadOnlyList<T>>> accion)
+    {
+        try
+        {
+            var resultado = await accion();
+            errores.Remove(clave);
+            return resultado;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            errores.Add(clave);
+            return null;
+        }
+    }
+
+    private static string ValorOIndicador(bool cargado, int valor) => cargado ? valor.ToString() : "—";
+    private void IrPendientes() => Navigation.NavigateTo("/citas?tab=pendientes");
     private void IrMedicos() => Navigation.NavigateTo("/admin/medicos");
     private void IrUsuarios() => Navigation.NavigateTo("/admin/usuarios");
     private void IrAutorizaciones() => Navigation.NavigateTo("/admin/autorizaciones");
     private void IrReportes() => Navigation.NavigateTo("/reportes");
-    private void IrParametros() => Navigation.NavigateTo("/admin/parametros");
     private void IrAuditoria() => Navigation.NavigateTo("/admin/auditoria");
 }

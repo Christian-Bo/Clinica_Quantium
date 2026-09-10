@@ -1,46 +1,51 @@
 @page "/notificaciones"
-@attribute [Authorize(Roles = Roles.Secretaria)]
+@attribute [Authorize(Roles = "Secretaria,Administrador")]
 @inject NotificacionesApiService NotificacionesApi
+@inject NavigationManager Navigation
 
 <PageTitle>Notificaciones · Clínica Pro</PageTitle>
+<AutoRefresh Enabled="true" IntervalSeconds="30" OnRefresh="CargarSilenciosoAsync" />
 
 <div class="space-y-6">
     <div>
         <h1 class="text-xl font-semibold text-ink">Notificaciones</h1>
-        <p class="text-sm text-ink-muted">Avisos automáticos enviados a pacientes por correo o WhatsApp.</p>
+        <p class="text-sm text-ink-muted">Consulta el estado de los avisos automáticos enviados a pacientes.</p>
     </div>
 
+
     <div class="flex flex-wrap gap-2">
-        <ChipFiltro Texto="Todas" Activo="filtroEstado is null" OnClick="() => AplicarFiltroAsync(null)" />
-        <ChipFiltro Texto="Pendientes" Activo="filtroEstado == NotificacionEstados.Pendiente"
-                    OnClick="() => AplicarFiltroAsync(NotificacionEstados.Pendiente)" />
-        <ChipFiltro Texto="Enviadas" Activo="filtroEstado == NotificacionEstados.Enviada"
-                    OnClick="() => AplicarFiltroAsync(NotificacionEstados.Enviada)" />
-        <ChipFiltro Texto="Fallidas" Activo="filtroEstado == NotificacionEstados.Fallida"
-                    OnClick="() => AplicarFiltroAsync(NotificacionEstados.Fallida)" />
+        <ChipFiltro Texto="@TextoTodas" Activo="filtroEstado is null" OnClick="() => AplicarFiltro(null)" />
+        <ChipFiltro Texto="@TextoPendientes" Activo="filtroEstado == NotificacionEstados.Pendiente"
+                    OnClick="() => AplicarFiltro(NotificacionEstados.Pendiente)" />
+        <ChipFiltro Texto="@TextoProcesando" Activo="filtroEstado == NotificacionEstados.Procesando"
+                    OnClick="() => AplicarFiltro(NotificacionEstados.Procesando)" />
+        <ChipFiltro Texto="@TextoEnviadas" Activo="filtroEstado == NotificacionEstados.Enviada"
+                    OnClick="() => AplicarFiltro(NotificacionEstados.Enviada)" />
+        <ChipFiltro Texto="@TextoFallidas" Activo="filtroEstado == NotificacionEstados.Fallida"
+                    OnClick="() => AplicarFiltro(NotificacionEstados.Fallida)" />
     </div>
 
     <Card BodyPadding="p-0">
-        @if (cargando)
+        @if (cargando && notificaciones.Count == 0)
         {
             <div class="p-4"><Skeleton Filas="6" HeightClass="h-14" /></div>
         }
-        else if (errorCarga is not null)
+        else if (errorCarga is not null && notificaciones.Count == 0)
         {
             <div class="p-4">
                 <EmptyState IconName="alert-triangle" Title="No se pudo cargar" Description="@errorCarga" />
                 <div class="mt-3 flex justify-center"><Button Variant="ButtonVariant.Secondary" Size="sm" IconName="refresh" OnClick="CargarAsync">Reintentar</Button></div>
             </div>
         }
-        else if (notificaciones.Count == 0)
+        else if (Filtradas.Count == 0)
         {
             <EmptyState IconName="inbox" Title="No hay notificaciones"
-                        Description="No hay notificaciones que coincidan con este filtro." />
+                        Description="@DescripcionVacia" />
         }
         else
         {
             <div class="divide-y divide-border">
-                @foreach (var grupo in notificaciones.GroupBy(n => n.CreatedAtUtc.ToLocalTime().Date).OrderByDescending(g => g.Key))
+                @foreach (var grupo in Filtradas.GroupBy(n => n.CreatedAtUtc.ToLocalTime().Date).OrderByDescending(g => g.Key))
                 {
                     <div class="bg-surface-muted px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-ink-muted">
                         @grupo.Key.ToString("dd 'de' MMMM", new System.Globalization.CultureInfo("es-GT"))
@@ -57,6 +62,10 @@
                                     <span class="text-xs text-ink-muted">· @NotificacionTipos.Etiqueta(notificacion.Tipo)</span>
                                 </div>
                                 <p class="mt-0.5 truncate text-sm text-ink-muted">@notificacion.Contenido</p>
+                                @if (notificacion.Estado == NotificacionEstados.Fallida && notificacion.NumeroIntentos > 0)
+                                {
+                                    <p class="mt-1 text-xs text-state-rechazada">Intentos realizados: @notificacion.NumeroIntentos</p>
+                                }
                             </div>
                             <div class="flex shrink-0 flex-col items-end gap-1">
                                 <NotificacionStatusBadge Estado="@notificacion.Estado" />
@@ -73,24 +82,83 @@
 </div>
 
 @code {
+    [SupplyParameterFromQuery(Name = "estado")]
+    public string? EstadoQuery { get; set; }
+
+    private List<NotificacionDto> todas = [];
     private List<NotificacionDto> notificaciones = [];
     private bool cargando = true;
+    private bool datosCargados;
     private string? errorCarga;
     private string? filtroEstado;
+    private bool inicializado;
 
-    protected override async Task OnInitializedAsync() => await CargarAsync();
+    private IReadOnlyList<NotificacionDto> Filtradas => notificaciones
+        .OrderByDescending(n => n.CreatedAtUtc)
+        .ToList();
 
-    private async Task CargarAsync()
+    private int Pendientes => Contar(NotificacionEstados.Pendiente);
+    private int Procesando => Contar(NotificacionEstados.Procesando);
+    private int Enviadas => Contar(NotificacionEstados.Enviada);
+    private int Fallidas => Contar(NotificacionEstados.Fallida);
+
+    private string TextoTodas => $"Todas ({todas.Count})";
+    private string TextoPendientes => $"En cola ({Pendientes})";
+    private string TextoProcesando => $"Procesando ({Procesando})";
+    private string TextoEnviadas => $"Enviadas ({Enviadas})";
+    private string TextoFallidas => $"Fallidas ({Fallidas})";
+
+    private string DescripcionVacia => filtroEstado switch
     {
-        cargando = true;
-        errorCarga = null;
+        NotificacionEstados.Pendiente => "No hay envíos en cola en este momento.",
+        NotificacionEstados.Procesando => "No hay envíos en procesamiento en este momento.",
+        NotificacionEstados.Enviada => "No hay notificaciones enviadas dentro de los registros recientes.",
+        NotificacionEstados.Fallida => "No hay notificaciones fallidas. Los envíos recientes se procesaron sin errores registrados.",
+        _ => "No hay notificaciones registradas recientemente."
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var nuevoFiltro = NormalizarEstado(EstadoQuery);
+        filtroEstado = nuevoFiltro;
+
+        if (!inicializado)
+        {
+            inicializado = true;
+            await CargarAsync();
+        }
+    }
+
+    private Task CargarSilenciosoAsync() => CargarAsync(silencioso: true);
+
+    private async Task CargarAsync() => await CargarAsync(silencioso: false);
+
+    private async Task CargarAsync(bool silencioso)
+    {
+        if (!silencioso && todas.Count == 0)
+        {
+            cargando = true;
+        }
+
         try
         {
-            notificaciones = (await NotificacionesApi.ListarAsync(filtroEstado)).ToList();
+            var resumenTask = NotificacionesApi.ListarAsync();
+            Task<IReadOnlyList<NotificacionDto>> visiblesTask = filtroEstado is null
+                ? resumenTask
+                : NotificacionesApi.ListarAsync(filtroEstado);
+
+            await Task.WhenAll(resumenTask, visiblesTask);
+            todas = (await resumenTask).ToList();
+            notificaciones = (await visiblesTask).ToList();
+            datosCargados = true;
+            errorCarga = null;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            errorCarga = ex.Message;
+            if (!silencioso || !datosCargados)
+            {
+                errorCarga = ex.Message;
+            }
         }
         finally
         {
@@ -98,9 +166,38 @@
         }
     }
 
-    private async Task AplicarFiltroAsync(string? estado)
+    private async Task AplicarFiltro(string? estado)
     {
         filtroEstado = estado;
-        await CargarAsync();
+        var url = estado is null
+            ? "/notificaciones"
+            : $"/notificaciones?estado={Uri.EscapeDataString(estado)}";
+        Navigation.NavigateTo(url, replace: true);
+        await CargarAsync(silencioso: notificaciones.Count > 0);
+    }
+
+    private int Contar(string estado)
+    {
+        var resumen = todas.Count(n => n.Estado.Equals(estado, StringComparison.OrdinalIgnoreCase));
+        if (filtroEstado?.Equals(estado, StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return Math.Max(resumen, notificaciones.Count);
+        }
+
+        return resumen;
+    }
+
+    private static string? NormalizarEstado(string? estado)
+    {
+        if (string.IsNullOrWhiteSpace(estado)) return null;
+
+        return estado.Trim() switch
+        {
+            var x when x.Equals(NotificacionEstados.Pendiente, StringComparison.OrdinalIgnoreCase) => NotificacionEstados.Pendiente,
+            var x when x.Equals(NotificacionEstados.Procesando, StringComparison.OrdinalIgnoreCase) => NotificacionEstados.Procesando,
+            var x when x.Equals(NotificacionEstados.Enviada, StringComparison.OrdinalIgnoreCase) => NotificacionEstados.Enviada,
+            var x when x.Equals(NotificacionEstados.Fallida, StringComparison.OrdinalIgnoreCase) => NotificacionEstados.Fallida,
+            _ => null
+        };
     }
 }

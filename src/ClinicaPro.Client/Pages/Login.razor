@@ -24,10 +24,10 @@
 
             <!-- Correo -->
             <div>
-                <div class="@ClaseCampo(emailActivo, emailInvalido)">
+                <div class="@ClaseCampo(emailActivo, emailInvalido, emailValido)">
                     <span class="@ClaseIcono(emailActivo)"><Icon Name="mail" Size="18" /></span>
                     <input id="login-email" type="email" autocomplete="username" required
-                           placeholder="Correo electrónico"
+                           placeholder="Ej. usuario@dominio.com"
                            class="w-full bg-transparent text-sm text-ink placeholder:text-ink-muted/70 focus:outline-none"
                            @bind="modelo.Email" @bind:event="oninput"
                            @onfocus="() => emailActivo = true"
@@ -43,10 +43,10 @@
 
             <!-- Contraseña -->
             <div>
-                <div class="@ClaseCampo(passwordActivo, false)">
+                <div class="@ClaseCampo(passwordActivo, false, false)">
                     <span class="@ClaseIcono(passwordActivo)"><Icon Name="lock" Size="18" /></span>
                     <input id="login-password" type="@(verPassword ? "text" : "password")"
-                           autocomplete="current-password" required placeholder="Contraseña"
+                           autocomplete="current-password" required placeholder="Ingresa tu contraseña"
                            class="w-full bg-transparent text-sm text-ink placeholder:text-ink-muted/70 focus:outline-none"
                            @bind="modelo.Password" @bind:event="oninput"
                            @onfocus="() => passwordActivo = true"
@@ -123,6 +123,7 @@
     private bool cargando;
     private bool verPassword;
     private bool emailInvalido;
+    private bool emailValido;
     private bool recordarme;
     private bool modalRecuperarAbierto;
     private string? avisoSesion;
@@ -146,7 +147,7 @@
     /// El campo entero se ilumina al enfocar, no solo el input: así el usuario
     /// ve dónde está parado aunque el borde sea sutil.
     /// </summary>
-    private static string ClaseCampo(bool activo, bool conError)
+    private static string ClaseCampo(bool activo, bool conError, bool conExito)
     {
         const string Base =
             "flex items-center gap-3 rounded-pill border bg-surface-muted px-4 py-3 transition-all duration-150";
@@ -155,7 +156,10 @@
         {
             return $"{Base} border-state-rechazada bg-state-rechazada/5";
         }
-
+        if (conExito)
+        {
+            return $"{Base} border-state-atendida bg-surface";
+        }
         return activo
             ? $"{Base} border-brand-500 bg-surface ring-4 ring-brand-100"
             : $"{Base} border-border";
@@ -176,9 +180,10 @@
     /// </summary>
     private void RevisarEmail()
     {
-        var email = modelo.Email.Trim();
-        emailInvalido = email.Length > 0
-            && !System.Text.RegularExpressions.Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$");
+        modelo.Email = FormValidation.NormalizeEmail(modelo.Email);
+        var email = modelo.Email;
+        emailValido = email.Length > 0 && FormValidation.IsEmailValid(email);
+        emailInvalido = email.Length > 0 && !emailValido;
     }
 
     private async Task Ingresar()

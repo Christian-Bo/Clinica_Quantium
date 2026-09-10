@@ -1,37 +1,51 @@
 @page "/medico/agenda"
-@attribute [Authorize(Roles = Roles.Medico)]
+@attribute [Authorize(Roles = "Medico,Administrador")]
 @implements IAsyncDisposable
 @inject CitasApiService CitasApi
+@inject MedicosApiService MedicosApi
 @inject AgendaMedicoRealtimeService Realtime
+@inject AuthenticationStateProvider AuthStateProvider
 @inject ToastService Toasts
 @inject IJSRuntime JS
 
-<PageTitle>Mi Agenda · Clínica Pro</PageTitle>
+<PageTitle>@(esAdministrador ? "Agenda médica" : "Mi Agenda") · Clínica Pro</PageTitle>
 
 <div class="space-y-6">
-    <div class="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+    <div class="flex flex-col justify-between gap-3 lg:flex-row lg:items-end">
         <div>
-            <h1 class="text-xl font-semibold text-ink">Mi Agenda</h1>
-            <p class="text-sm text-ink-muted">Tus citas se actualizan automáticamente y reciben avisos cuando Secretaría registra una llegada.</p>
+            <h1 class="text-xl font-semibold text-ink">@(esAdministrador ? "Agenda médica" : "Mi Agenda")</h1>
+            <p class="text-sm text-ink-muted">@(esAdministrador ? "Supervisa la actividad médica y opera una atención cuando sea necesario." : "Tus citas se actualizan automáticamente y reciben avisos cuando Secretaría registra una llegada.")</p>
         </div>
-        <div class="flex items-center gap-2 text-xs text-ink-muted"><span class="h-2 w-1.5 rounded-full @(Realtime.Conectado ? "bg-brand-500" : "bg-state-solicitada")"></span>@(Realtime.Conectado ? "Actualización en tiempo real" : "Actualización periódica activa")</div>
+        @if (esAdministrador)
+        {
+            <select class="h-9 w-64 rounded-control border border-border bg-surface px-3 text-sm text-ink outline-none focus:border-brand-500"
+                    value="@(medicoFiltro?.ToString() ?? string.Empty)" @onchange="CambiarMedicoAdminAsync" aria-label="Filtrar por médico">
+                <option value="">Todos los médicos</option>
+                @foreach (var medico in medicos)
+                {
+                    <option value="@medico.MedicoId">@medico.NombreCompleto</option>
+                }
+            </select>
+        }
     </div>
 
     @if (cargando)
     {
         <Skeleton Filas="1" HeightClass="h-20" />
     }
-    else if (error is not null)
-    {
-        <Card>
-            <EmptyState IconName="alert-triangle" Title="No se pudo cargar tu agenda" Description="@error" />
-            <div class="mt-3 flex justify-center">
-                <Button Variant="ButtonVariant.Secondary" Size="sm" IconName="refresh" OnClick="CargarAsync">Reintentar</Button>
-            </div>
-        </Card>
-    }
     else
     {
+        @if (error is not null && !datosCargados)
+        {
+            <div class="flex items-start gap-3 rounded-control border border-state-solicitada/30 bg-state-solicitada/10 px-4 py-3">
+                <Icon Name="refresh" Size="17" CssClass="mt-0.5 text-state-solicitada" />
+                <div>
+                    <p class="text-sm font-medium text-ink">Reconectando con la agenda</p>
+                    <p class="mt-0.5 text-xs text-ink-muted">@error La pantalla seguirá intentando automáticamente; no necesitas recargarla.</p>
+                </div>
+            </div>
+        }
+
         <div class="grid grid-cols-3 gap-4">
             <TarjetaKpi Titulo="Citas hoy" Valor="CitasHoy" IconName="calendar" />
             <TarjetaKpi Titulo="En espera" Valor="EnEsperaHoy" IconName="clock" />
@@ -51,7 +65,13 @@
                 <div class="divide-y divide-border">
                     @foreach (var cita in enEsperaVisible)
                     {
-                        <div class="flex items-center justify-between gap-3 py-2.5"><div class="min-w-0"><p class="truncate text-sm font-medium text-ink">@cita.PacienteNombre</p><p class="truncate text-xs text-ink-muted">@cita.FechaHoraInicio.ToString("HH:mm") · @cita.MotivoConsulta</p></div><Button Variant="ButtonVariant.Primary" Size="sm" IconName="check" OnClick="() => AbrirDetalle(cita)">Atender</Button></div>
+                        <div class="flex items-center justify-between gap-3 py-2.5">
+                            <div class="min-w-0">
+                                <p class="truncate text-sm font-medium text-ink">@cita.PacienteNombre</p>
+                                <p class="truncate text-xs text-ink-muted">@cita.FechaHoraInicio.ToString("HH:mm") · @cita.MedicoNombre · @cita.MotivoConsulta</p>
+                            </div>
+                            <Button Variant="ButtonVariant.Primary" Size="sm" IconName="check" OnClick="() => AbrirDetalle(cita)">Atender</Button>
+                        </div>
                     }
                 </div>
             </Card>
@@ -59,13 +79,21 @@
 
         <Card BodyPadding="p-4">
             <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div class="flex items-center gap-2"><Button Variant="ButtonVariant.Secondary" Size="sm" IconName="chevron-left" OnClick="Anterior" /><Button Variant="ButtonVariant.Secondary" Size="sm" OnClick="IrAHoy">Hoy</Button><Button Variant="ButtonVariant.Secondary" Size="sm" IconName="chevron-right" OnClick="Siguiente" /><span class="ml-2 text-sm font-medium capitalize text-ink">@TituloRango</span></div>
-                <div class="flex rounded-control border border-border p-0.5"><button type="button" class="@ClaseVista(false)" @onclick="() => CambiarVista(false)">Día</button><button type="button" class="@ClaseVista(true)" @onclick="() => CambiarVista(true)">Semana</button></div>
+                <div class="flex items-center gap-2">
+                    <Button Variant="ButtonVariant.Secondary" Size="sm" IconName="chevron-left" OnClick="Anterior" />
+                    <Button Variant="ButtonVariant.Secondary" Size="sm" OnClick="IrAHoy">Hoy</Button>
+                    <Button Variant="ButtonVariant.Secondary" Size="sm" IconName="chevron-right" OnClick="Siguiente" />
+                    <span class="ml-2 text-sm font-medium capitalize text-ink">@TituloRango</span>
+                </div>
+                <div class="flex rounded-control border border-border p-0.5">
+                    <button type="button" class="@ClaseVista(false)" @onclick="() => CambiarVistaAsync(false)">Día</button>
+                    <button type="button" class="@ClaseVista(true)" @onclick="() => CambiarVistaAsync(true)">Semana</button>
+                </div>
             </div>
 
             @if (citasDelRango.Count == 0)
             {
-                <EmptyState IconName="calendar" Title="Sin citas en este rango" Description="Cuando tengas citas programadas aparecerán aquí." />
+                <EmptyState IconName="calendar" Title="Sin citas en este rango" Description="Cuando existan citas programadas aparecerán aquí automáticamente." />
             }
             else
             {
@@ -75,20 +103,25 @@
     }
 </div>
 
-<CitaMedicoDrawer IsOpen="drawerAbierto" IsOpenChanged="@((bool v) => drawerAbierto = v)" Cita="citaSeleccionada" OnActualizada="ManejarActualizada" />
+<CitaMedicoDrawer IsOpen="drawerAbierto" IsOpenChanged="@((bool v) => drawerAbierto = v)" Cita="citaSeleccionada" EsAdministrador="@esAdministrador" OnActualizada="ManejarActualizada" />
 
 @code {
     private static readonly System.Globalization.CultureInfo CulturaEs = new("es-GT");
-    private static readonly TimeSpan IntervaloActualizacion = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan IntervaloActualizacion = TimeSpan.FromSeconds(25);
     private DateOnly fecha = DateOnly.FromDateTime(DateTime.Today);
     private bool vistaSemana;
+    private bool esAdministrador;
+    private IReadOnlyList<MedicoDto> medicos = [];
+    private Guid? medicoFiltro;
     private List<CitaDto> todasMisCitas = [];
     private bool cargando = true;
+    private bool datosCargados;
     private string? error;
     private bool drawerAbierto;
     private CitaDto? citaSeleccionada;
     private PeriodicTimer? timer;
     private CancellationTokenSource? timerCts;
+    private bool refrescando;
 
     private List<DateOnly> DiasVisibles => vistaSemana ? Enumerable.Range(0, 7).Select(InicioSemana(fecha).AddDays).ToList() : [fecha];
     private static DateOnly InicioSemana(DateOnly dia) => dia.AddDays(-(((int)dia.DayOfWeek + 6) % 7));
@@ -104,18 +137,75 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var estado = await AuthStateProvider.GetAuthenticationStateAsync();
+        esAdministrador = estado.User.IsInRole(Roles.Administrador);
+
+        if (esAdministrador)
+        {
+            try
+            {
+                medicos = await MedicosApi.ListarAsync();
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            {
+                error = ex.Message;
+            }
+        }
+
         await CargarAsync();
-        Realtime.PacienteLlego += ManejarPacienteLlegoAsync;
-        await Realtime.IniciarAsync();
+
+        if (!esAdministrador)
+        {
+            Realtime.PacienteLlego += ManejarPacienteLlegoAsync;
+            await Realtime.IniciarAsync();
+        }
+
         IniciarActualizacionAutomatica();
     }
 
     private async Task CargarAsync()
     {
+        if (refrescando)
+        {
+            return;
+        }
+
+        refrescando = true;
         cargando = todasMisCitas.Count == 0;
-        try { todasMisCitas = (await CitasApi.ListarMisCitasAsync()).ToList(); error = null; }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { error = ex.Message; }
-        finally { cargando = false; }
+        try
+        {
+            if (esAdministrador)
+            {
+                var inicio = vistaSemana ? InicioSemana(fecha) : fecha;
+                var fin = vistaSemana ? inicio.AddDays(7) : inicio.AddDays(1);
+                todasMisCitas = (await CitasApi.ListarAgendaAsync(
+                    inicio.ToDateTime(TimeOnly.MinValue),
+                    fin.ToDateTime(TimeOnly.MinValue),
+                    medicoFiltro)).ToList();
+            }
+            else
+            {
+                todasMisCitas = (await CitasApi.ListarMisCitasAsync()).ToList();
+            }
+
+            datosCargados = true;
+            error = null;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            cargando = false;
+            refrescando = false;
+        }
+    }
+
+    private async Task CambiarMedicoAdminAsync(ChangeEventArgs e)
+    {
+        medicoFiltro = Guid.TryParse(e.Value?.ToString(), out var id) ? id : null;
+        await CargarAsync();
     }
 
     private async Task ManejarPacienteLlegoAsync(PacienteLlegoDto aviso)
@@ -130,13 +220,16 @@
 
     private void IniciarActualizacionAutomatica()
     {
-        timerCts = new CancellationTokenSource(); timer = new PeriodicTimer(IntervaloActualizacion); _ = ActualizarPeriodicamenteAsync(timerCts.Token);
+        timerCts = new CancellationTokenSource();
+        timer = new PeriodicTimer(IntervaloActualizacion);
+        _ = ActualizarPeriodicamenteAsync(timerCts.Token);
     }
+
     private async Task ActualizarPeriodicamenteAsync(CancellationToken ct)
     {
         try
         {
-            while (await timer!.WaitForNextTickAsync(ct))
+            while (timer is not null && await timer.WaitForNextTickAsync(ct))
             {
                 var visible = await JS.InvokeAsync<bool>("clinicaProPage.isVisible");
                 if (!visible)
@@ -153,18 +246,51 @@
         }
     }
 
-    private void CambiarVista(bool semana) => vistaSemana = semana;
-    private void Anterior() => fecha = vistaSemana ? fecha.AddDays(-7) : fecha.AddDays(-1);
-    private void Siguiente() => fecha = vistaSemana ? fecha.AddDays(7) : fecha.AddDays(1);
-    private void IrAHoy() => fecha = DateOnly.FromDateTime(DateTime.Today);
+    private async Task CambiarVistaAsync(bool semana)
+    {
+        if (vistaSemana == semana)
+        {
+            return;
+        }
+
+        vistaSemana = semana;
+        if (esAdministrador)
+        {
+            await CargarAsync();
+        }
+    }
+
+    private async Task Anterior()
+    {
+        fecha = vistaSemana ? fecha.AddDays(-7) : fecha.AddDays(-1);
+        if (esAdministrador) await CargarAsync();
+    }
+
+    private async Task Siguiente()
+    {
+        fecha = vistaSemana ? fecha.AddDays(7) : fecha.AddDays(1);
+        if (esAdministrador) await CargarAsync();
+    }
+
+    private async Task IrAHoy()
+    {
+        fecha = DateOnly.FromDateTime(DateTime.Today);
+        if (esAdministrador) await CargarAsync();
+    }
+
     private void AbrirDetalle(CitaDto cita) { citaSeleccionada = cita; drawerAbierto = true; }
     private async Task ManejarActualizada(CitaDto cita) => await CargarAsync();
     private string ClaseVista(bool objetivo) => "rounded-control px-3 py-1 text-xs font-medium transition-colors " + (vistaSemana == objetivo ? "bg-brand-500 text-white" : "text-ink-muted hover:bg-surface-muted");
 
     public async ValueTask DisposeAsync()
     {
-        timerCts?.Cancel(); timer?.Dispose(); timerCts?.Dispose();
-        Realtime.PacienteLlego -= ManejarPacienteLlegoAsync;
-        await Realtime.DisposeAsync();
+        timerCts?.Cancel();
+        timer?.Dispose();
+        timerCts?.Dispose();
+        if (!esAdministrador)
+        {
+            Realtime.PacienteLlego -= ManejarPacienteLlegoAsync;
+            await Realtime.DisposeAsync();
+        }
     }
 }

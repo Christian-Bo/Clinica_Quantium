@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace ClinicaPro.Client.Shared;
 
@@ -15,17 +16,27 @@ public sealed class ApiClient(HttpClient http)
         string mensajeError,
         CancellationToken ct = default)
     {
-        using var mensaje = new HttpRequestMessage(HttpMethod.Get, url);
-        using var respuesta = await EnviarAsync(mensaje, ct);
+        using var respuesta = await EnviarGetConReintentosAsync(url, ct);
         if (!respuesta.IsSuccessStatusCode)
         {
             throw await CrearExcepcionAsync(respuesta, mensajeError, ct);
         }
 
-        var valor = await respuesta.Content.ReadFromJsonAsync<T>(cancellationToken: ct);
+        T? valor;
+        try
+        {
+            valor = await respuesta.Content.ReadFromJsonAsync<T>(cancellationToken: ct);
+        }
+        catch (JsonException)
+        {
+            throw new ApiClientException(HttpStatusCode.OK,
+                FrontendErrorCatalog.WithCode("La respuesta del servidor no coincide con el formato esperado.", FrontendErrorCatalog.InvalidResponse));
+        }
         return valor ?? throw new ApiClientException(
             HttpStatusCode.OK,
-            "El servidor respondió correctamente, pero no devolvió datos válidos.");
+            FrontendErrorCatalog.WithCode(
+                "El servidor respondió correctamente, pero no devolvió datos válidos.",
+                FrontendErrorCatalog.InvalidResponse));
     }
 
     public async Task<IReadOnlyList<T>> ObtenerListaAsync<T>(
@@ -34,8 +45,7 @@ public sealed class ApiClient(HttpClient http)
         CancellationToken ct = default,
         bool notFoundComoVacio = false)
     {
-        using var mensaje = new HttpRequestMessage(HttpMethod.Get, url);
-        using var respuesta = await EnviarAsync(mensaje, ct);
+        using var respuesta = await EnviarGetConReintentosAsync(url, ct);
 
         if (notFoundComoVacio && respuesta.StatusCode == HttpStatusCode.NotFound)
         {
@@ -47,7 +57,15 @@ public sealed class ApiClient(HttpClient http)
             throw await CrearExcepcionAsync(respuesta, mensajeError, ct);
         }
 
-        return await respuesta.Content.ReadFromJsonAsync<List<T>>(cancellationToken: ct) ?? [];
+        try
+        {
+            return await respuesta.Content.ReadFromJsonAsync<List<T>>(cancellationToken: ct) ?? [];
+        }
+        catch (JsonException)
+        {
+            throw new ApiClientException(HttpStatusCode.OK,
+                FrontendErrorCatalog.WithCode("La lista recibida no coincide con el formato esperado.", FrontendErrorCatalog.InvalidResponse));
+        }
     }
 
     public async Task<ResultadoOperacion<T>> ObtenerResultadoAsync<T>(
@@ -57,8 +75,7 @@ public sealed class ApiClient(HttpClient http)
     {
         try
         {
-            using var mensaje = new HttpRequestMessage(HttpMethod.Get, url);
-            using var respuesta = await EnviarAsync(mensaje, ct);
+            using var respuesta = await EnviarGetConReintentosAsync(url, ct);
             if (!respuesta.IsSuccessStatusCode)
             {
                 return ResultadoOperacion<T>.Fallo(
@@ -68,12 +85,18 @@ public sealed class ApiClient(HttpClient http)
 
             var valor = await respuesta.Content.ReadFromJsonAsync<T>(cancellationToken: ct);
             return valor is null
-                ? ResultadoOperacion<T>.Fallo("El servidor no devolvió datos válidos.")
+                ? ResultadoOperacion<T>.Fallo(FrontendErrorCatalog.WithCode(
+                    "El servidor no devolvió datos válidos.", FrontendErrorCatalog.InvalidResponse))
                 : ResultadoOperacion<T>.Ok(valor);
+        }
+        catch (JsonException)
+        {
+            return ResultadoOperacion<T>.Fallo(FrontendErrorCatalog.WithCode(
+                "La respuesta del servidor no coincide con el formato esperado.", FrontendErrorCatalog.InvalidResponse));
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            return ResultadoOperacion<T>.Fallo(MensajeConexion(ex));
+            return ResultadoOperacion<T>.Fallo(MensajeConexion(ex, mensajeError));
         }
     }
 
@@ -102,12 +125,18 @@ public sealed class ApiClient(HttpClient http)
 
             var valor = await respuesta.Content.ReadFromJsonAsync<T>(cancellationToken: ct);
             return valor is null
-                ? ResultadoOperacion<T>.Fallo("La operación se completó, pero no se pudo leer la respuesta.")
+                ? ResultadoOperacion<T>.Fallo(FrontendErrorCatalog.WithCode(
+                    "La operación se completó, pero no se pudo leer la respuesta.", FrontendErrorCatalog.InvalidResponse))
                 : ResultadoOperacion<T>.Ok(valor);
+        }
+        catch (JsonException)
+        {
+            return ResultadoOperacion<T>.Fallo(FrontendErrorCatalog.WithCode(
+                "La respuesta de la operación no coincide con el formato esperado.", FrontendErrorCatalog.InvalidResponse));
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            return ResultadoOperacion<T>.Fallo(MensajeConexion(ex));
+            return ResultadoOperacion<T>.Fallo(MensajeConexion(ex, mensajeError));
         }
     }
 
@@ -135,21 +164,64 @@ public sealed class ApiClient(HttpClient http)
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            return ResultadoOperacion<bool>.Fallo(MensajeConexion(ex));
+            return ResultadoOperacion<bool>.Fallo(MensajeConexion(ex, mensajeError));
         }
     }
 
-    private async Task<HttpResponseMessage> EnviarAsync(HttpRequestMessage mensaje, CancellationToken ct)
+    /// <summary>
+    /// Los GET son idempotentes, por lo que pueden recuperarse automáticamente de
+    /// cortes breves, 429 y errores de gateway/servicio. Un 500 no se reintenta
+    /// de inmediato: suele indicar un fallo determinista del servidor y se deja al
+    /// refresco silencioso de la pantalla para no saturar el endpoint. Las operaciones de escritura nunca se
+    /// reintentan aquí para evitar duplicar confirmaciones, citas o cambios.
+    /// </summary>
+    private async Task<HttpResponseMessage> EnviarGetConReintentosAsync(string url, CancellationToken ct)
     {
-        try
+        const int maxIntentos = 3;
+
+        for (var intento = 1; intento <= maxIntentos; intento++)
         {
-            return await http.SendAsync(mensaje, HttpCompletionOption.ResponseHeadersRead, ct);
+            try
+            {
+                using var mensaje = new HttpRequestMessage(HttpMethod.Get, url);
+                var respuesta = await EnviarAsync(mensaje, ct);
+
+                if (!EsErrorTransitorio(respuesta.StatusCode) || intento == maxIntentos)
+                {
+                    return respuesta;
+                }
+
+                respuesta.Dispose();
+            }
+            catch (HttpRequestException) when (intento < maxIntentos && !ct.IsCancellationRequested)
+            {
+                // El siguiente intento reconstruye el HttpRequestMessage.
+            }
+            catch (TaskCanceledException) when (intento < maxIntentos && !ct.IsCancellationRequested)
+            {
+                // Timeout del HttpClient: también puede recuperarse en una lectura.
+            }
+
+            var espera = intento switch
+            {
+                1 => TimeSpan.FromMilliseconds(350),
+                _ => TimeSpan.FromMilliseconds(900)
+            };
+            await Task.Delay(espera, ct);
         }
-        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
-        {
-            throw new HttpRequestException("La solicitud tardó demasiado y fue cancelada.");
-        }
+
+        throw new HttpRequestException("No se pudo contactar al servidor después de varios intentos.");
     }
+
+    private static bool EsErrorTransitorio(HttpStatusCode statusCode)
+        => statusCode is HttpStatusCode.RequestTimeout
+            or HttpStatusCode.TooManyRequests
+            or HttpStatusCode.BadGateway
+            or HttpStatusCode.ServiceUnavailable
+            or HttpStatusCode.GatewayTimeout;
+
+    private Task<HttpResponseMessage> EnviarAsync(HttpRequestMessage mensaje, CancellationToken ct)
+        => http.SendAsync(mensaje, HttpCompletionOption.ResponseHeadersRead, ct);
 
     private static async Task<ApiClientException> CrearExcepcionAsync(
         HttpResponseMessage respuesta,
@@ -159,10 +231,14 @@ public sealed class ApiClient(HttpClient http)
             respuesta.StatusCode,
             await ApiErrorReader.LeerAsync(respuesta, mensajeError, ct));
 
-    private static string MensajeConexion(Exception ex)
+    private static string MensajeConexion(Exception ex, string contexto)
         => ex is TaskCanceledException
-            ? "La solicitud tardó demasiado. Verifica tu conexión y vuelve a intentar."
-            : "No se pudo contactar al servidor. Verifica tu conexión y vuelve a intentar.";
+            ? FrontendErrorCatalog.WithCode(
+                $"{contexto} La solicitud tardó demasiado. Intenta nuevamente.",
+                FrontendErrorCatalog.Timeout)
+            : FrontendErrorCatalog.WithCode(
+                $"{contexto} No se pudo contactar al servidor. Verifica tu conexión y vuelve a intentar.",
+                FrontendErrorCatalog.Connection);
 }
 
 public sealed class ApiClientException(HttpStatusCode statusCode, string message) : HttpRequestException(message)

@@ -85,6 +85,16 @@ body {
   border-color: var(--color-state-rechazada) !important;
 }
 
+.valid.modified:not([type="checkbox"]):not([type="radio"]) {
+  border-color: var(--color-state-atendida) !important;
+}
+
+/* Evita pintar en rojo/verde un campo vacío antes de que el usuario interactúe. */
+input::placeholder,
+textarea::placeholder {
+  opacity: .72;
+}
+
 .validation-message {
   display: block;
   margin-top: 0.25rem;
@@ -137,5 +147,135 @@ body {
     inset: 0 auto auto 0 !important;
     width: 100% !important;
     box-shadow: none !important;
+  }
+}
+
+
+/* Reportes: salida preparada para imprimir o guardar como PDF desde el navegador.
+   No genera HTML dinámico ni requiere endpoints adicionales del backend. */
+.cp-print-only {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: landscape;
+    margin: 10mm;
+  }
+
+  body.cp-print-mode .cp-print-target .cp-print-only {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  body.cp-print-mode .cp-report-print {
+    background: #fff !important;
+    color: #0f172a !important;
+    padding: 0 !important;
+  }
+
+  body.cp-print-mode .cp-print-header {
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 1rem !important;
+    padding-bottom: 8px !important;
+    border-bottom: 1px solid #cbd5e1 !important;
+    margin-bottom: 8px !important;
+  }
+
+  body.cp-print-mode .cp-print-header h1 {
+    margin: 2px 0 0 !important;
+    font-size: 18pt !important;
+    font-weight: 700 !important;
+  }
+
+  body.cp-print-mode .cp-print-brand {
+    margin: 0 !important;
+    color: #047857 !important;
+    font-size: 9pt !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: .12em !important;
+  }
+
+  body.cp-print-mode .cp-print-meta-right {
+    font-size: 8.5pt !important;
+    color: #475569 !important;
+    text-align: right !important;
+  }
+
+  body.cp-print-mode .cp-print-filters {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px 18px !important;
+    margin: 0 0 10px !important;
+    font-size: 8.5pt !important;
+    color: #334155 !important;
+  }
+
+  body.cp-print-mode .cp-report-kpis {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    margin-bottom: 10px !important;
+  }
+
+  body.cp-print-mode .cp-report-kpis > div {
+    box-shadow: none !important;
+    break-inside: avoid !important;
+  }
+
+  body.cp-print-mode .cp-report-content {
+    display: block !important;
+  }
+
+  body.cp-print-mode .cp-report-distribution {
+    margin-bottom: 10px !important;
+    box-shadow: none !important;
+    break-inside: avoid !important;
+  }
+
+  body.cp-print-mode .cp-report-detail {
+    box-shadow: none !important;
+  }
+
+  body.cp-print-mode .cp-report-table-wrap {
+    overflow: visible !important;
+  }
+
+  body.cp-print-mode .cp-report-table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed !important;
+    font-size: 8pt !important;
+  }
+
+  body.cp-print-mode .cp-report-table th,
+  body.cp-print-mode .cp-report-table td {
+    padding: 5px 6px !important;
+    vertical-align: top !important;
+    word-break: break-word !important;
+  }
+
+  body.cp-print-mode .cp-report-table th:nth-child(1) { width: 14%; }
+  body.cp-print-mode .cp-report-table th:nth-child(2) { width: 20%; }
+  body.cp-print-mode .cp-report-table th:nth-child(3) { width: 20%; }
+  body.cp-print-mode .cp-report-table th:nth-child(4) { width: 30%; }
+  body.cp-print-mode .cp-report-table th:nth-child(5) { width: 16%; }
+
+  body.cp-print-mode .cp-report-table .line-clamp-2 {
+    display: block !important;
+    overflow: visible !important;
+    -webkit-line-clamp: unset !important;
+  }
+
+  body.cp-print-mode .cp-print-footer {
+    margin-top: 10px !important;
+    padding-top: 6px !important;
+    border-top: 1px solid #e2e8f0 !important;
+    color: #64748b !important;
+    font-size: 7.5pt !important;
+    text-align: right !important;
   }
 }
