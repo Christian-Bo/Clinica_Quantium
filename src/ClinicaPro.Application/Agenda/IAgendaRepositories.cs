@@ -81,3 +81,10 @@ public interface IPrepararAgendaDemo
 {
     Task<string> ExecuteAsync(CancellationToken cancellationToken = default);
 }
+
+public interface IPreconsultaRepository
+{
+    Task<Preconsulta?> ObtenerActivaPorCitaAsync(Guid citaId, CancellationToken cancellationToken = default);
+    Task<Preconsulta?> ObtenerRastreadaPorCitaAsync(Guid citaId, CancellationToken cancellationToken = default);
+    Task AgregarAsync(Preconsulta preconsulta, CancellationToken cancellationToken = default);
+}

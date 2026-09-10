@@ -32,6 +32,7 @@ public sealed class ClinicaProDbContext
     public DbSet<Notificacion> Notificaciones => Set<Notificacion>();
     public DbSet<IntentoNotificacion> IntentosNotificacion => Set<IntentoNotificacion>();
     public DbSet<RegistroAuditoria> Auditoria => Set<RegistroAuditoria>();
+    public DbSet<Preconsulta> Preconsultas => Set<Preconsulta>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

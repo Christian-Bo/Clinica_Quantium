@@ -87,3 +87,20 @@ public sealed class ParametroConfiguration : IEntityTypeConfiguration<Parametro>
         builder.Property(parametro => parametro.Descripcion).HasMaxLength(300);
     }
 }
+
+public sealed class PreconsultaConfiguration : IEntityTypeConfiguration<Preconsulta>
+{
+    public void Configure(EntityTypeBuilder<Preconsulta> builder)
+    {
+        builder.ToTable("Preconsultas");
+        builder.HasKey(preconsulta => preconsulta.Id);
+        builder.Property(preconsulta => preconsulta.Id).HasColumnName("PreconsultaId");
+        builder.Property(preconsulta => preconsulta.TemperaturaCelsius).HasColumnType("decimal(4,1)");
+        builder.Property(preconsulta => preconsulta.OxigenoSangrePorcentaje).HasColumnType("decimal(5,2)");
+        builder.Property(preconsulta => preconsulta.Observacion).HasMaxLength(Preconsulta.ObservacionMaxLength);
+        builder.Property(preconsulta => preconsulta.FechaRegistroUtc).HasColumnType("datetime2(0)");
+        builder.Property(preconsulta => preconsulta.CreatedAtUtc).HasColumnType("datetime2(0)");
+        builder.Property(preconsulta => preconsulta.UpdatedAtUtc).HasColumnType("datetime2(0)");
+        builder.Property(preconsulta => preconsulta.RowVersion).IsRowVersion();
+    }
+}

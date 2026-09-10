@@ -380,3 +380,31 @@ public sealed class ParametroRepository(ClinicaProDbContext dbContext) : IParame
         return dbContext.Parametros.FirstOrDefaultAsync(item => item.Clave == clave, cancellationToken);
     }
 }
+
+public sealed class PreconsultaRepository(ClinicaProDbContext dbContext) : IPreconsultaRepository
+{
+    public Task<Preconsulta?> ObtenerActivaPorCitaAsync(
+        Guid citaId,
+        CancellationToken cancellationToken = default)
+    {
+        return dbContext.Preconsultas.AsNoTracking()
+            .FirstOrDefaultAsync(
+                preconsulta => preconsulta.CitaId == citaId && preconsulta.IsActive,
+                cancellationToken);
+    }
+
+    public Task<Preconsulta?> ObtenerRastreadaPorCitaAsync(
+        Guid citaId,
+        CancellationToken cancellationToken = default)
+    {
+        return dbContext.Preconsultas
+            .FirstOrDefaultAsync(
+                preconsulta => preconsulta.CitaId == citaId && preconsulta.IsActive,
+                cancellationToken);
+    }
+
+    public async Task AgregarAsync(Preconsulta preconsulta, CancellationToken cancellationToken = default)
+    {
+        await dbContext.Preconsultas.AddAsync(preconsulta, cancellationToken);
+    }
+}
