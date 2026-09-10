@@ -10,6 +10,7 @@ using ClinicaPro.Infrastructure.Admin;
 using ClinicaPro.Infrastructure.Auth;
 using ClinicaPro.Infrastructure.Demo;
 using ClinicaPro.Infrastructure.Email;
+using ClinicaPro.Infrastructure.Pacientes;
 using ClinicaPro.Infrastructure.Identity;
 using ClinicaPro.Infrastructure.Persistence;
 using ClinicaPro.Infrastructure.Persistence.Repositories;
@@ -85,6 +86,7 @@ public static class DependencyInjection
         services.AddScoped<IActorConsulta, ActorConsulta>();
         services.AddScoped<IAuditoriaWriter, AuditoriaWriter>();
         services.AddScoped<IAdminStaffService, AdminStaffService>();
+        services.AddScoped<IEliminarPacienteYUsuario, EliminarPacienteYUsuarioService>();
         services.AddScoped<IPrepararAgendaDemo, PrepararAgendaDemoService>();
 
         var smtpSection = configuration.GetSection(SmtpOptions.SectionName);

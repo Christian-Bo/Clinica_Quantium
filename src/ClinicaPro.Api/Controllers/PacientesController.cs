@@ -16,7 +16,8 @@ public sealed class PacientesController(
     IPacienteRepository pacienteRepository,
     IAuthService authService,
     BuscarPacientesService buscarPacientes,
-    ActualizarPerfilPacienteService actualizarPerfil) : ControllerBase
+    ActualizarPerfilPacienteService actualizarPerfil,
+    DarDeBajaPacientePorInasistenciaService darDeBaja) : ControllerBase
 {
     [HttpGet("me")]
     [ProducesResponseType(typeof(PacienteDto), StatusCodes.Status200OK)]
@@ -165,6 +166,24 @@ public sealed class PacientesController(
         }
 
         return Created("/api/pacientes/me", Map(paciente));
+    }
+
+    [Authorize(Roles = RolNombres.Administrador)]
+    [HttpDelete("{pacienteId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> DarDeBajaPorInasistencia(
+        Guid pacienteId,
+        CancellationToken cancellationToken)
+    {
+        var usuarioId = User.ObtenerUsuarioId();
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+
+        await darDeBaja.ExecuteAsync(pacienteId, usuarioId.Value, cancellationToken);
+        return NoContent();
     }
 
     private static PacienteDto Map(ClinicaPro.Domain.Entities.Paciente paciente) => new(

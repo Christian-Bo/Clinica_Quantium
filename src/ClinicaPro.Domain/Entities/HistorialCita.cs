@@ -19,7 +19,11 @@ public sealed class HistorialCita
     {
     }
 
-    public static HistorialCita RegistrarAutorizacion(Guid citaId, Guid usuarioId, string motivo)
+    public static HistorialCita RegistrarAutorizacion(
+        Guid citaId,
+        Guid usuarioId,
+        string motivo,
+        string estado)
     {
         var texto = string.IsNullOrWhiteSpace(motivo) ? "Autorización de reprogramación." : motivo.Trim();
         return new HistorialCita
@@ -27,6 +31,7 @@ public sealed class HistorialCita
             CitaId = citaId,
             UsuarioId = usuarioId,
             TipoCambio = "Autorizacion",
+            EstadoNuevo = estado,
             Motivo = texto.Length > 500 ? texto[..500] : texto,
             FechaCambioUtc = DateTime.UtcNow
         };

@@ -27,7 +27,7 @@ public sealed class PerfilPacienteApiService(HttpClient http)
 
         if (!respuesta.IsSuccessStatusCode)
         {
-            return ResultadoOperacion<PacienteDto>.Fallo(await LeerErrorAsync(respuesta, ct));
+            return ResultadoOperacion<PacienteDto>.Fallo(await LeerErrorAsync(respuesta, ct), respuesta.StatusCode);
         }
 
         var paciente = await respuesta.Content.ReadFromJsonAsync<PacienteDto>(cancellationToken: ct);
@@ -53,7 +53,7 @@ public sealed class PerfilPacienteApiService(HttpClient http)
 
         if (!respuesta.IsSuccessStatusCode)
         {
-            return ResultadoOperacion<PacienteDto>.Fallo(await LeerErrorAsync(respuesta, ct));
+            return ResultadoOperacion<PacienteDto>.Fallo(await LeerErrorAsync(respuesta, ct), respuesta.StatusCode);
         }
 
         var paciente = await respuesta.Content.ReadFromJsonAsync<PacienteDto>(cancellationToken: ct);
@@ -62,16 +62,12 @@ public sealed class PerfilPacienteApiService(HttpClient http)
             : ResultadoOperacion<PacienteDto>.Fallo("Los cambios se guardaron pero no se pudo leer la respuesta.");
     }
 
-    private static async Task<string> LeerErrorAsync(HttpResponseMessage respuesta, CancellationToken ct)
-    {
-        try
-        {
-            var error = await respuesta.Content.ReadFromJsonAsync<ErrorResponse>(cancellationToken: ct);
-            return error?.Error ?? "No fue posible completar la operación.";
-        }
-        catch
-        {
-            return "No fue posible completar la operación.";
-        }
-    }
+    /// <summary>
+    /// Usa el lector compartido, que además de ErrorResponse entiende
+    /// ValidationProblemDetails y ProblemDetails. El lector que había aquí solo
+    /// miraba "error", así que un 500 del servidor caía en el mensaje genérico
+    /// y escondía lo que la API realmente estaba diciendo.
+    /// </summary>
+    private static Task<string> LeerErrorAsync(HttpResponseMessage respuesta, CancellationToken ct)
+        => ApiErrorReader.LeerAsync(respuesta, "No fue posible completar la operación.", ct);
 }

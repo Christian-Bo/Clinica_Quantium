@@ -33,7 +33,7 @@ public sealed class HistorialMedicoPacienteServiceTests
             paciente.Id,
             Guid.NewGuid(),
             Guid.NewGuid(),
-            new DateTime(2026, 9, 7, 9, 0, 0),
+            new DateTime(2027, 3, 15, 9, 0, 0),
             "Control de presión arterial");
         var servicio = new HistorialMedicoPacienteService(
             new MedicosFalso(medico),
@@ -56,7 +56,7 @@ public sealed class HistorialMedicoPacienteServiceTests
             paciente.Id,
             medico.Id,
             Guid.NewGuid(),
-            new DateTime(2026, 9, 7, 9, 0, 0),
+            new DateTime(2027, 3, 15, 9, 0, 0),
             "Control de presión arterial");
         var servicio = new HistorialMedicoPacienteService(
             new MedicosFalso(medico),

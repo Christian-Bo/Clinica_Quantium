@@ -251,53 +251,104 @@ public sealed class HistorialCitaRepository(ClinicaProDbContext dbContext) : IHi
 
 public sealed class AutorizacionReprogramacionRepository(ClinicaProDbContext dbContext) : IAutorizacionReprogramacionRepository
 {
-    public Task<AutorizacionReprogramacion?> ObtenerPorIdAsync(
+    public async Task<AutorizacionReprogramacion?> ObtenerPorIdAsync(
         Guid autorizacionId,
         CancellationToken cancellationToken = default)
-    {
-        return dbContext.AutorizacionesReprogramacion.FirstOrDefaultAsync(
-            item => item.Id == autorizacionId,
-            cancellationToken);
-    }
+        => await ObtenerPorCitaAsync(autorizacionId, cancellationToken);
 
-    public Task<AutorizacionReprogramacion?> ObtenerPendientePorCitaAsync(
+    public async Task<AutorizacionReprogramacion?> ObtenerPendientePorCitaAsync(
         Guid citaId,
         CancellationToken cancellationToken = default)
     {
-        return dbContext.AutorizacionesReprogramacion.FirstOrDefaultAsync(
-            item => item.CitaId == citaId && item.Estado == AutorizacionReprogramacionEstados.Pendiente,
-            cancellationToken);
+        var autorizacion = await ObtenerPorCitaAsync(citaId, cancellationToken);
+        return autorizacion?.Estado == AutorizacionReprogramacionEstados.Pendiente ? autorizacion : null;
     }
 
-    public Task<AutorizacionReprogramacion?> ObtenerAprobadaPorCitaAsync(
+    public async Task<AutorizacionReprogramacion?> ObtenerAprobadaPorCitaAsync(
         Guid citaId,
         CancellationToken cancellationToken = default)
     {
-        return dbContext.AutorizacionesReprogramacion.FirstOrDefaultAsync(
-            item => item.CitaId == citaId && item.Estado == AutorizacionReprogramacionEstados.Aprobada,
-            cancellationToken);
+        var autorizacion = await ObtenerPorCitaAsync(citaId, cancellationToken);
+        return autorizacion?.Estado == AutorizacionReprogramacionEstados.Aprobada ? autorizacion : null;
     }
 
     public async Task<IReadOnlyList<AutorizacionReprogramacion>> ListarAsync(
         string? estado,
         CancellationToken cancellationToken = default)
     {
-        var consulta = dbContext.AutorizacionesReprogramacion.AsNoTracking().AsQueryable();
-        if (!string.IsNullOrWhiteSpace(estado))
-        {
-            consulta = consulta.Where(item => item.Estado == estado);
-        }
-
-        return await consulta
+        var eventos = await ConsultaAutorizaciones().ToListAsync(cancellationToken);
+        var lista = eventos
+            .GroupBy(item => item.CitaId)
+            .Select(DesdeHistorial)
+            .OfType<AutorizacionReprogramacion>()
+            .Where(item => string.IsNullOrWhiteSpace(estado) || item.Estado == estado)
             .OrderBy(item => item.Estado == AutorizacionReprogramacionEstados.Pendiente ? 0 : 1)
             .ThenByDescending(item => item.CreatedAtUtc)
             .Take(100)
-            .ToListAsync(cancellationToken);
+            .ToList();
+
+        return lista;
     }
 
-    public async Task AgregarAsync(AutorizacionReprogramacion autorizacion, CancellationToken cancellationToken = default)
+    public Task AgregarAsync(AutorizacionReprogramacion autorizacion, CancellationToken cancellationToken = default)
+        => RegistrarCambioAsync(autorizacion, cancellationToken);
+
+    public async Task RegistrarCambioAsync(
+        AutorizacionReprogramacion autorizacion,
+        CancellationToken cancellationToken = default)
     {
-        await dbContext.AutorizacionesReprogramacion.AddAsync(autorizacion, cancellationToken);
+        var actor = autorizacion.AutorizadaPorUsuarioId ?? autorizacion.SolicitadaPorUsuarioId;
+        var motivo = autorizacion.Estado == AutorizacionReprogramacionEstados.Pendiente
+            ? autorizacion.MotivoSolicitud
+            : autorizacion.MotivoDecision ?? autorizacion.MotivoSolicitud;
+
+        await dbContext.HistorialCitas.AddAsync(
+            HistorialCita.RegistrarAutorizacion(autorizacion.CitaId, actor, motivo, autorizacion.Estado),
+            cancellationToken);
+    }
+
+    private async Task<AutorizacionReprogramacion?> ObtenerPorCitaAsync(
+        Guid citaId,
+        CancellationToken cancellationToken)
+    {
+        var eventos = await ConsultaAutorizaciones()
+            .Where(item => item.CitaId == citaId)
+            .ToListAsync(cancellationToken);
+
+        return DesdeHistorial(eventos);
+    }
+
+    private IQueryable<HistorialCita> ConsultaAutorizaciones()
+        => dbContext.HistorialCitas.AsNoTracking()
+            .Where(item => item.TipoCambio == "Autorizacion" && item.EstadoNuevo != null);
+
+    private static AutorizacionReprogramacion? DesdeHistorial(IEnumerable<HistorialCita> eventos)
+    {
+        var ordenados = eventos
+            .OrderBy(item => item.FechaCambioUtc)
+            .ThenBy(item => item.Id)
+            .ToList();
+        if (ordenados.Count == 0)
+        {
+            return null;
+        }
+
+        var solicitud = ordenados.FirstOrDefault(item => item.EstadoNuevo == AutorizacionReprogramacionEstados.Pendiente)
+            ?? ordenados[0];
+        var actual = ordenados[^1];
+        var decision = ordenados.LastOrDefault(item =>
+            item.EstadoNuevo is AutorizacionReprogramacionEstados.Aprobada
+                or AutorizacionReprogramacionEstados.Rechazada);
+
+        return AutorizacionReprogramacion.Reconstruir(
+            solicitud.CitaId,
+            solicitud.UsuarioId,
+            decision?.UsuarioId,
+            actual.EstadoNuevo ?? AutorizacionReprogramacionEstados.Pendiente,
+            solicitud.Motivo,
+            decision?.Motivo,
+            solicitud.FechaCambioUtc,
+            decision?.FechaCambioUtc);
     }
 }
 

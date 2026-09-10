@@ -60,6 +60,8 @@ public sealed class Cita
             throw new DomainException("La cita debe iniciar y terminar el mismo día.");
         }
 
+        ExigirNoPasado(inicio);
+
         return new Cita
         {
             Id = Guid.NewGuid(),
@@ -142,6 +144,8 @@ public sealed class Cita
             throw new DomainException("La cita debe iniciar y terminar el mismo día.");
         }
 
+        ExigirNoPasado(inicio);
+
         if (inicio == FechaHoraInicio)
         {
             throw new DomainException("La nueva fecha debe ser distinta a la actual.");
@@ -213,6 +217,16 @@ public sealed class Cita
         }
 
         UpdatedAtUtc = DateTime.UtcNow;
+    }
+
+    public static void ExigirNoPasado(DateTime inicio, DateTime? ahoraClinica = null)
+    {
+        var ahora = ahoraClinica ?? HoraClinica.Ahora();
+        if (inicio <= ahora)
+        {
+            throw new DomainException(
+                "No se permite crear o reprogramar una cita en una fecha u hora pasada.");
+        }
     }
 
     private static DateTime ComoHoraClinica(DateTime fecha)

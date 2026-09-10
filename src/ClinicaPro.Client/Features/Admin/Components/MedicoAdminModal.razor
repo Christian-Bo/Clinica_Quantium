@@ -20,16 +20,18 @@
                 }
 
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    @if (!EsEdicion)
-                    {
-                        <ValidatedTextInput Id="med-email" Label="Correo electrónico" Required="true" Kind="FormFieldKind.Email"
-                                            Value="@modelo.Email" ValueChanged="v => modelo.Email = v" Placeholder="Ej. carlos.perez@clinicapro.com"
-                                            Autocomplete="email" MaxLength="254" HelperText="Será el usuario de acceso del médico."
-                                            ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" CssClass="sm:col-span-2" />
-                        <PasswordField Id="med-password" Label="Contraseña temporal" Value="@modelo.Password" ValueChanged="v => modelo.Password = v"
-                                       Placeholder="Ej. Medico@2026" ShowRules="true" ForceTouched="mostrarValidaciones"
-                                       ValidationCycle="cicloValidacion" CssClass="sm:col-span-2" />
-                    }
+                    <ValidatedTextInput Id="med-email" Label="Correo electrónico" Required="true" Kind="FormFieldKind.Email"
+                                        Value="@modelo.Email" ValueChanged="v => modelo.Email = v" Placeholder="Ej. carlos.perez@clinicapro.com"
+                                        Autocomplete="email" MaxLength="254"
+                                        HelperText="@(EsEdicion ? "Si cambias el correo, el médico deberá usar el nuevo correo para iniciar sesión." : "Será el usuario de acceso del médico.")"
+                                        ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" CssClass="sm:col-span-2" />
+
+                    <PasswordField Id="med-password" Label="@(EsEdicion ? "Nueva contraseña" : "Contraseña temporal")"
+                                   Value="@modelo.Password" ValueChanged="v => modelo.Password = v"
+                                   Placeholder="@(EsEdicion ? "Déjala vacía para conservar la actual" : "Ej. Medico@2026")"
+                                   Required="@(!EsEdicion)" ShowRules="true"
+                                   HelperText="@(EsEdicion ? "Si defines una nueva clave, el médico deberá volver a iniciar sesión." : string.Empty)"
+                                   ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" CssClass="sm:col-span-2" />
 
                     <ValidatedTextInput Id="med-nombres" Label="Nombres" Required="true" Kind="FormFieldKind.Name"
                                         Value="@modelo.Nombres" ValueChanged="v => modelo.Nombres = v" Placeholder="Ej. Carlos Eduardo"
@@ -51,7 +53,10 @@
                         <div class="sm:col-span-2 rounded-control border border-border bg-surface-muted px-4 py-3">
                             <label class="flex items-start gap-3 text-sm text-ink">
                                 <input type="checkbox" class="mt-0.5 h-4 w-4 rounded border-border" @bind="modelo.IsActive" />
-                                <span><span class="font-medium">Médico activo</span><span class="mt-0.5 block text-xs text-ink-muted">Un médico inactivo deja de aparecer para nuevas citas, pero conserva su historial.</span></span>
+                                <span>
+                                    <span class="font-medium">Médico activo</span>
+                                    <span class="mt-0.5 block text-xs text-ink-muted">Un médico inactivo deja de aparecer para nuevas citas, pero conserva su historial.</span>
+                                </span>
                             </label>
                         </div>
                     }
@@ -92,62 +97,99 @@
     {
         if (IsOpen && (!aperturaAnterior || idAnterior != Medico?.MedicoId))
         {
-            modelo = Medico is null ? new Modelo() : new Modelo
-            {
-                Nombres = Medico.Nombres,
-                Apellidos = Medico.Apellidos,
-                NumeroColegiado = Medico.NumeroColegiado ?? string.Empty,
-                Telefono = FormValidation.FromApiGuatemalaPhone(Medico.Telefono),
-                IsActive = Medico.IsActive
-            };
+            modelo = Medico is null
+                ? new Modelo()
+                : new Modelo
+                {
+                    Email = Medico.Email,
+                    Nombres = Medico.Nombres,
+                    Apellidos = Medico.Apellidos,
+                    NumeroColegiado = Medico.NumeroColegiado ?? string.Empty,
+                    Telefono = FormValidation.FromApiGuatemalaPhone(Medico.Telefono),
+                    IsActive = Medico.IsActive
+                };
+
             editContext = new EditContext(modelo);
             error = null;
             mostrarValidaciones = false;
             cicloValidacion++;
             idAnterior = Medico?.MedicoId;
         }
+
         aperturaAnterior = IsOpen;
     }
 
     private bool ValidacionLocal()
     {
+        if (FormValidation.Validate(FormFieldKind.Email, modelo.Email, true, 254, "Correo electrónico") is not null) return false;
         if (FormValidation.Validate(FormFieldKind.Name, modelo.Nombres, true, 100, "Nombres") is not null) return false;
         if (FormValidation.Validate(FormFieldKind.Name, modelo.Apellidos, true, 100, "Apellidos") is not null) return false;
-        if (!string.IsNullOrWhiteSpace(modelo.Telefono) && FormValidation.Validate(FormFieldKind.GuatemalaPhone, modelo.Telefono, false) is not null) return false;
-        if (!EsEdicion && FormValidation.Validate(FormFieldKind.Email, modelo.Email, true, 254, "Correo electrónico") is not null) return false;
+        if (!string.IsNullOrWhiteSpace(modelo.Telefono)
+            && FormValidation.Validate(FormFieldKind.GuatemalaPhone, modelo.Telefono, false) is not null) return false;
         if (!EsEdicion && !FormValidation.IsPasswordValid(modelo.Password)) return false;
+        if (EsEdicion && !string.IsNullOrWhiteSpace(modelo.Password) && !FormValidation.IsPasswordValid(modelo.Password)) return false;
         return true;
     }
 
     private async Task GuardarAsync()
     {
         if (guardando) return;
+
         mostrarValidaciones = true;
-        if (!ValidacionLocal() || !editContext.Validate()) return;
         error = null;
+        if (!ValidacionLocal() || !editContext.Validate()) return;
+
         guardando = true;
         try
         {
             if (EsEdicion)
             {
-                var resultado = await AdminApi.ActualizarMedicoAsync(Medico!.MedicoId,
-                    new ActualizarMedicoRequest(FormValidation.NormalizeName(modelo.Nombres), FormValidation.NormalizeName(modelo.Apellidos),
-                        Limpio(modelo.NumeroColegiado), FormValidation.ToApiGuatemalaPhone(modelo.Telefono), modelo.IsActive));
-                if (!resultado.Exito) { error = resultado.Error; return; }
+                var resultado = await AdminApi.ActualizarMedicoAsync(
+                    Medico!.MedicoId,
+                    new ActualizarMedicoRequest(
+                        FormValidation.NormalizeName(modelo.Nombres),
+                        FormValidation.NormalizeName(modelo.Apellidos),
+                        Limpio(modelo.NumeroColegiado),
+                        FormValidation.ToApiGuatemalaPhone(modelo.Telefono),
+                        modelo.IsActive,
+                        FormValidation.NormalizeEmail(modelo.Email),
+                        string.IsNullOrWhiteSpace(modelo.Password) ? null : modelo.Password));
+
+                if (!resultado.Exito)
+                {
+                    error = resultado.Error;
+                    return;
+                }
+
                 Toast.Exito("Médico actualizado correctamente.");
             }
             else
             {
-                var resultado = await AdminApi.CrearMedicoAsync(new CrearMedicoRequest(
-                    FormValidation.NormalizeEmail(modelo.Email), modelo.Password, FormValidation.NormalizeName(modelo.Nombres),
-                    FormValidation.NormalizeName(modelo.Apellidos), Limpio(modelo.NumeroColegiado), FormValidation.ToApiGuatemalaPhone(modelo.Telefono)));
-                if (!resultado.Exito) { error = resultado.Error; return; }
+                var resultado = await AdminApi.CrearMedicoAsync(
+                    new CrearMedicoRequest(
+                        FormValidation.NormalizeEmail(modelo.Email),
+                        modelo.Password,
+                        FormValidation.NormalizeName(modelo.Nombres),
+                        FormValidation.NormalizeName(modelo.Apellidos),
+                        Limpio(modelo.NumeroColegiado),
+                        FormValidation.ToApiGuatemalaPhone(modelo.Telefono)));
+
+                if (!resultado.Exito)
+                {
+                    error = resultado.Error;
+                    return;
+                }
+
                 Toast.Exito("Médico creado. Deberá cambiar su contraseña temporal al ingresar.");
             }
+
             await OnGuardado.InvokeAsync();
             await IsOpenChanged.InvokeAsync(false);
         }
-        finally { guardando = false; }
+        finally
+        {
+            guardando = false;
+        }
     }
 
     private Task Cancelar() => IsOpenChanged.InvokeAsync(false);

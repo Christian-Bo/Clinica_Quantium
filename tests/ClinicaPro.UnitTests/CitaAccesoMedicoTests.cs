@@ -14,7 +14,7 @@ public sealed class CitaAccesoMedicoTests
             Guid.NewGuid(),
             medicoId,
             Guid.NewGuid(),
-            new DateTime(2026, 9, 7, 9, 0, 0),
+            new DateTime(2027, 3, 15, 9, 0, 0),
             "Control de presión arterial");
 
         CitaAccesoMedico.ExigirAsignado(cita, medicoId);
@@ -27,7 +27,7 @@ public sealed class CitaAccesoMedicoTests
             Guid.NewGuid(),
             Guid.NewGuid(),
             Guid.NewGuid(),
-            new DateTime(2026, 9, 7, 9, 0, 0),
+            new DateTime(2027, 3, 15, 9, 0, 0),
             "Control de presión arterial");
 
         var exception = Assert.Throws<ForbiddenException>(

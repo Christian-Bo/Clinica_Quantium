@@ -50,7 +50,8 @@
 
         <div>
             <label class="text-sm font-medium text-ink" for="dp-documento">Documento (DPI)</label>
-            <input id="dp-documento" inputmode="numeric" class="@ClaseInput("Documento")"
+            <input id="dp-documento" inputmode="numeric" maxlength="13" placeholder="Ejemplo: 3045291840101"
+                   class="@ClaseInput("Documento")"
                    disabled="@DocumentoSoloLectura" @bind="Modelo.Documento" @bind:event="oninput" />
             <MensajeCampo Mensaje='@Error("Documento")' />
             @if (DocumentoSoloLectura)
@@ -79,7 +80,8 @@
 
         <div>
             <label class="text-sm font-medium text-ink" for="dp-telefono">Teléfono</label>
-            <input id="dp-telefono" type="tel" autocomplete="tel" class="@ClaseInput("Telefono")"
+            <input id="dp-telefono" type="tel" inputmode="numeric" maxlength="8" autocomplete="tel"
+                   placeholder="Ejemplo: 55512345" class="@ClaseInput("Telefono")"
                    @bind="Modelo.Telefono" @bind:event="oninput" />
             <MensajeCampo Mensaje='@Error("Telefono")' />
         </div>
@@ -104,15 +106,17 @@
         </div>
 
         <div>
-            <label class="text-sm font-medium text-ink" for="dp-contacto-nombre">Contacto de emergencia</label>
-            <input id="dp-contacto-nombre" class="@ClaseInput("ContactoEmergenciaNombre")"
+            <label class="text-sm font-medium text-ink" for="dp-contacto-nombre">Nombre del contacto de emergencia</label>
+            <input id="dp-contacto-nombre" placeholder="Ejemplo: Juan Pérez"
+                   class="@ClaseInput("ContactoEmergenciaNombre")"
                    @bind="Modelo.ContactoEmergenciaNombre" @bind:event="oninput" />
             <MensajeCampo Mensaje='@Error("ContactoEmergenciaNombre")' />
         </div>
 
         <div>
             <label class="text-sm font-medium text-ink" for="dp-contacto-telefono">Teléfono de emergencia</label>
-            <input id="dp-contacto-telefono" type="tel" class="@ClaseInput("ContactoEmergenciaTelefono")"
+            <input id="dp-contacto-telefono" type="tel" inputmode="numeric" maxlength="8"
+                   placeholder="Ejemplo: 55512345" class="@ClaseInput("ContactoEmergenciaTelefono")"
                    @bind="Modelo.ContactoEmergenciaTelefono" @bind:event="oninput" />
             <MensajeCampo Mensaje='@Error("ContactoEmergenciaTelefono")' />
         </div>
