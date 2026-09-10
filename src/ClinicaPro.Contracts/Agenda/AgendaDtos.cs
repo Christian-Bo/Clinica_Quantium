@@ -39,7 +39,9 @@ public sealed record CitaDto(
     DateTime FechaHoraFin,
     string MotivoConsulta,
     string Estado,
-    byte NumeroReprogramaciones);
+    byte NumeroReprogramaciones,
+    string? EspecialidadNombre = null,
+    Guid EspecialidadId = default);
 
 public sealed record MotivoCitaRequest(string Motivo);
 

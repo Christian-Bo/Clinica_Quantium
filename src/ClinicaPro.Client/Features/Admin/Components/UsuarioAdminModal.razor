@@ -26,11 +26,27 @@
                     </select>
                 </div>
             }
+            else if (EsIdentidad)
+            {
+                <p class="text-xs text-ink-muted">Correo, contraseña temporal y estado. El usuario deberá volver a entrar si cambia la clave o se desactiva.</p>
+                <div>
+                    <label class="text-sm font-medium text-ink">Correo *</label>
+                    <input type="email" autocomplete="off" class="@ClaseInput" @bind="email" />
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-ink">Nueva contraseña (opcional)</label>
+                    <input type="password" autocomplete="new-password" class="@ClaseInput" @bind="password" />
+                    <p class="mt-1 text-xs text-ink-muted">Si la indica, el usuario deberá cambiarla al iniciar sesión.</p>
+                </div>
+                <label class="flex items-center gap-2 rounded-control border border-border px-3 py-3 text-sm text-ink">
+                    <input type="checkbox" class="h-4 w-4 rounded border-border" @bind="isActive" /> Cuenta activa
+                </label>
+            }
             else
             {
                 <div class="rounded-control bg-surface-muted px-3 py-2 text-sm text-ink">
                     <strong>@Usuario.Email</strong>
-                    <p class="mt-0.5 text-xs text-ink-muted">Selecciona al menos un rol administrativo.</p>
+                    <p class="mt-0.5 text-xs text-ink-muted">Médico y paciente no pueden combinarse. Al cambiar el tipo, la sesión actual se cierra.</p>
                 </div>
                 <label class="flex items-center gap-2 rounded-control border border-border px-3 py-3 text-sm text-ink">
                     <input type="checkbox" class="h-4 w-4 rounded border-border" @bind="rolAdministrador" /> Administrador
@@ -38,6 +54,48 @@
                 <label class="flex items-center gap-2 rounded-control border border-border px-3 py-3 text-sm text-ink">
                     <input type="checkbox" class="h-4 w-4 rounded border-border" @bind="rolSecretaria" /> Secretaría
                 </label>
+                <div>
+                    <label class="text-sm font-medium text-ink">Tipo clínico</label>
+                    <select class="@ClaseInput" @bind="tipoClinico">
+                        <option value="Ninguno">Ninguno (solo staff)</option>
+                        <option value="Medico">Médico</option>
+                        <option value="Paciente">Paciente</option>
+                    </select>
+                </div>
+                @if (tipoClinico == "Medico")
+                {
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div>
+                            <label class="text-sm font-medium text-ink">Nombres *</label>
+                            <input class="@ClaseInput" @bind="medicoNombres" />
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium text-ink">Apellidos *</label>
+                            <input class="@ClaseInput" @bind="medicoApellidos" />
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="text-sm font-medium text-ink">Colegiado</label>
+                            <input class="@ClaseInput" @bind="medicoColegiado" />
+                        </div>
+                    </div>
+                }
+                @if (tipoClinico == "Paciente")
+                {
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div>
+                            <label class="text-sm font-medium text-ink">Nombres *</label>
+                            <input class="@ClaseInput" @bind="pacienteNombres" />
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium text-ink">Apellidos *</label>
+                            <input class="@ClaseInput" @bind="pacienteApellidos" />
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="text-sm font-medium text-ink">DPI *</label>
+                            <input class="@ClaseInput" @bind="pacienteDocumento" />
+                        </div>
+                    </div>
+                }
             }
 
             @if (!string.IsNullOrWhiteSpace(error))
@@ -56,31 +114,55 @@
     [Parameter] public bool IsOpen { get; set; }
     [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
     [Parameter] public UsuarioAdminDto? Usuario { get; set; }
+    [Parameter] public string Modo { get; set; } = "roles";
     [Parameter] public EventCallback OnGuardado { get; set; }
 
     private const string ClaseInput = "mt-1 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100";
     private bool aperturaAnterior;
     private Guid? usuarioAnterior;
+    private string modoAnterior = string.Empty;
     private string email = string.Empty;
     private string password = string.Empty;
     private string rolCrear = Roles.Secretaria;
     private bool rolAdministrador;
     private bool rolSecretaria;
+    private bool isActive = true;
+    private string tipoClinico = "Ninguno";
+    private string medicoNombres = string.Empty;
+    private string medicoApellidos = string.Empty;
+    private string medicoColegiado = string.Empty;
+    private string pacienteNombres = string.Empty;
+    private string pacienteApellidos = string.Empty;
+    private string pacienteDocumento = string.Empty;
     private bool guardando;
     private string? error;
-    private string Titulo => Usuario is null ? "Nuevo usuario" : "Editar roles";
+    private bool EsIdentidad => Usuario is not null && Modo == "identidad";
+    private string Titulo => Usuario is null ? "Nuevo usuario" : EsIdentidad ? "Editar usuario" : "Editar roles";
 
     protected override void OnParametersSet()
     {
-        if (IsOpen && (!aperturaAnterior || usuarioAnterior != Usuario?.UsuarioId))
+        if (IsOpen && (!aperturaAnterior || usuarioAnterior != Usuario?.UsuarioId || modoAnterior != Modo))
         {
-            email = string.Empty;
+            email = Usuario?.Email ?? string.Empty;
             password = string.Empty;
             rolCrear = Roles.Secretaria;
             rolAdministrador = Usuario?.Roles.Contains(Roles.Administrador) == true;
             rolSecretaria = Usuario?.Roles.Contains(Roles.Secretaria) == true;
+            isActive = Usuario?.IsActive != false;
+            tipoClinico = Usuario is null
+                ? "Ninguno"
+                : Usuario.Roles.Contains(Roles.Medico) ? "Medico"
+                : Usuario.Roles.Contains(Roles.Paciente) ? "Paciente"
+                : "Ninguno";
+            medicoNombres = string.Empty;
+            medicoApellidos = string.Empty;
+            medicoColegiado = string.Empty;
+            pacienteNombres = string.Empty;
+            pacienteApellidos = string.Empty;
+            pacienteDocumento = string.Empty;
             error = null;
             usuarioAnterior = Usuario?.UsuarioId;
+            modoAnterior = Modo;
         }
         aperturaAnterior = IsOpen;
     }
@@ -108,20 +190,59 @@
                 if (!resultado.Exito) { error = resultado.Error; return; }
                 Toast.Exito("Usuario creado. Deberá cambiar su contraseña temporal al iniciar sesión.");
             }
+            else if (EsIdentidad)
+            {
+                if (string.IsNullOrWhiteSpace(email) || !new EmailAddressAttribute().IsValid(email))
+                {
+                    error = "Ingresa un correo electrónico válido.";
+                    return;
+                }
+                if (!string.IsNullOrWhiteSpace(password) && !PasswordValida(password))
+                {
+                    error = "La contraseña temporal no cumple la política de seguridad.";
+                    return;
+                }
+
+                var resultado = await AdminApi.ActualizarUsuarioAsync(
+                    Usuario.UsuarioId,
+                    isActive,
+                    email.Trim().ToLowerInvariant(),
+                    string.IsNullOrWhiteSpace(password) ? null : password);
+                if (!resultado.Exito) { error = resultado.Error; return; }
+                Toast.Exito("Usuario actualizado. Si cambió la clave, deberá volver a entrar.");
+            }
             else
             {
                 var roles = new List<string>();
                 if (rolAdministrador) roles.Add(Roles.Administrador);
                 if (rolSecretaria) roles.Add(Roles.Secretaria);
-                if (roles.Count == 0)
+
+                FichaMedicoAccesoRequest? medico = null;
+                FichaPacienteAccesoRequest? paciente = null;
+                if (tipoClinico == "Medico")
                 {
-                    error = "Selecciona al menos un rol administrativo.";
-                    return;
+                    if (string.IsNullOrWhiteSpace(medicoNombres) || string.IsNullOrWhiteSpace(medicoApellidos))
+                    {
+                        error = "Indique nombres y apellidos del médico.";
+                        return;
+                    }
+
+                    medico = new FichaMedicoAccesoRequest(medicoNombres.Trim(), medicoApellidos.Trim(), Limpio(medicoColegiado), null);
+                }
+                else if (tipoClinico == "Paciente")
+                {
+                    if (string.IsNullOrWhiteSpace(pacienteNombres) || string.IsNullOrWhiteSpace(pacienteApellidos) || string.IsNullOrWhiteSpace(pacienteDocumento))
+                    {
+                        error = "Indique nombres, apellidos y DPI del paciente.";
+                        return;
+                    }
+
+                    paciente = new FichaPacienteAccesoRequest(pacienteNombres.Trim(), pacienteApellidos.Trim(), pacienteDocumento.Trim(), null, null);
                 }
 
-                var resultado = await AdminApi.ActualizarRolesAsync(Usuario.UsuarioId, roles);
+                var resultado = await AdminApi.ActualizarRolesAsync(Usuario.UsuarioId, roles, tipoClinico, medico, paciente);
                 if (!resultado.Exito) { error = resultado.Error; return; }
-                Toast.Exito("Roles actualizados correctamente.");
+                Toast.Exito("Roles actualizados. El usuario deberá volver a iniciar sesión.");
             }
 
             await OnGuardado.InvokeAsync();
@@ -135,6 +256,7 @@
 
     private Task Cancelar() => IsOpenChanged.InvokeAsync(false);
     private Task CambiarApertura(bool valor) => IsOpenChanged.InvokeAsync(valor);
+    private static string? Limpio(string? valor) => string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
     private static bool PasswordValida(string valor) =>
         !string.IsNullOrWhiteSpace(valor) && valor.Length >= 8 && valor.Any(char.IsUpper)
         && valor.Any(char.IsLower) && valor.Any(char.IsDigit) && valor.Any(c => !char.IsLetterOrDigit(c));

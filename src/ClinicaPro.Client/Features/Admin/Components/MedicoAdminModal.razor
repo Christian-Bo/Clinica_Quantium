@@ -43,6 +43,18 @@
                         <InputText class="@ClaseInput" @bind-Value="modelo.Apellidos" />
                         <ValidationMessage For="@(() => modelo.Apellidos)" />
                     </div>
+                    @if (EsEdicion)
+                    {
+                        <div>
+                            <label class="text-sm font-medium text-ink">Correo</label>
+                            <input type="email" autocomplete="off" class="@ClaseInput" @bind="modelo.Email" />
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium text-ink">Nueva contraseña (opcional)</label>
+                            <input type="password" autocomplete="new-password" class="@ClaseInput" @bind="modelo.Password" />
+                            <p class="mt-1 text-xs text-ink-muted">Si cambia la clave, el médico deberá volver a entrar.</p>
+                        </div>
+                    }
                     <div>
                         <label class="text-sm font-medium text-ink">No. colegiado</label>
                         <InputText class="@ClaseInput" @bind-Value="modelo.NumeroColegiado" placeholder="Opcional" />
@@ -108,6 +120,7 @@
                     Apellidos = Medico.Apellidos,
                     NumeroColegiado = Medico.NumeroColegiado ?? string.Empty,
                     Telefono = Medico.Telefono ?? string.Empty,
+                    Email = Medico.Email,
                     IsActive = Medico.IsActive
                 };
             editContext = new EditContext(modelo);
@@ -136,6 +149,12 @@
             }
         }
 
+        if (EsEdicion && !string.IsNullOrWhiteSpace(modelo.Password) && !PasswordValida(modelo.Password))
+        {
+            error = "La contraseña temporal debe tener mínimo 8 caracteres e incluir mayúscula, minúscula, número y símbolo.";
+            return;
+        }
+
         guardando = true;
         try
         {
@@ -148,7 +167,9 @@
                         modelo.Apellidos.Trim(),
                         Limpio(modelo.NumeroColegiado),
                         Limpio(modelo.Telefono),
-                        modelo.IsActive));
+                        modelo.IsActive,
+                        string.IsNullOrWhiteSpace(modelo.Email) ? null : modelo.Email.Trim().ToLowerInvariant(),
+                        string.IsNullOrWhiteSpace(modelo.Password) ? null : modelo.Password));
 
                 if (!resultado.Exito)
                 {

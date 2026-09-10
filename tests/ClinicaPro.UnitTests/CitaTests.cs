@@ -6,13 +6,15 @@ namespace ClinicaPro.UnitTests;
 
 public sealed class CitaTests
 {
+    private static readonly DateTime Inicio = new(2027, 3, 15, 9, 0, 0);
+
     [Fact]
     public void Solicitar_ConDatosValidos_QuedaSolicitada()
     {
         var cita = CrearCita();
 
         Assert.Equal(CitaEstados.Solicitada, cita.Estado);
-        Assert.Equal(new DateTime(2026, 9, 7, 9, 30, 0), cita.FechaHoraFin);
+        Assert.Equal(Inicio.AddMinutes(30), cita.FechaHoraFin);
         Assert.Equal(DateTimeKind.Unspecified, cita.FechaHoraInicio.Kind);
     }
 
@@ -20,10 +22,34 @@ public sealed class CitaTests
     public void Solicitar_MotivoCorto_LanzaExcepcionDeDominio()
     {
         var exception = Assert.Throws<DomainException>(() =>
-            Cita.Solicitar(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
-                new DateTime(2026, 9, 7, 9, 0, 0), "abc"));
+            Cita.Solicitar(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Inicio, "abc"));
 
         Assert.Contains("motivo", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Solicitar_FechaHoraPasada_LanzaExcepcionDeDominio()
+    {
+        var ahora = HoraClinica.Ahora();
+        var exception = Assert.Throws<DomainException>(() =>
+            Cita.Solicitar(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), ahora.AddMinutes(-5), "Control de presión arterial"));
+
+        Assert.Contains("pasada", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ExigirNoPasado_HoraDeHoyYaTranscurrida_Lanza()
+    {
+        var exception = Assert.Throws<DomainException>(() =>
+            Cita.ExigirNoPasado(new DateTime(2027, 3, 15, 14, 0, 0), new DateTime(2027, 3, 15, 14, 1, 0)));
+
+        Assert.Contains("pasada", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ExigirNoPasado_UnMinutoEnElFuturo_NoLanza()
+    {
+        Cita.ExigirNoPasado(new DateTime(2027, 3, 15, 14, 2, 0), new DateTime(2027, 3, 15, 14, 1, 0));
     }
 
     [Fact]
@@ -79,7 +105,7 @@ public sealed class CitaTests
         var cita = CrearCita();
         cita.ConfirmarPorSecretaria(Guid.NewGuid());
 
-        cita.Cancelar(new DateTime(2026, 9, 7, 6, 0, 0), horasMinimasAnticipacion: 2);
+        cita.Cancelar(Inicio.AddHours(-3), horasMinimasAnticipacion: 2);
 
         Assert.Equal(CitaEstados.Cancelada, cita.Estado);
     }
@@ -90,7 +116,7 @@ public sealed class CitaTests
         var cita = CrearCita();
         cita.ConfirmarPorSecretaria(Guid.NewGuid());
 
-        cita.Cancelar(new DateTime(2026, 9, 7, 8, 0, 0), horasMinimasAnticipacion: 2);
+        cita.Cancelar(Inicio.AddHours(-1), horasMinimasAnticipacion: 2);
 
         Assert.Equal(CitaEstados.NoPresentada, cita.Estado);
     }
@@ -101,11 +127,23 @@ public sealed class CitaTests
         var cita = CrearCita();
         cita.ConfirmarPorSecretaria(Guid.NewGuid());
 
-        cita.Reprogramar(new DateTime(2026, 9, 8, 10, 0, 0), 30, autorizacionAdministradorUsuarioId: null);
+        cita.Reprogramar(Inicio.AddDays(1).AddHours(1), 30, autorizacionAdministradorUsuarioId: null);
 
-        Assert.Equal(new DateTime(2026, 9, 8, 10, 0, 0), cita.FechaHoraInicio);
+        Assert.Equal(Inicio.AddDays(1).AddHours(1), cita.FechaHoraInicio);
         Assert.Equal(1, cita.NumeroReprogramaciones);
         Assert.Equal(CitaEstados.Programada, cita.Estado);
+    }
+
+    [Fact]
+    public void Reprogramar_AFechaPasada_LanzaExcepcionDeDominio()
+    {
+        var cita = CrearCita();
+        cita.ConfirmarPorSecretaria(Guid.NewGuid());
+
+        var exception = Assert.Throws<DomainException>(() =>
+            cita.Reprogramar(HoraClinica.Ahora().AddMinutes(-10), 30, null));
+
+        Assert.Contains("pasada", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -113,11 +151,11 @@ public sealed class CitaTests
     {
         var cita = CrearCita();
         cita.ConfirmarPorSecretaria(Guid.NewGuid());
-        cita.Reprogramar(new DateTime(2026, 9, 8, 10, 0, 0), 30, null);
-        cita.Reprogramar(new DateTime(2026, 9, 9, 10, 0, 0), 30, null);
+        cita.Reprogramar(Inicio.AddDays(1), 30, null);
+        cita.Reprogramar(Inicio.AddDays(2), 30, null);
 
         var exception = Assert.Throws<DomainException>(() =>
-            cita.Reprogramar(new DateTime(2026, 9, 10, 10, 0, 0), 30, null));
+            cita.Reprogramar(Inicio.AddDays(3), 30, null));
 
         Assert.Contains("Administrador", exception.Message);
     }
@@ -127,11 +165,11 @@ public sealed class CitaTests
     {
         var cita = CrearCita();
         cita.ConfirmarPorSecretaria(Guid.NewGuid());
-        cita.Reprogramar(new DateTime(2026, 9, 8, 10, 0, 0), 30, null);
-        cita.Reprogramar(new DateTime(2026, 9, 9, 10, 0, 0), 30, null);
+        cita.Reprogramar(Inicio.AddDays(1), 30, null);
+        cita.Reprogramar(Inicio.AddDays(2), 30, null);
         var adminId = Guid.NewGuid();
 
-        cita.Reprogramar(new DateTime(2026, 9, 10, 10, 0, 0), 30, adminId);
+        cita.Reprogramar(Inicio.AddDays(3), 30, adminId);
 
         Assert.Equal(3, cita.NumeroReprogramaciones);
         Assert.Equal(adminId, cita.AutorizacionTerceraPorUsuarioId);
@@ -150,7 +188,7 @@ public sealed class CitaTests
             Guid.NewGuid(),
             Guid.NewGuid(),
             Guid.NewGuid(),
-            new DateTime(2026, 9, 7, 9, 0, 0),
+            Inicio,
             "Control de presión arterial");
     }
 }

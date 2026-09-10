@@ -27,7 +27,6 @@ public sealed class ClinicaProDbContext
  
     public DbSet<Horario> Horarios => Set<Horario>();
     public DbSet<Cita> Citas => Set<Cita>();
-    public DbSet<AutorizacionReprogramacion> AutorizacionesReprogramacion => Set<AutorizacionReprogramacion>();
     public DbSet<HistorialCita> HistorialCitas => Set<HistorialCita>();
     public DbSet<Parametro> Parametros => Set<Parametro>();
     public DbSet<Notificacion> Notificaciones => Set<Notificacion>();
@@ -38,6 +37,7 @@ public sealed class ClinicaProDbContext
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ClinicaProDbContext).Assembly);
+        modelBuilder.Ignore<AutorizacionReprogramacion>();
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

@@ -49,6 +49,11 @@ public sealed class AuthService(
 
         await userManager.ResetAccessFailedCountAsync(user);
 
+        if (string.IsNullOrWhiteSpace(user.SecurityStamp))
+        {
+            await userManager.UpdateSecurityStampAsync(user);
+        }
+
         var roles = await ObtenerRolesActivosAsync(user, cancellationToken);
         var paciente = await pacienteRepository.ObtenerPorUsuarioIdAsync(user.Id, cancellationToken);
         var (token, expiresAt) = jwtTokenGenerator.Create(user, roles, user.MustChangePassword);
