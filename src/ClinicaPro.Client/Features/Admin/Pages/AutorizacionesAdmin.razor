@@ -3,6 +3,7 @@
 @inject AdminApiService AdminApi
 
 <PageTitle>Autorizaciones · Administración</PageTitle>
+<AutoRefresh Enabled="true" IntervalSeconds="30" OnRefresh="CargarSilenciosoAsync" />
 
 <div class="space-y-5">
     <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
@@ -11,15 +12,15 @@
             <h1 class="mt-1 text-xl font-semibold text-ink">Autorizaciones de reprogramación</h1>
             <p class="mt-1 text-sm text-ink-muted">Resuelve las solicitudes requeridas para una tercera reprogramación.</p>
         </div>
-        <Button Variant="ButtonVariant.Secondary" IconName="refresh" Loading="cargando" OnClick="CargarAsync">Actualizar</Button>
     </div>
 
     <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <TarjetaKpi Titulo="Pendientes" Valor="Pendientes" IconName="clock" />
-        <TarjetaKpi Titulo="Aprobadas" Valor="Aprobadas" IconName="check-circle" />
-        <TarjetaKpi Titulo="Rechazadas" Valor="Rechazadas" IconName="x" />
-        <TarjetaKpi Titulo="Usadas" Valor="Usadas" IconName="history" />
+        <TarjetaKpi Titulo="Pendientes" Valor="Pendientes" ValorTexto="@TextoPendientes" IconName="clock" />
+        <TarjetaKpi Titulo="Aprobadas" Valor="Aprobadas" ValorTexto="@TextoAprobadas" IconName="check-circle" />
+        <TarjetaKpi Titulo="Rechazadas" Valor="Rechazadas" ValorTexto="@TextoRechazadas" IconName="x" />
+        <TarjetaKpi Titulo="Usadas" Valor="Usadas" ValorTexto="@TextoUsadas" IconName="history" />
     </div>
+
 
     <Card BodyPadding="p-0">
         <div class="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center">
@@ -37,7 +38,7 @@
         {
             <div class="p-5"><Skeleton Filas="6" /></div>
         }
-        else if (!string.IsNullOrWhiteSpace(error))
+        else if (!string.IsNullOrWhiteSpace(error) && !autorizacionesCargadas)
         {
             <div class="p-5">
                 <EmptyState IconName="alert-triangle" Title="No se pudieron cargar las autorizaciones" Description="@error" />
@@ -86,6 +87,7 @@
 
 @code {
     private bool cargando = true;
+    private bool autorizacionesCargadas;
     private string? error;
     private string busqueda = string.Empty;
     private string estadoFiltro = string.Empty;
@@ -99,6 +101,10 @@
     private int Aprobadas => ContarEstado("Aprobada");
     private int Rechazadas => ContarEstado("Rechazada");
     private int Usadas => ContarEstado("Usada");
+    private string TextoPendientes => autorizacionesCargadas ? Pendientes.ToString() : "—";
+    private string TextoAprobadas => autorizacionesCargadas ? Aprobadas.ToString() : "—";
+    private string TextoRechazadas => autorizacionesCargadas ? Rechazadas.ToString() : "—";
+    private string TextoUsadas => autorizacionesCargadas ? Usadas.ToString() : "—";
 
     private IReadOnlyList<AutorizacionReprogramacionDto> Filtradas => autorizaciones
         .Where(x => string.IsNullOrWhiteSpace(estadoFiltro) || x.Estado.Equals(estadoFiltro, StringComparison.OrdinalIgnoreCase))
@@ -106,20 +112,49 @@
         .OrderBy(x => OrdenEstado(x.Estado)).ThenByDescending(x => x.CreatedAtUtc).ToList();
 
     protected override async Task OnInitializedAsync() => await CargarAsync();
-    private async Task CargarAsync()
+
+    private Task CargarSilenciosoAsync() => CargarAsync(silencioso: true);
+
+    private async Task CargarAsync() => await CargarAsync(silencioso: false);
+
+    private async Task CargarAsync(bool silencioso)
     {
-        cargando = autorizaciones.Count == 0;
+        if (!silencioso && autorizaciones.Count == 0)
+        {
+            cargando = true;
+        }
+
+        // Los usuarios cambian con mucha menor frecuencia que las autorizaciones.
+        // Si ya se cargaron, no se vuelven a pedir en cada actualización periódica.
+        if (usuarios.Count == 0)
+        {
+            try
+            {
+                usuarios = await AdminApi.ListarUsuariosAsync();
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            {
+                // La falta temporal del catálogo de usuarios no impide consultar las autorizaciones.
+            }
+        }
+
         try
         {
-            var autorizacionesTask = AdminApi.ListarAutorizacionesAsync();
-            var usuariosTask = AdminApi.ListarUsuariosAsync();
-            await Task.WhenAll(autorizacionesTask, usuariosTask);
-            autorizaciones = await autorizacionesTask;
-            usuarios = await usuariosTask;
+            autorizaciones = await AdminApi.ListarAutorizacionesAsync();
+            autorizacionesCargadas = true;
             error = null;
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { error = ex.Message; }
-        finally { cargando = false; }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            if (!silencioso || !autorizacionesCargadas)
+            {
+                error = ex.Message;
+            }
+        }
+        finally
+        {
+            cargando = false;
+        }
     }
     private void AbrirDecision(AutorizacionReprogramacionDto item, bool aprobar) { seleccionada = item; decisionAprobar = aprobar; modalAbierto = true; }
     private int ContarEstado(string estado) => autorizaciones.Count(x => x.Estado.Equals(estado, StringComparison.OrdinalIgnoreCase));

@@ -14,6 +14,29 @@ public static class ApiErrorReader
         string mensajePorDefecto,
         CancellationToken ct = default)
     {
+        // Autenticación/autorización siempre usa mensajes controlados por la UI.
+        // No exponemos detalles del middleware ni políticas internas del servidor.
+        if (respuesta.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            return "Tu sesión no es válida o las credenciales son incorrectas.";
+        }
+        if (respuesta.StatusCode == HttpStatusCode.Forbidden)
+        {
+            return "Tu usuario no tiene permiso para realizar esta acción.";
+        }
+
+        // Los 5xx nunca muestran el cuerpo devuelto por el servidor: podría contener
+        // detalles internos. El usuario recibe una referencia estable para soporte.
+        if ((int)respuesta.StatusCode >= 500)
+        {
+            var contexto = string.IsNullOrWhiteSpace(mensajePorDefecto)
+                ? "El sistema no pudo completar la operación en este momento."
+                : mensajePorDefecto.Trim();
+            return FrontendErrorCatalog.WithCode(
+                $"{contexto} Intenta nuevamente; si continúa, comparte esta referencia con soporte.",
+                FrontendErrorCatalog.ServerError);
+        }
+
         string cuerpo;
         try
         {
@@ -92,8 +115,13 @@ public static class ApiErrorReader
             (HttpStatusCode)422 => "Hay datos que no cumplen las reglas requeridas.",
             (HttpStatusCode)423 => "La cuenta está bloqueada temporalmente por seguridad.",
             (HttpStatusCode)429 => "Se realizaron demasiados intentos. Espera unos minutos y vuelve a intentar.",
-            HttpStatusCode.InternalServerError or HttpStatusCode.BadGateway or HttpStatusCode.ServiceUnavailable
-                => "El servidor no pudo completar la operación. Intenta nuevamente en unos momentos.",
+            HttpStatusCode.InternalServerError or HttpStatusCode.BadGateway or HttpStatusCode.ServiceUnavailable or HttpStatusCode.GatewayTimeout
+                => FrontendErrorCatalog.WithCode(
+                    "El sistema no pudo completar la operación en este momento. Intenta nuevamente; si continúa, comparte esta referencia con soporte.",
+                    FrontendErrorCatalog.ServerError),
+            HttpStatusCode.RequestTimeout => FrontendErrorCatalog.WithCode(
+                "La operación tardó demasiado. Intenta nuevamente.",
+                FrontendErrorCatalog.Timeout),
             _ => mensajePorDefecto
         };
 }

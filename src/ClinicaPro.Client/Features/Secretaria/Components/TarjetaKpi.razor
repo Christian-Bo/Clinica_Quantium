@@ -4,7 +4,7 @@
             <Icon Name="@IconName" Size="20" />
         </div>
         <div class="min-w-0">
-            <p class="text-2xl font-semibold text-ink">@Valor</p>
+            <p class="text-2xl font-semibold text-ink">@(ValorTexto ?? Valor.ToString())</p>
             <p class="truncate text-xs text-ink-muted">@Titulo</p>
         </div>
     </div>
@@ -13,6 +13,7 @@
 @code {
     [Parameter, EditorRequired] public string Titulo { get; set; } = string.Empty;
     [Parameter] public int Valor { get; set; }
+    [Parameter] public string? ValorTexto { get; set; }
     [Parameter, EditorRequired] public string IconName { get; set; } = string.Empty;
     [Parameter] public EventCallback OnClick { get; set; }
 

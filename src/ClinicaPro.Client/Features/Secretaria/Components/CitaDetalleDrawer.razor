@@ -63,6 +63,7 @@
 
                         <label class="text-xs font-medium text-ink-muted" for="repro-fecha">Nueva fecha</label>
                         <input id="repro-fecha" type="date" min="@HoyTexto" class="mt-1 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink" value="@nuevaFechaTexto" @onchange="CambiarFechaReprogramacionAsync" />
+                        <p class="mt-1 text-xs text-ink-muted">Selecciona una fecha futura; se conservará el médico asignado y solo se mostrarán sus horarios disponibles.</p>
 
                         @if (cargandoSlotsReprogramacion)
                         {
@@ -92,8 +93,12 @@
                             }
                         }
 
-                        <label class="mt-3 block text-xs font-medium text-ink-muted" for="repro-motivo">Motivo de la reprogramación</label>
-                        <textarea id="repro-motivo" rows="2" class="mt-1 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink" value="@motivoReprogramacion" @oninput="e => motivoReprogramacion = e.Value?.ToString() ?? string.Empty"></textarea>
+                        <ValidatedTextArea Id="repro-motivo" Label="Motivo de la reprogramación"
+                                           Required="true" Value="@motivoReprogramacion" ValueChanged="v => motivoReprogramacion = v"
+                                           Placeholder="Ej. El paciente solicitó una nueva fecha por conflicto de horario."
+                                           HelperText="Describe el motivo del cambio. Para una tercera reprogramación es obligatorio."
+                                           MinLength="5" MaxLength="500" Rows="2" ShowCounter="true"
+                                           ForceTouched="mostrarValidacionReprogramacion" ValidationCycle="cicloReprogramacion" CssClass="mt-3" />
 
                         <div class="mt-3 flex flex-wrap justify-end gap-2">
                             <Button Variant="ButtonVariant.Ghost" Size="sm" OnClick="CancelarReprogramacion">Cancelar</Button>
@@ -175,6 +180,8 @@
     private string? errorSlots;
     private bool solicitandoAutorizacion;
     private bool autorizacionSolicitada;
+    private bool mostrarValidacionReprogramacion;
+    private int cicloReprogramacion;
 
     private static string HoyTexto => DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd");
     private bool RequiereAutorizacion => citaActual?.NumeroReprogramaciones >= 2;
@@ -248,14 +255,28 @@
     }
 
     private async Task ConfirmarAsync() => await EjecutarAsync(() => CitasApi.ConfirmarAsync(citaActual!.CitaId), "Solicitud confirmada.");
-    private async Task RechazarAsync(string motivo) => await EjecutarAsync(() => CitasApi.RechazarAsync(citaActual!.CitaId, motivo), "Solicitud rechazada.");
+    private async Task RechazarAsync(string motivo)
+    {
+        if (await EjecutarAsync(() => CitasApi.RechazarAsync(citaActual!.CitaId, motivo), "Solicitud rechazada."))
+        {
+            modalRechazoAbierto = false;
+        }
+    }
     private async Task RegistrarLlegadaAsync() => await EjecutarAsync(() => CitasApi.RegistrarLlegadaAsync(citaActual!.CitaId), "Llegada registrada y médico notificado.");
     private async Task MarcarNoPresentadaAsync() => await EjecutarAsync(() => CitasApi.MarcarNoPresentadaAsync(citaActual!.CitaId), "Cita marcada como no presentada.");
-    private async Task CancelarAsync(string motivo) => await EjecutarAsync(() => CitasApi.CancelarAdministrativaAsync(citaActual!.CitaId, motivo), "Cita cancelada.");
+    private async Task CancelarAsync(string motivo)
+    {
+        if (await EjecutarAsync(() => CitasApi.CancelarAdministrativaAsync(citaActual!.CitaId, motivo), "Cita cancelada."))
+        {
+            modalCancelacionAbierto = false;
+        }
+    }
 
     private void AbrirReprogramar()
     {
         reprogramando = true;
+        mostrarValidacionReprogramacion = false;
+        cicloReprogramacion++;
         nuevaFechaTexto = string.Empty;
         slotsReprogramacion = [];
         nuevaHora = null;
@@ -308,9 +329,10 @@
 
     private async Task SolicitarAutorizacionAsync()
     {
+        mostrarValidacionReprogramacion = true;
         if (citaActual is null) return;
         var motivo = motivoReprogramacion.Trim();
-        if (motivo.Length < 5)
+        if (FormValidation.ValidateText(motivo, true, 5, 500, "Motivo de la reprogramación") is not null)
         {
             Toasts.Error("Escribe primero el motivo de la reprogramación (mínimo 5 caracteres).");
             return;
@@ -333,17 +355,17 @@
 
     private async Task ConfirmarReprogramacionAsync()
     {
+        mostrarValidacionReprogramacion = true;
+        if (FormValidation.ValidateText(motivoReprogramacion, true, 5, 500, "Motivo de la reprogramación") is not null)
+        {
+            Toasts.Error("Escribe un motivo de al menos 5 caracteres para la reprogramación.");
+            return;
+        }
         if (citaActual is null || nuevaHora is null)
         {
             Toasts.Error("Selecciona un nuevo horario.");
             return;
         }
-        if (motivoReprogramacion.Trim().Length < 5)
-        {
-            Toasts.Error("Escribe el motivo de la reprogramación.");
-            return;
-        }
-
         var exito = await EjecutarAsync(
             () => CitasApi.ReprogramarAsync(citaActual.CitaId, nuevaHora.FechaHoraInicio, motivoReprogramacion.Trim()),
             "Cita reprogramada.");

@@ -3,6 +3,7 @@
 @inject AdminApiService AdminApi
 
 <PageTitle>Auditoría · Administración</PageTitle>
+<AutoRefresh Enabled="@(!string.IsNullOrWhiteSpace(error))" IntervalSeconds="12" OnRefresh="CargarAsync" />
 
 <div class="space-y-5">
     <div>

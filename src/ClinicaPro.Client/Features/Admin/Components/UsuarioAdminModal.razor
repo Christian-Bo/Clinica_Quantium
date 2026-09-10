@@ -6,24 +6,22 @@
         <div class="space-y-4">
             @if (Usuario is null)
             {
-                <div class="rounded-control border border-brand-500 bg-brand-50 px-3 py-2 text-xs text-brand-700">
-                    Crea únicamente cuentas de personal administrativo. Los médicos se crean desde su módulo y deberán cambiar la contraseña temporal al ingresar.
+                <div class="rounded-control border border-brand-200 bg-brand-50 px-3 py-2 text-xs text-brand-700">
+                    Crea únicamente cuentas de personal administrativo. Los médicos se crean desde su módulo.
                 </div>
+                <ValidatedTextInput Id="usr-email" Label="Correo" Required="true" Kind="FormFieldKind.Email"
+                                    Value="@email" ValueChanged="v => email = v" Placeholder="Ej. secretaria@clinicapro.com"
+                                    Autocomplete="email" MaxLength="254" HelperText="Este correo será el nombre de usuario."
+                                    ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
+                <PasswordField Id="usr-password" Label="Contraseña temporal" Value="@password" ValueChanged="v => password = v"
+                               Placeholder="Ej. Acceso@2026" ShowRules="true" ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
                 <div>
-                    <label class="text-sm font-medium text-ink">Correo *</label>
-                    <input type="email" autocomplete="off" class="@ClaseInput" @bind="email" />
-                </div>
-                <div>
-                    <label class="text-sm font-medium text-ink">Contraseña temporal *</label>
-                    <input type="password" autocomplete="new-password" class="@ClaseInput" @bind="password" />
-                    <p class="mt-1 text-xs text-ink-muted">Mínimo 8 caracteres, con mayúscula, minúscula, número y símbolo.</p>
-                </div>
-                <div>
-                    <label class="text-sm font-medium text-ink">Rol *</label>
-                    <select class="@ClaseInput" @bind="rolCrear">
+                    <label class="text-sm font-medium text-ink" for="usr-rol">Rol <span class="text-state-rechazada">*</span></label>
+                    <select id="usr-rol" class="@ClaseInput" @bind="rolCrear">
                         <option value="Secretaria">Secretaría</option>
                         <option value="Administrador">Administrador</option>
                     </select>
+                    <p class="mt-1 text-xs text-ink-muted">Secretaría opera agenda y pacientes; Administrador también accede a configuración y seguridad.</p>
                 </div>
             }
             else
@@ -58,7 +56,7 @@
     [Parameter] public UsuarioAdminDto? Usuario { get; set; }
     [Parameter] public EventCallback OnGuardado { get; set; }
 
-    private const string ClaseInput = "mt-1 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100";
+    private const string ClaseInput = "mt-1 w-full rounded-control border border-border bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100";
     private bool aperturaAnterior;
     private Guid? usuarioAnterior;
     private string email = string.Empty;
@@ -68,18 +66,21 @@
     private bool rolSecretaria;
     private bool guardando;
     private string? error;
+    private bool mostrarValidaciones;
+    private int cicloValidacion;
     private string Titulo => Usuario is null ? "Nuevo usuario" : "Editar roles";
 
     protected override void OnParametersSet()
     {
         if (IsOpen && (!aperturaAnterior || usuarioAnterior != Usuario?.UsuarioId))
         {
-            email = string.Empty;
-            password = string.Empty;
+            email = password = string.Empty;
             rolCrear = Roles.Secretaria;
             rolAdministrador = Usuario?.Roles.Contains(Roles.Administrador) == true;
             rolSecretaria = Usuario?.Roles.Contains(Roles.Secretaria) == true;
             error = null;
+            mostrarValidaciones = false;
+            cicloValidacion++;
             usuarioAnterior = Usuario?.UsuarioId;
         }
         aperturaAnterior = IsOpen;
@@ -87,24 +88,26 @@
 
     private async Task GuardarAsync()
     {
+        if (guardando) return;
         error = null;
+        mostrarValidaciones = true;
+
+        if (Usuario is null)
+        {
+            if (FormValidation.Validate(FormFieldKind.Email, email, true, 254, "Correo") is not null || !FormValidation.IsPasswordValid(password)) return;
+        }
+        else if (!rolAdministrador && !rolSecretaria)
+        {
+            error = "Selecciona al menos un rol administrativo.";
+            return;
+        }
+
         guardando = true;
         try
         {
             if (Usuario is null)
             {
-                if (string.IsNullOrWhiteSpace(email) || !new EmailAddressAttribute().IsValid(email))
-                {
-                    error = "Ingresa un correo electrónico válido.";
-                    return;
-                }
-                if (!PasswordValida(password))
-                {
-                    error = "La contraseña temporal no cumple la política de seguridad.";
-                    return;
-                }
-
-                var resultado = await AdminApi.CrearUsuarioAsync(new CrearUsuarioStaffRequest(email.Trim().ToLowerInvariant(), password, rolCrear));
+                var resultado = await AdminApi.CrearUsuarioAsync(new CrearUsuarioStaffRequest(FormValidation.NormalizeEmail(email), password, rolCrear));
                 if (!resultado.Exito) { error = resultado.Error; return; }
                 Toast.Exito("Usuario creado. Deberá cambiar su contraseña temporal al iniciar sesión.");
             }
@@ -113,29 +116,16 @@
                 var roles = new List<string>();
                 if (rolAdministrador) roles.Add(Roles.Administrador);
                 if (rolSecretaria) roles.Add(Roles.Secretaria);
-                if (roles.Count == 0)
-                {
-                    error = "Selecciona al menos un rol administrativo.";
-                    return;
-                }
-
                 var resultado = await AdminApi.ActualizarRolesAsync(Usuario.UsuarioId, roles);
                 if (!resultado.Exito) { error = resultado.Error; return; }
                 Toast.Exito("Roles actualizados correctamente.");
             }
-
             await OnGuardado.InvokeAsync();
             await IsOpenChanged.InvokeAsync(false);
         }
-        finally
-        {
-            guardando = false;
-        }
+        finally { guardando = false; }
     }
 
     private Task Cancelar() => IsOpenChanged.InvokeAsync(false);
     private Task CambiarApertura(bool valor) => IsOpenChanged.InvokeAsync(valor);
-    private static bool PasswordValida(string valor) =>
-        !string.IsNullOrWhiteSpace(valor) && valor.Length >= 8 && valor.Any(char.IsUpper)
-        && valor.Any(char.IsLower) && valor.Any(char.IsDigit) && valor.Any(c => !char.IsLetterOrDigit(c));
 }

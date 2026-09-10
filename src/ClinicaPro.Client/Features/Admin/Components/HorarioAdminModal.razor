@@ -8,41 +8,54 @@
                 Médico: <strong>@(Medico?.NombreCompleto ?? "—")</strong>
             </div>
             <div>
-                <label class="text-sm font-medium text-ink" for="adm-hor-dia">Día *</label>
+                <label class="text-sm font-medium text-ink" for="adm-hor-dia">Día <span class="text-state-rechazada">*</span></label>
                 <select id="adm-hor-dia" class="@ClaseInput" @bind="diaSemana">
                     @foreach (var dia in Dias)
                     {
                         <option value="@dia.Valor">@dia.Nombre</option>
                     }
                 </select>
+                <p class="mt-1 text-xs text-ink-muted">Selecciona el día de atención habitual.</p>
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="text-sm font-medium text-ink" for="adm-hor-ini">Inicio *</label>
-                    <input id="adm-hor-ini" type="time" class="@ClaseInput" value="@horaInicio" @onchange="CambiarHoraInicio" />
+                    <label class="text-sm font-medium text-ink" for="adm-hor-ini">Inicio <span class="text-state-rechazada">*</span></label>
+                    <input id="adm-hor-ini" type="time" class="@ClaseHora(inicioValido)" value="@horaInicio" @onchange="CambiarHoraInicio" />
+                    <p class="mt-1 text-xs text-ink-muted">Ej. 08:00</p>
                 </div>
                 <div>
-                    <label class="text-sm font-medium text-ink" for="adm-hor-fin">Fin *</label>
-                    <input id="adm-hor-fin" type="time" class="@ClaseInput" value="@horaFin" @onchange="CambiarHoraFin" />
+                    <label class="text-sm font-medium text-ink" for="adm-hor-fin">Fin <span class="text-state-rechazada">*</span></label>
+                    <input id="adm-hor-fin" type="time" class="@ClaseHora(finValido)" value="@horaFin" @onchange="CambiarHoraFin" />
+                    <p class="mt-1 text-xs text-ink-muted">Ej. 17:00</p>
                 </div>
             </div>
+            @if (mostrarValidaciones && ErrorHoras is not null)
+            {
+                <p role="alert" class="rounded-control bg-state-rechazada/10 px-3 py-2 text-xs text-state-rechazada">@ErrorHoras</p>
+            }
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                     <label class="text-sm font-medium text-ink" for="adm-hor-desde">Vigente desde</label>
-                    <input id="adm-hor-desde" type="date" class="@ClaseInput" value="@vigenteDesde" @onchange="CambiarVigenteDesde" />
+                    <input id="adm-hor-desde" type="date" class="@ClaseFecha(vigenteDesde)" value="@vigenteDesde" @onchange="CambiarVigenteDesde" />
+                    <p class="mt-1 text-xs text-ink-muted">Opcional. Ej. 09/09/2026.</p>
                 </div>
                 <div>
                     <label class="text-sm font-medium text-ink" for="adm-hor-hasta">Vigente hasta</label>
-                    <input id="adm-hor-hasta" type="date" class="@ClaseInput" value="@vigenteHasta" @onchange="CambiarVigenteHasta" />
+                    <input id="adm-hor-hasta" type="date" min="@vigenteDesde" class="@ClaseFecha(vigenteHasta)" value="@vigenteHasta" @onchange="CambiarVigenteHasta" />
+                    <p class="mt-1 text-xs text-ink-muted">Opcional. Debe ser igual o posterior a la fecha inicial.</p>
                 </div>
             </div>
+            @if (mostrarValidaciones && ErrorFechas is not null)
+            {
+                <p role="alert" class="rounded-control bg-state-rechazada/10 px-3 py-2 text-xs text-state-rechazada">@ErrorFechas</p>
+            }
             @if (EsEdicion)
             {
                 <label class="flex items-center gap-2 text-sm text-ink">
                     <input type="checkbox" class="h-4 w-4 rounded border-border" @bind="activo" /> Horario activo
                 </label>
             }
-            <p class="text-xs text-ink-muted">Las fechas de vigencia son opcionales. Déjalas vacías para una jornada permanente.</p>
+            <p class="text-xs text-ink-muted">Si dejas las fechas de vigencia vacías, la jornada se considera permanente.</p>
             @if (!string.IsNullOrWhiteSpace(error))
             {
                 <p class="rounded-control bg-state-rechazada/10 px-3 py-2 text-sm text-state-rechazada">@error</p>
@@ -62,12 +75,8 @@
     [Parameter] public HorarioDto? Horario { get; set; }
     [Parameter] public EventCallback OnGuardado { get; set; }
 
-    private const string ClaseInput = "mt-1 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100";
-    private static readonly (byte Valor, string Nombre)[] Dias =
-    [
-        (1, "Lunes"), (2, "Martes"), (3, "Miércoles"), (4, "Jueves"), (5, "Viernes"), (6, "Sábado"), (7, "Domingo")
-    ];
-
+    private const string ClaseInput = "mt-1 w-full rounded-control border border-border bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100";
+    private static readonly (byte Valor, string Nombre)[] Dias = [(1,"Lunes"),(2,"Martes"),(3,"Miércoles"),(4,"Jueves"),(5,"Viernes"),(6,"Sábado"),(7,"Domingo")];
     private byte diaSemana = 1;
     private string horaInicio = "08:00";
     private string horaFin = "17:00";
@@ -78,9 +87,32 @@
     private bool guardando;
     private bool aperturaAnterior;
     private Guid? horarioAnterior;
+    private bool mostrarValidaciones;
+    private bool horasTocadas;
+    private bool fechasTocadas;
 
     private bool EsEdicion => Horario is not null;
     private string Titulo => EsEdicion ? "Editar horario" : "Nuevo horario";
+    private bool inicioValido => TimeOnly.TryParse(horaInicio, out _);
+    private bool finValido => TimeOnly.TryParse(horaFin, out _);
+    private string? ErrorHoras
+    {
+        get
+        {
+            if (!TimeOnly.TryParse(horaInicio, out var inicio) || !TimeOnly.TryParse(horaFin, out var fin)) return "Ingresa horas válidas de inicio y fin.";
+            return fin <= inicio ? "La hora de finalización debe ser posterior a la hora de inicio." : null;
+        }
+    }
+    private string? ErrorFechas
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(vigenteDesde) && !DateOnly.TryParse(vigenteDesde, out _)) return "La fecha de inicio de vigencia no es válida.";
+            if (!string.IsNullOrWhiteSpace(vigenteHasta) && !DateOnly.TryParse(vigenteHasta, out _)) return "La fecha final de vigencia no es válida.";
+            if (DateOnly.TryParse(vigenteDesde, out var d) && DateOnly.TryParse(vigenteHasta, out var h) && h < d) return "La vigencia final no puede ser anterior a la inicial.";
+            return null;
+        }
+    }
 
     protected override void OnParametersSet()
     {
@@ -93,57 +125,42 @@
             vigenteHasta = Horario?.VigenteHasta?.ToString("yyyy-MM-dd") ?? string.Empty;
             activo = Horario?.IsActive ?? true;
             error = null;
+            mostrarValidaciones = horasTocadas = fechasTocadas = false;
             horarioAnterior = Horario?.HorarioId;
         }
         aperturaAnterior = IsOpen;
     }
 
-    private void CambiarHoraInicio(ChangeEventArgs e) => horaInicio = e.Value?.ToString() ?? string.Empty;
-    private void CambiarHoraFin(ChangeEventArgs e) => horaFin = e.Value?.ToString() ?? string.Empty;
-    private void CambiarVigenteDesde(ChangeEventArgs e) => vigenteDesde = e.Value?.ToString() ?? string.Empty;
-    private void CambiarVigenteHasta(ChangeEventArgs e) => vigenteHasta = e.Value?.ToString() ?? string.Empty;
+    private void CambiarHoraInicio(ChangeEventArgs e) { horaInicio = e.Value?.ToString() ?? string.Empty; horasTocadas = true; }
+    private void CambiarHoraFin(ChangeEventArgs e) { horaFin = e.Value?.ToString() ?? string.Empty; horasTocadas = true; }
+    private void CambiarVigenteDesde(ChangeEventArgs e) { vigenteDesde = e.Value?.ToString() ?? string.Empty; fechasTocadas = true; }
+    private void CambiarVigenteHasta(ChangeEventArgs e) { vigenteHasta = e.Value?.ToString() ?? string.Empty; fechasTocadas = true; }
+
+    private string ClaseHora(bool valido)
+    {
+        if (!(horasTocadas || mostrarValidaciones)) return ClaseInput;
+        return valido && ErrorHoras is null
+            ? "mt-1 w-full rounded-control border border-state-atendida bg-surface px-3 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-100"
+            : "mt-1 w-full rounded-control border border-state-rechazada bg-state-rechazada/5 px-3 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-state-rechazada/10";
+    }
+
+    private string ClaseFecha(string valor)
+    {
+        if (!(fechasTocadas || mostrarValidaciones) || string.IsNullOrWhiteSpace(valor)) return ClaseInput;
+        return ErrorFechas is null
+            ? "mt-1 w-full rounded-control border border-state-atendida bg-surface px-3 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-100"
+            : "mt-1 w-full rounded-control border border-state-rechazada bg-state-rechazada/5 px-3 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-state-rechazada/10";
+    }
 
     private async Task GuardarAsync()
     {
-        if (Medico is null) return;
-        if (!TimeOnly.TryParse(horaInicio, out var inicio) || !TimeOnly.TryParse(horaFin, out var fin))
-        {
-            error = "Ingresa horas válidas.";
-            return;
-        }
-        if (fin <= inicio)
-        {
-            error = "La hora de fin debe ser posterior a la hora de inicio.";
-            return;
-        }
-
-        DateOnly? desde = null;
-        DateOnly? hasta = null;
-        if (!string.IsNullOrWhiteSpace(vigenteDesde) && !DateOnly.TryParse(vigenteDesde, out var desdeValor))
-        {
-            error = "La fecha inicial no es válida.";
-            return;
-        }
-        else if (!string.IsNullOrWhiteSpace(vigenteDesde))
-        {
-            desde = DateOnly.Parse(vigenteDesde);
-        }
-
-        if (!string.IsNullOrWhiteSpace(vigenteHasta) && !DateOnly.TryParse(vigenteHasta, out var hastaValor))
-        {
-            error = "La fecha final no es válida.";
-            return;
-        }
-        else if (!string.IsNullOrWhiteSpace(vigenteHasta))
-        {
-            hasta = DateOnly.Parse(vigenteHasta);
-        }
-
-        if (desde.HasValue && hasta.HasValue && hasta.Value < desde.Value)
-        {
-            error = "La vigencia final no puede ser anterior a la inicial.";
-            return;
-        }
+        if (Medico is null || guardando) return;
+        mostrarValidaciones = true;
+        if (ErrorHoras is not null || ErrorFechas is not null) return;
+        TimeOnly.TryParse(horaInicio, out var inicio);
+        TimeOnly.TryParse(horaFin, out var fin);
+        DateOnly? desde = DateOnly.TryParse(vigenteDesde, out var d) ? d : null;
+        DateOnly? hasta = DateOnly.TryParse(vigenteHasta, out var h) ? h : null;
 
         guardando = true;
         error = null;
@@ -157,21 +174,14 @@
             }
             else
             {
-                var resultado = await AdminApi.ActualizarHorarioAsync(
-                    Medico.MedicoId,
-                    Horario.HorarioId,
-                    new ActualizarHorarioRequest(diaSemana, inicio, fin, desde, hasta, activo));
+                var resultado = await AdminApi.ActualizarHorarioAsync(Medico.MedicoId, Horario.HorarioId, new ActualizarHorarioRequest(diaSemana, inicio, fin, desde, hasta, activo));
                 if (!resultado.Exito) { error = resultado.Error; return; }
                 Toast.Exito("Horario actualizado correctamente.");
             }
-
             await OnGuardado.InvokeAsync();
             await IsOpenChanged.InvokeAsync(false);
         }
-        finally
-        {
-            guardando = false;
-        }
+        finally { guardando = false; }
     }
 
     private Task Cancelar() => IsOpenChanged.InvokeAsync(false);

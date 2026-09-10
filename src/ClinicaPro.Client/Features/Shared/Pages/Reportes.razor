@@ -1,18 +1,21 @@
 @page "/reportes"
 @attribute [Authorize(Roles = "Secretaria,Administrador")]
-@inject ReportesApiService ReportesApi
 @inject CitasApiService CitasApi
 @inject MedicosApiService MedicosApi
 @inject AdminApiService AdminApi
 @inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JS
 
 <PageTitle>Reportes · Clínica Pro</PageTitle>
 
 <div class="space-y-6">
-    <div>
-        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">Análisis operativo</p>
-        <h1 class="mt-1 text-xl font-semibold text-ink">Reportes de citas</h1>
-        <p class="mt-1 text-sm text-ink-muted">Consulta indicadores y el detalle de la agenda por período, médico y estado.</p>
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">Análisis operativo</p>
+            <h1 class="mt-1 text-xl font-semibold text-ink">Reportes de citas</h1>
+            <p class="mt-1 text-sm text-ink-muted">Consulta indicadores y el detalle de la agenda por período, médico y estado.</p>
+        </div>
+        <Button Variant="ButtonVariant.Secondary" IconName="download" Disabled="@(!datosCargados || cargando || CitasFiltradas.Count == 0)" OnClick="ExportarPdfAsync">Exportar PDF</Button>
     </div>
 
     <Card>
@@ -53,79 +56,98 @@
         }
     </Card>
 
-    @if (cargando && reporte is null)
+    @if (cargando && !datosCargados)
     {
         <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">@for (var i = 0; i < 4; i++) { <Skeleton Filas="1" HeightClass="h-24" /> }</div>
         <Card><Skeleton Filas="6" /></Card>
     }
-    else if (reporte is not null)
+    else if (datosCargados)
     {
-        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <TarjetaKpi Titulo="Total de citas" Valor="reporte.Total" IconName="calendar" />
-            <TarjetaKpi Titulo="Atendidas" Valor="reporte.Atendidas" IconName="check-circle" />
-            <TarjetaKpi Titulo="Canceladas" Valor="reporte.Canceladas" IconName="x" />
-            <TarjetaKpi Titulo="No presentadas" Valor="reporte.NoPresentadas" IconName="alert-triangle" />
-        </div>
+        <section id="reporte-citas-pdf" class="cp-report-print space-y-5">
+            <div class="cp-print-only">
+                <div class="cp-print-header">
+                    <div>
+                        <p class="cp-print-brand">Clínica Pro</p>
+                        <h1>Reporte de citas</h1>
+                    </div>
+                    <div class="cp-print-meta-right">Generado: @DateTime.Now.ToString("dd/MM/yyyy HH:mm")</div>
+                </div>
+                <div class="cp-print-filters">
+                    <span><strong>Período:</strong> @PeriodoSeleccionado</span>
+                    <span><strong>Médico:</strong> @MedicoSeleccionado</span>
+                    <span><strong>Estado:</strong> @EstadoSeleccionado</span>
+                </div>
+            </div>
 
-        <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
-            <Card Title="Distribución por estado" IconName="chart">
-                @if (reporte.PorEstado.Count == 0)
-                {
-                    <EmptyState IconName="chart" Title="Sin datos" Description="No hay movimientos en el período seleccionado." />
-                }
-                else
-                {
-                    <div class="space-y-4">
-                        @foreach (var item in reporte.PorEstado.OrderByDescending(x => x.Cantidad))
-                        {
-                            <div>
-                                <div class="mb-2 flex items-center justify-between gap-2 text-xs">
-                                    <span class="text-ink-muted">@item.Estado</span>
-                                    <span class="font-semibold text-ink">@item.Cantidad</span>
+            <div class="grid grid-cols-2 gap-4 lg:grid-cols-4 cp-report-kpis">
+                <TarjetaKpi Titulo="Total de citas" Valor="TotalFiltrado" IconName="calendar" />
+                <TarjetaKpi Titulo="Atendidas" Valor="AtendidasFiltradas" IconName="check-circle" />
+                <TarjetaKpi Titulo="Canceladas" Valor="CanceladasFiltradas" IconName="x" />
+                <TarjetaKpi Titulo="No presentadas" Valor="NoPresentadasFiltradas" IconName="alert-triangle" />
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 xl:grid-cols-3 cp-report-content">
+                <Card Title="Distribución por estado" IconName="chart" CssClass="cp-report-distribution">
+                    @if (DistribucionFiltrada.Count == 0)
+                    {
+                        <EmptyState IconName="chart" Title="Sin datos" Description="No hay movimientos en el período seleccionado." />
+                    }
+                    else
+                    {
+                        <div class="space-y-4">
+                            @foreach (var item in DistribucionFiltrada)
+                            {
+                                <div>
+                                    <div class="mb-2 flex items-center justify-between gap-2 text-xs">
+                                        <span class="text-ink-muted">@item.Estado</span>
+                                        <span class="font-semibold text-ink">@item.Cantidad</span>
+                                    </div>
+                                    <div class="h-2 overflow-hidden rounded-pill bg-surface-muted"><div class="h-full rounded-pill bg-brand-500" style="@AnchoBarra(item.Cantidad)"></div></div>
                                 </div>
-                                <div class="h-2 overflow-hidden rounded-pill bg-surface-muted"><div class="h-full rounded-pill bg-brand-500" style="@AnchoBarra(item.Cantidad)"></div></div>
-                            </div>
-                        }
-                        <div class="border-t border-border pt-3 text-xs text-ink-muted">Reprogramadas durante el período: <strong class="text-ink">@reporte.Reprogramadas</strong></div>
-                    </div>
-                }
-            </Card>
+                            }
+                            <div class="border-t border-border pt-3 text-xs text-ink-muted">Citas con al menos una reprogramación: <strong class="text-ink">@ReprogramadasFiltradas</strong></div>
+                        </div>
+                    }
+                </Card>
 
-            <Card Title="Detalle de citas" IconName="clipboard-list" CssClass="xl:col-span-2" BodyPadding="p-0">
-                @if (CitasFiltradas.Count == 0)
-                {
-                    <div class="p-5"><EmptyState IconName="calendar" Title="Sin citas" Description="No hay citas que coincidan con los filtros seleccionados." /></div>
-                }
-                else
-                {
-                    <div class="overflow-x-auto">
-                        <table class="w-full min-w-[820px] text-left text-sm">
-                            <thead class="bg-surface-muted text-xs uppercase tracking-wide text-ink-muted">
-                                <tr>
-                                    <th class="px-4 py-3 font-medium">Fecha</th>
-                                    <th class="px-4 py-3 font-medium">Paciente</th>
-                                    <th class="px-4 py-3 font-medium">Médico</th>
-                                    <th class="px-4 py-3 font-medium">Motivo</th>
-                                    <th class="px-4 py-3 font-medium">Estado</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-border">
-                                @foreach (var cita in CitasFiltradas)
-                                {
-                                    <tr class="hover:bg-surface-muted">
-                                        <td class="whitespace-nowrap px-4 py-3"><p class="font-medium text-ink">@cita.FechaHoraInicio.ToString("dd/MM/yyyy")</p><p class="text-xs text-ink-muted">@cita.FechaHoraInicio.ToString("HH:mm") – @cita.FechaHoraFin.ToString("HH:mm")</p></td>
-                                        <td class="px-4 py-3 text-ink">@cita.PacienteNombre</td>
-                                        <td class="px-4 py-3 text-ink-muted">@cita.MedicoNombre</td>
-                                        <td class="max-w-xs px-4 py-3 text-ink-muted"><span class="line-clamp-2">@cita.MotivoConsulta</span></td>
-                                        <td class="px-4 py-3"><CitaStatusBadge Estado="@cita.Estado" /></td>
+                <Card Title="Detalle de citas" IconName="clipboard-list" CssClass="xl:col-span-2 cp-report-detail" BodyPadding="p-0">
+                    @if (CitasFiltradas.Count == 0)
+                    {
+                        <div class="p-5"><EmptyState IconName="calendar" Title="Sin citas" Description="No hay citas que coincidan con los filtros seleccionados." /></div>
+                    }
+                    else
+                    {
+                        <div class="overflow-x-auto cp-report-table-wrap">
+                            <table class="w-full min-w-[820px] text-left text-sm cp-report-table">
+                                <thead class="bg-surface-muted text-xs uppercase tracking-wide text-ink-muted">
+                                    <tr>
+                                        <th class="px-4 py-3 font-medium">Fecha</th>
+                                        <th class="px-4 py-3 font-medium">Paciente</th>
+                                        <th class="px-4 py-3 font-medium">Médico</th>
+                                        <th class="px-4 py-3 font-medium">Motivo</th>
+                                        <th class="px-4 py-3 font-medium">Estado</th>
                                     </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                }
-            </Card>
-        </div>
+                                </thead>
+                                <tbody class="divide-y divide-border">
+                                    @foreach (var cita in CitasFiltradas)
+                                    {
+                                        <tr>
+                                            <td class="whitespace-nowrap px-4 py-3"><p class="font-medium text-ink">@cita.FechaHoraInicio.ToString("dd/MM/yyyy")</p><p class="text-xs text-ink-muted">@cita.FechaHoraInicio.ToString("HH:mm") – @cita.FechaHoraFin.ToString("HH:mm")</p></td>
+                                            <td class="px-4 py-3 text-ink">@cita.PacienteNombre</td>
+                                            <td class="px-4 py-3 text-ink-muted">@cita.MedicoNombre</td>
+                                            <td class="max-w-xs px-4 py-3 text-ink-muted"><span class="line-clamp-2">@cita.MotivoConsulta</span></td>
+                                            <td class="px-4 py-3"><CitaStatusBadge Estado="@cita.Estado" /></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </Card>
+            </div>
+
+            <div class="cp-print-only cp-print-footer">Clínica Pro · Reporte operativo generado desde el sistema</div>
+        </section>
     }
 </div>
 
@@ -139,7 +161,7 @@
     private string estadoFiltro = string.Empty;
     private bool cargando = true;
     private string? error;
-    private ReporteCitasDto? reporte;
+    private bool datosCargados;
     private IReadOnlyList<CitaDto> citas = [];
     private IReadOnlyList<MedicoFiltro> medicos = [];
 
@@ -147,6 +169,30 @@
         .Where(x => string.IsNullOrWhiteSpace(estadoFiltro) || x.Estado == estadoFiltro)
         .OrderByDescending(x => x.FechaHoraInicio)
         .ToList();
+
+    private int TotalFiltrado => CitasFiltradas.Count;
+    private int AtendidasFiltradas => CitasFiltradas.Count(c => c.Estado == CitaEstados.Atendida);
+    private int CanceladasFiltradas => CitasFiltradas.Count(c => c.Estado == CitaEstados.Cancelada);
+    private int NoPresentadasFiltradas => CitasFiltradas.Count(c => c.Estado == CitaEstados.NoPresentada);
+    private int ReprogramadasFiltradas => CitasFiltradas.Count(c => c.NumeroReprogramaciones > 0);
+
+    private IReadOnlyList<DistribucionEstado> DistribucionFiltrada => CitasFiltradas
+        .GroupBy(c => c.Estado)
+        .Select(g => new DistribucionEstado(g.Key, g.Count()))
+        .OrderByDescending(x => x.Cantidad)
+        .ThenBy(x => x.Estado)
+        .ToList();
+
+    private string MedicoSeleccionado => Guid.TryParse(medicoFiltro, out var id)
+        ? medicos.FirstOrDefault(x => x.MedicoId == id)?.Nombre ?? "Médico seleccionado"
+        : "Todos los médicos";
+
+    private string EstadoSeleccionado => string.IsNullOrWhiteSpace(estadoFiltro) ? "Todos los estados" : estadoFiltro;
+
+    private string PeriodoSeleccionado
+        => DateOnly.TryParse(desdeTexto, out var desde) && DateOnly.TryParse(hastaTexto, out var hasta)
+            ? $"{desde:dd/MM/yyyy} al {hasta:dd/MM/yyyy}"
+            : "Rango seleccionado";
 
     protected override async Task OnInitializedAsync()
     {
@@ -156,16 +202,25 @@
 
     private async Task CargarMedicosAsync()
     {
-        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
-        if (auth.User.IsInRole(Roles.Administrador))
+        try
         {
-            var lista = await AdminApi.ListarMedicosAsync();
-            medicos = lista.Select(x => new MedicoFiltro(x.MedicoId, x.NombreCompleto, x.IsActive)).OrderByDescending(x => x.Activo).ThenBy(x => x.Nombre).ToList();
+            var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+            if (auth.User.IsInRole(Roles.Administrador))
+            {
+                var lista = await AdminApi.ListarMedicosAsync();
+                medicos = lista.Select(x => new MedicoFiltro(x.MedicoId, x.NombreCompleto, x.IsActive)).OrderByDescending(x => x.Activo).ThenBy(x => x.Nombre).ToList();
+            }
+            else
+            {
+                var lista = await MedicosApi.ListarAsync();
+                medicos = lista.Select(x => new MedicoFiltro(x.MedicoId, x.NombreCompleto, true)).OrderBy(x => x.Nombre).ToList();
+            }
         }
-        else
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            var lista = await MedicosApi.ListarAsync();
-            medicos = lista.Select(x => new MedicoFiltro(x.MedicoId, x.NombreCompleto, true)).OrderBy(x => x.Nombre).ToList();
+            // El reporte general sigue siendo utilizable aunque el catálogo de médicos
+            // no esté disponible temporalmente; el filtro se recuperará en la siguiente visita.
+            medicos = [];
         }
     }
 
@@ -197,12 +252,8 @@
         cargando = true;
         try
         {
-            var reporteTask = ReportesApi.ObtenerReporteCitasAsync(fechaDesde, fechaHasta, medicoId);
-            var citasTask = CitasApi.ListarAgendaAsync(fechaDesde, fechaHasta, medicoId);
-            await Task.WhenAll(reporteTask, citasTask);
-            reporte = await reporteTask;
-            citas = await citasTask;
-            if (reporte is null) error = "La API no devolvió información del reporte.";
+            citas = await CitasApi.ListarAgendaAsync(fechaDesde, fechaHasta, medicoId);
+            datosCargados = true;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
@@ -211,12 +262,63 @@
         finally { cargando = false; }
     }
 
+    private async Task ExportarPdfAsync()
+    {
+        if (!datosCargados || cargando || CitasFiltradas.Count == 0) return;
+
+        var citasExportadas = CitasFiltradas.ToList();
+        var distribucion = citasExportadas
+            .GroupBy(c => c.Estado)
+            .Select(g => new
+            {
+                estado = g.Key,
+                cantidad = g.Count(),
+                porcentaje = citasExportadas.Count == 0 ? 0 : Math.Round((double)g.Count() / citasExportadas.Count * 100, 1)
+            })
+            .OrderByDescending(x => x.cantidad)
+            .ThenBy(x => x.estado)
+            .ToList();
+
+        var payload = new
+        {
+            titulo = "Informe de citas",
+            generado = DateTime.Now.ToString("dd/MM/yyyy HH:mm"),
+            periodo = PeriodoSeleccionado,
+            medico = MedicoSeleccionado,
+            estado = EstadoSeleccionado,
+            resumen = new
+            {
+                total = citasExportadas.Count,
+                atendidas = citasExportadas.Count(c => c.Estado == CitaEstados.Atendida),
+                canceladas = citasExportadas.Count(c => c.Estado == CitaEstados.Cancelada),
+                noPresentadas = citasExportadas.Count(c => c.Estado == CitaEstados.NoPresentada),
+                pendientes = citasExportadas.Count(c => c.Estado == CitaEstados.Solicitada),
+                reprogramadas = citasExportadas.Count(c => c.NumeroReprogramaciones > 0)
+            },
+            distribucion,
+            citas = citasExportadas.Select(c => new
+            {
+                fecha = c.FechaHoraInicio.ToString("dd/MM/yyyy"),
+                horaInicio = c.FechaHoraInicio.ToString("HH:mm"),
+                horaFin = c.FechaHoraFin.ToString("HH:mm"),
+                paciente = c.PacienteNombre,
+                medico = c.MedicoNombre,
+                motivo = c.MotivoConsulta,
+                estado = c.Estado,
+                reprogramaciones = c.NumeroReprogramaciones
+            }).ToList()
+        };
+
+        await JS.InvokeVoidAsync("clinicaProImpresion.generarReporteCitas", payload);
+    }
+
     private string AnchoBarra(int cantidad)
     {
-        if (reporte is null || reporte.Total <= 0) return "width: 0%";
-        var porcentaje = Math.Clamp((double)cantidad / reporte.Total * 100, 0, 100);
+        if (TotalFiltrado <= 0) return "width: 0%";
+        var porcentaje = Math.Clamp((double)cantidad / TotalFiltrado * 100, 0, 100);
         return $"width: {porcentaje.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}%";
     }
 
     private sealed record MedicoFiltro(Guid MedicoId, string Nombre, bool Activo);
+    private sealed record DistribucionEstado(string Estado, int Cantidad);
 }

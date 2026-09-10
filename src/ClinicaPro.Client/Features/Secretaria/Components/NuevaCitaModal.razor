@@ -30,7 +30,7 @@
                     <div class="flex items-center justify-between rounded-control border border-brand-200 bg-brand-50 px-3 py-3">
                         <div class="min-w-0">
                             <p class="truncate text-sm font-semibold text-ink">@pacienteSeleccionado.NombreCompleto</p>
-                            <p class="mt-0.5 text-xs text-ink-muted">Documento: @(pacienteSeleccionado.Documento ?? "no registrado")</p>
+                            <p class="mt-0.5 text-xs text-ink-muted">DPI/CUI: @(pacienteSeleccionado.Documento ?? "no registrado")</p>
                         </div>
                         <button type="button" class="ml-3 shrink-0 text-xs font-medium text-brand-600 hover:underline" @onclick="QuitarPaciente">Cambiar</button>
                     </div>
@@ -39,7 +39,7 @@
                 {
                     <div class="relative">
                         <span class="pointer-events-none absolute left-3 top-2.5 text-ink-muted"><Icon Name="search" Size="17" /></span>
-                        <input type="text" placeholder="Buscar por nombre o documento..."
+                        <input type="text" placeholder="Buscar por nombre o DPI/CUI..."
                                class="w-full rounded-control border border-border py-2 pl-9 pr-3 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
                                value="@busquedaPaciente" @oninput="BuscarPaciente" />
                         @if (resultadosPaciente.Count > 0)
@@ -50,7 +50,7 @@
                                     <button type="button" class="block w-full border-b border-border px-3 py-2.5 text-left last:border-b-0 hover:bg-surface-muted"
                                             @onclick="() => SeleccionarPaciente(paciente)">
                                         <span class="block text-sm font-medium text-ink">@paciente.NombreCompleto</span>
-                                        <span class="mt-0.5 block text-xs text-ink-muted">@(paciente.Documento ?? "Sin documento") · @(paciente.Telefono ?? "Sin teléfono")</span>
+                                        <span class="mt-0.5 block text-xs text-ink-muted">@(paciente.Documento ?? "Sin DPI/CUI") · @(string.IsNullOrWhiteSpace(paciente.Telefono) ? "Sin teléfono" : FormValidation.FormatGuatemalaPhone(paciente.Telefono))</span>
                                     </button>
                                 }
                             </div>
@@ -136,9 +136,12 @@
             </section>
 
             <section class="rounded-card border border-border bg-surface p-4">
-                <label class="text-sm font-semibold text-ink" for="nueva-cita-motivo">Motivo de consulta *</label>
-                <p class="mt-0.5 text-xs text-ink-muted">Escribe una descripción breve que ayude al médico a contextualizar la visita.</p>
-                <textarea id="nueva-cita-motivo" rows="3" class="@ClaseInput" placeholder="Describe brevemente el motivo (mínimo 5 caracteres)" @bind="motivo" @bind:event="oninput"></textarea>
+                <ValidatedTextArea Id="nueva-cita-motivo" Label="Motivo de consulta" Required="true"
+                                   Value="@motivo" ValueChanged="v => motivo = v"
+                                   Placeholder="Ej. Dolor abdominal recurrente desde hace dos días."
+                                   HelperText="Describe brevemente el motivo para dar contexto al médico."
+                                   MinLength="5" MaxLength="500" Rows="3" ShowCounter="true"
+                                   ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
             </section>
 
             @if (!string.IsNullOrEmpty(error))
@@ -181,6 +184,8 @@
     private string? error;
     private bool guardando;
     private bool isOpenAnterior;
+    private bool mostrarValidaciones;
+    private int cicloValidacion;
     private CancellationTokenSource? debouncePaciente;
 
     private static string HoyTexto => DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd");
@@ -334,6 +339,7 @@
     {
         if (guardando) return;
         error = null;
+        mostrarValidaciones = true;
         if (pacienteSeleccionado is null)
         {
             error = "Selecciona un paciente.";
@@ -344,9 +350,10 @@
             error = "Selecciona un médico y un horario disponible.";
             return;
         }
-        if (motivo.Trim().Length < 5)
+        var errorMotivo = FormValidation.ValidateText(motivo, true, 5, 500, "Motivo de consulta");
+        if (errorMotivo is not null)
         {
-            error = "El motivo debe tener al menos 5 caracteres.";
+            error = errorMotivo;
             return;
         }
 

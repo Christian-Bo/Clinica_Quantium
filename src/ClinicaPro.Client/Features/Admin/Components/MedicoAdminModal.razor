@@ -13,7 +13,7 @@
                             <Icon Name="key" Size="18" CssClass="mt-0.5 text-brand-600" />
                             <div>
                                 <p class="text-sm font-semibold text-brand-700">Cuenta de acceso médica</p>
-                                <p class="mt-1 text-xs leading-5 text-brand-700">Se creará el usuario y el perfil médico al mismo tiempo. La contraseña es temporal y deberá cambiarse en el primer ingreso.</p>
+                                <p class="mt-1 text-xs leading-5 text-brand-700">Se crea el usuario y el perfil médico al mismo tiempo. La contraseña es temporal y se cambia en el primer ingreso.</p>
                             </div>
                         </div>
                     </div>
@@ -22,45 +22,36 @@
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     @if (!EsEdicion)
                     {
-                        <div class="sm:col-span-2">
-                            <label class="text-sm font-medium text-ink">Correo electrónico *</label>
-                            <input type="email" autocomplete="off" class="@ClaseInput" @bind="modelo.Email" placeholder="medico@clinicapro.com" />
-                        </div>
-                        <div class="sm:col-span-2">
-                            <label class="text-sm font-medium text-ink">Contraseña temporal *</label>
-                            <input type="password" autocomplete="new-password" class="@ClaseInput" @bind="modelo.Password" placeholder="Mínimo 8 caracteres" />
-                            <p class="mt-1 text-xs text-ink-muted">Debe incluir mayúscula, minúscula, número y símbolo.</p>
-                        </div>
+                        <ValidatedTextInput Id="med-email" Label="Correo electrónico" Required="true" Kind="FormFieldKind.Email"
+                                            Value="@modelo.Email" ValueChanged="v => modelo.Email = v" Placeholder="Ej. carlos.perez@clinicapro.com"
+                                            Autocomplete="email" MaxLength="254" HelperText="Será el usuario de acceso del médico."
+                                            ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" CssClass="sm:col-span-2" />
+                        <PasswordField Id="med-password" Label="Contraseña temporal" Value="@modelo.Password" ValueChanged="v => modelo.Password = v"
+                                       Placeholder="Ej. Medico@2026" ShowRules="true" ForceTouched="mostrarValidaciones"
+                                       ValidationCycle="cicloValidacion" CssClass="sm:col-span-2" />
                     }
 
-                    <div>
-                        <label class="text-sm font-medium text-ink">Nombres *</label>
-                        <InputText class="@ClaseInput" @bind-Value="modelo.Nombres" />
-                        <ValidationMessage For="@(() => modelo.Nombres)" />
-                    </div>
-                    <div>
-                        <label class="text-sm font-medium text-ink">Apellidos *</label>
-                        <InputText class="@ClaseInput" @bind-Value="modelo.Apellidos" />
-                        <ValidationMessage For="@(() => modelo.Apellidos)" />
-                    </div>
-                    <div>
-                        <label class="text-sm font-medium text-ink">No. colegiado</label>
-                        <InputText class="@ClaseInput" @bind-Value="modelo.NumeroColegiado" placeholder="Opcional" />
-                    </div>
-                    <div>
-                        <label class="text-sm font-medium text-ink">Teléfono</label>
-                        <InputText class="@ClaseInput" @bind-Value="modelo.Telefono" placeholder="Opcional" />
-                    </div>
+                    <ValidatedTextInput Id="med-nombres" Label="Nombres" Required="true" Kind="FormFieldKind.Name"
+                                        Value="@modelo.Nombres" ValueChanged="v => modelo.Nombres = v" Placeholder="Ej. Carlos Eduardo"
+                                        Autocomplete="given-name" MaxLength="100" ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
+                    <ValidatedTextInput Id="med-apellidos" Label="Apellidos" Required="true" Kind="FormFieldKind.Name"
+                                        Value="@modelo.Apellidos" ValueChanged="v => modelo.Apellidos = v" Placeholder="Ej. Pérez López"
+                                        Autocomplete="family-name" MaxLength="100" ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
+                    <ValidatedTextInput Id="med-colegiado" Label="No. colegiado" Kind="FormFieldKind.Collegiate"
+                                        Value="@modelo.NumeroColegiado" ValueChanged="v => modelo.NumeroColegiado = v" Placeholder="Ej. 15422"
+                                        MaxLength="50" HelperText="Opcional. Usa el número registrado por el colegio profesional."
+                                        ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
+                    <ValidatedTextInput Id="med-telefono" Label="Teléfono" Kind="FormFieldKind.GuatemalaPhone"
+                                        Value="@modelo.Telefono" ValueChanged="v => modelo.Telefono = v" Placeholder="55123456"
+                                        Autocomplete="tel-national" HelperText="8 dígitos; +502 se agrega automáticamente."
+                                        ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
 
                     @if (EsEdicion)
                     {
                         <div class="sm:col-span-2 rounded-control border border-border bg-surface-muted px-4 py-3">
                             <label class="flex items-start gap-3 text-sm text-ink">
                                 <input type="checkbox" class="mt-0.5 h-4 w-4 rounded border-border" @bind="modelo.IsActive" />
-                                <span>
-                                    <span class="font-medium">Médico activo</span>
-                                    <span class="mt-0.5 block text-xs text-ink-muted">Un médico inactivo deja de aparecer como opción para nuevas citas, pero conserva su historial.</span>
-                                </span>
+                                <span><span class="font-medium">Médico activo</span><span class="mt-0.5 block text-xs text-ink-muted">Un médico inactivo deja de aparecer para nuevas citas, pero conserva su historial.</span></span>
                             </label>
                         </div>
                     }
@@ -85,13 +76,14 @@
     [Parameter] public AdminMedicoDto? Medico { get; set; }
     [Parameter] public EventCallback OnGuardado { get; set; }
 
-    private const string ClaseInput = "mt-1 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100";
     private Modelo modelo = new();
     private EditContext editContext = new(new Modelo());
     private bool guardando;
     private string? error;
     private bool aperturaAnterior;
     private Guid? idAnterior;
+    private bool mostrarValidaciones;
+    private int cicloValidacion;
 
     private bool EsEdicion => Medico is not null;
     private string Titulo => EsEdicion ? "Editar médico" : "Nuevo médico";
@@ -100,111 +92,74 @@
     {
         if (IsOpen && (!aperturaAnterior || idAnterior != Medico?.MedicoId))
         {
-            modelo = Medico is null
-                ? new Modelo()
-                : new Modelo
-                {
-                    Nombres = Medico.Nombres,
-                    Apellidos = Medico.Apellidos,
-                    NumeroColegiado = Medico.NumeroColegiado ?? string.Empty,
-                    Telefono = Medico.Telefono ?? string.Empty,
-                    IsActive = Medico.IsActive
-                };
+            modelo = Medico is null ? new Modelo() : new Modelo
+            {
+                Nombres = Medico.Nombres,
+                Apellidos = Medico.Apellidos,
+                NumeroColegiado = Medico.NumeroColegiado ?? string.Empty,
+                Telefono = FormValidation.FromApiGuatemalaPhone(Medico.Telefono),
+                IsActive = Medico.IsActive
+            };
             editContext = new EditContext(modelo);
             error = null;
+            mostrarValidaciones = false;
+            cicloValidacion++;
             idAnterior = Medico?.MedicoId;
         }
         aperturaAnterior = IsOpen;
     }
 
+    private bool ValidacionLocal()
+    {
+        if (FormValidation.Validate(FormFieldKind.Name, modelo.Nombres, true, 100, "Nombres") is not null) return false;
+        if (FormValidation.Validate(FormFieldKind.Name, modelo.Apellidos, true, 100, "Apellidos") is not null) return false;
+        if (!string.IsNullOrWhiteSpace(modelo.Telefono) && FormValidation.Validate(FormFieldKind.GuatemalaPhone, modelo.Telefono, false) is not null) return false;
+        if (!EsEdicion && FormValidation.Validate(FormFieldKind.Email, modelo.Email, true, 254, "Correo electrónico") is not null) return false;
+        if (!EsEdicion && !FormValidation.IsPasswordValid(modelo.Password)) return false;
+        return true;
+    }
+
     private async Task GuardarAsync()
     {
-        if (!editContext.Validate()) return;
+        if (guardando) return;
+        mostrarValidaciones = true;
+        if (!ValidacionLocal() || !editContext.Validate()) return;
         error = null;
-
-        if (!EsEdicion)
-        {
-            if (string.IsNullOrWhiteSpace(modelo.Email) || !new EmailAddressAttribute().IsValid(modelo.Email))
-            {
-                error = "Ingresa un correo electrónico válido.";
-                return;
-            }
-            if (!PasswordValida(modelo.Password))
-            {
-                error = "La contraseña temporal debe tener mínimo 8 caracteres e incluir mayúscula, minúscula, número y símbolo.";
-                return;
-            }
-        }
-
         guardando = true;
         try
         {
             if (EsEdicion)
             {
-                var resultado = await AdminApi.ActualizarMedicoAsync(
-                    Medico!.MedicoId,
-                    new ActualizarMedicoRequest(
-                        modelo.Nombres.Trim(),
-                        modelo.Apellidos.Trim(),
-                        Limpio(modelo.NumeroColegiado),
-                        Limpio(modelo.Telefono),
-                        modelo.IsActive));
-
-                if (!resultado.Exito)
-                {
-                    error = resultado.Error;
-                    return;
-                }
+                var resultado = await AdminApi.ActualizarMedicoAsync(Medico!.MedicoId,
+                    new ActualizarMedicoRequest(FormValidation.NormalizeName(modelo.Nombres), FormValidation.NormalizeName(modelo.Apellidos),
+                        Limpio(modelo.NumeroColegiado), FormValidation.ToApiGuatemalaPhone(modelo.Telefono), modelo.IsActive));
+                if (!resultado.Exito) { error = resultado.Error; return; }
                 Toast.Exito("Médico actualizado correctamente.");
             }
             else
             {
-                var resultado = await AdminApi.CrearMedicoAsync(
-                    new CrearMedicoRequest(
-                        modelo.Email.Trim().ToLowerInvariant(),
-                        modelo.Password,
-                        modelo.Nombres.Trim(),
-                        modelo.Apellidos.Trim(),
-                        Limpio(modelo.NumeroColegiado),
-                        Limpio(modelo.Telefono)));
-
-                if (!resultado.Exito)
-                {
-                    error = resultado.Error;
-                    return;
-                }
+                var resultado = await AdminApi.CrearMedicoAsync(new CrearMedicoRequest(
+                    FormValidation.NormalizeEmail(modelo.Email), modelo.Password, FormValidation.NormalizeName(modelo.Nombres),
+                    FormValidation.NormalizeName(modelo.Apellidos), Limpio(modelo.NumeroColegiado), FormValidation.ToApiGuatemalaPhone(modelo.Telefono)));
+                if (!resultado.Exito) { error = resultado.Error; return; }
                 Toast.Exito("Médico creado. Deberá cambiar su contraseña temporal al ingresar.");
             }
-
             await OnGuardado.InvokeAsync();
             await IsOpenChanged.InvokeAsync(false);
         }
-        finally
-        {
-            guardando = false;
-        }
+        finally { guardando = false; }
     }
 
     private Task Cancelar() => IsOpenChanged.InvokeAsync(false);
     private Task CambiarApertura(bool valor) => IsOpenChanged.InvokeAsync(valor);
     private static string? Limpio(string? valor) => string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
-    private static bool PasswordValida(string valor) =>
-        !string.IsNullOrWhiteSpace(valor) && valor.Length >= 8 && valor.Any(char.IsUpper)
-        && valor.Any(char.IsLower) && valor.Any(char.IsDigit) && valor.Any(c => !char.IsLetterOrDigit(c));
 
     private sealed class Modelo
     {
         public string Email { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Los nombres son obligatorios.")]
-        [StringLength(100)]
-        public string Nombres { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Los apellidos son obligatorios.")]
-        [StringLength(100)]
-        public string Apellidos { get; set; } = string.Empty;
-
+        [Required, StringLength(100)] public string Nombres { get; set; } = string.Empty;
+        [Required, StringLength(100)] public string Apellidos { get; set; } = string.Empty;
         public string NumeroColegiado { get; set; } = string.Empty;
         public string Telefono { get; set; } = string.Empty;
         public bool IsActive { get; set; } = true;

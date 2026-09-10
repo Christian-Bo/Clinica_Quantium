@@ -1,12 +1,13 @@
-<Modal IsOpen="IsOpen" IsOpenChanged="IsOpenChanged" Title="@Titulo" IconName="alert-triangle" MaxWidthClass="max-w-sm">
+<Modal IsOpen="IsOpen" IsOpenChanged="IsOpenChanged" Title="@Titulo" IconName="alert-triangle" MaxWidthClass="max-w-sm" CloseOnBackdrop="false">
     <Body>
-        <label class="text-sm font-medium text-ink">@Etiqueta</label>
-        <textarea rows="3" placeholder="@Placeholder"
-                  class="mt-1 w-full rounded-control border border-border px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                  value="@motivo" @oninput="e => motivo = e.Value?.ToString() ?? string.Empty"></textarea>
+        <ValidatedTextArea Id="motivo-operacion" Label="@Etiqueta" Required="true"
+                           Value="@motivo" ValueChanged="v => motivo = v"
+                           Placeholder="@Placeholder" HelperText="Escribe un motivo claro para que quede trazabilidad de la operación."
+                           MinLength="5" MaxLength="500" Rows="3" ShowCounter="true"
+                           ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
     </Body>
     <Footer>
-        <Button Variant="ButtonVariant.Secondary" OnClick="Cancelar">Volver</Button>
+        <Button Variant="ButtonVariant.Secondary" Disabled="enviando" OnClick="Cancelar">Volver</Button>
         <Button Variant="ButtonVariant.Danger" Loading="enviando" OnClick="Confirmar">@TextoBoton</Button>
     </Footer>
 </Modal>
@@ -16,30 +17,34 @@
     [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
     [Parameter] public string Titulo { get; set; } = "Motivo";
     [Parameter] public string Etiqueta { get; set; } = "Motivo";
-    [Parameter] public string Placeholder { get; set; } = string.Empty;
+    [Parameter] public string Placeholder { get; set; } = "Ej. El paciente solicitó cancelar por cambio de disponibilidad.";
     [Parameter] public string TextoBoton { get; set; } = "Confirmar";
     [Parameter] public EventCallback<string> OnConfirmar { get; set; }
 
     private string motivo = string.Empty;
     private bool enviando;
     private bool isOpenAnterior;
+    private bool mostrarValidaciones;
+    private int cicloValidacion;
 
     protected override void OnParametersSet()
     {
         if (IsOpen && !isOpenAnterior)
         {
             motivo = string.Empty;
+            mostrarValidaciones = false;
+            cicloValidacion++;
         }
-
         isOpenAnterior = IsOpen;
     }
 
     private async Task Confirmar()
     {
+        mostrarValidaciones = true;
+        if (FormValidation.ValidateText(motivo, true, 5, 500, Etiqueta) is not null) return;
         enviando = true;
-        await OnConfirmar.InvokeAsync(motivo);
-        enviando = false;
-        await IsOpenChanged.InvokeAsync(false);
+        try { await OnConfirmar.InvokeAsync(motivo.Trim()); }
+        finally { enviando = false; }
     }
 
     private async Task Cancelar() => await IsOpenChanged.InvokeAsync(false);

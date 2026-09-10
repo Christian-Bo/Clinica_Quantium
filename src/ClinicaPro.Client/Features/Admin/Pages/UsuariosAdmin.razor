@@ -5,6 +5,7 @@
 @inject ToastService Toast
 
 <PageTitle>Usuarios y roles · Administración</PageTitle>
+<AutoRefresh Enabled="@(!string.IsNullOrWhiteSpace(error))" IntervalSeconds="12" OnRefresh="CargarAsync" />
 
 <div class="space-y-5">
     <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">

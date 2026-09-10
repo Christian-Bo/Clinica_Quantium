@@ -35,9 +35,9 @@ public sealed class UiPermissionService(AuthenticationStateProvider authStatePro
         => permiso switch
         {
             PermisoUi.VerAgendaSecretaria or PermisoUi.GestionarPacientes or PermisoUi.GestionarCitas
-                => usuario.IsInRole(Roles.Secretaria),
+                => usuario.IsInRole(Roles.Secretaria) || usuario.IsInRole(Roles.Administrador),
             PermisoUi.VerAgendaMedico or PermisoUi.AtenderCitas
-                => usuario.IsInRole(Roles.Medico),
+                => usuario.IsInRole(Roles.Medico) || usuario.IsInRole(Roles.Administrador),
             PermisoUi.GestionarMedicos or PermisoUi.GestionarUsuarios or PermisoUi.ResolverAutorizaciones
                 or PermisoUi.GestionarParametros or PermisoUi.VerAuditoria
                 => usuario.IsInRole(Roles.Administrador),

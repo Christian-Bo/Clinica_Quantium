@@ -1,9 +1,10 @@
 @page "/pacientes"
-@attribute [Authorize(Roles = Roles.Secretaria)]
+@attribute [Authorize(Roles = "Secretaria,Administrador")]
 @inject PacientesApiService PacientesApi
 @inject ToastService Toasts
 
 <PageTitle>Pacientes · Clínica Pro</PageTitle>
+<AutoRefresh Enabled="@(!string.IsNullOrWhiteSpace(errorCarga))" IntervalSeconds="12" OnRefresh="RecargarAsync" />
 
 <div class="space-y-6">
     <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
@@ -17,7 +18,7 @@
     <Card BodyPadding="p-0">
         <div class="flex items-center gap-2 border-b border-border px-4 py-3">
             <Icon Name="search" Size="18" CssClass="text-ink-muted" />
-            <input type="search" placeholder="Buscar por nombre, documento o teléfono..."
+            <input type="search" placeholder="Buscar por nombre, DPI/CUI o teléfono..."
                    class="w-full border-none bg-transparent text-sm text-ink outline-none placeholder:text-ink-muted focus:ring-0"
                    value="@texto" @oninput="ManejarBusqueda" />
         </div>
@@ -45,7 +46,7 @@
                     <thead>
                         <tr class="border-b border-border text-xs uppercase tracking-wide text-ink-muted">
                             <th class="px-4 py-2 font-medium">Paciente</th>
-                            <th class="px-4 py-2 font-medium">Documento</th>
+                            <th class="px-4 py-2 font-medium">DPI/CUI</th>
                             <th class="px-4 py-2 font-medium">F. nacimiento</th>
                             <th class="px-4 py-2 font-medium">Teléfono</th>
                             <th class="px-4 py-2 font-medium text-right">Acciones</th>
@@ -65,7 +66,7 @@
                                 </td>
                                 <td class="px-4 py-3 text-ink-muted">@(paciente.Documento ?? "—")</td>
                                 <td class="px-4 py-3 text-ink-muted">@(paciente.FechaNacimiento?.ToString("dd/MM/yyyy") ?? "—")</td>
-                                <td class="px-4 py-3 text-ink-muted">@(paciente.Telefono ?? "—")</td>
+                                <td class="px-4 py-3 text-ink-muted">@FormValidation.FormatGuatemalaPhone(paciente.Telefono)</td>
                                 <td class="px-4 py-3">
                                     <div class="flex justify-end gap-1">
                                         <button type="button" class="rounded-control p-1.5 text-ink-muted hover:bg-surface-muted hover:text-brand-600"

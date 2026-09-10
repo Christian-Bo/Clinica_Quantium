@@ -11,12 +11,13 @@
                     <p class="mt-1 text-ink">@Autorizacion.MotivoSolicitud</p>
                     <p class="mt-2 text-xs text-ink-muted">Cita #@Autorizacion.CitaId.ToString()[..8]</p>
                 </div>
-                <div>
-                    <label class="text-sm font-medium text-ink">@(Aprobar ? "Observación de aprobación" : "Motivo del rechazo *")</label>
-                    <textarea rows="3" class="mt-1 w-full rounded-control border border-border px-3 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none"
-                              value="@motivo" @oninput="e => motivo = e.Value?.ToString() ?? string.Empty"
-                              placeholder="@(Aprobar ? "Opcional" : "Explica por qué se rechaza la autorización")"></textarea>
-                </div>
+                <ValidatedTextArea Id="adm-aut-observacion"
+                                   Label="@(Aprobar ? "Observación de aprobación" : "Motivo del rechazo")"
+                                   Required="@(!Aprobar)" Value="@motivo" ValueChanged="v => motivo = v"
+                                   Placeholder="@(Aprobar ? "Ej. Autorizada por situación excepcional documentada." : "Ej. Se rechaza porque la nueva fecha no cumple la condición solicitada.")"
+                                   HelperText="@(Aprobar ? "Opcional. Si escribes una observación, quedará como contexto administrativo." : "Explica el motivo de forma breve y clara.")"
+                                   MinLength="@(Aprobar ? 0 : 5)" MaxLength="500" Rows="3" ShowCounter="true"
+                                   ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
                 @if (!string.IsNullOrWhiteSpace(error))
                 {
                     <p class="rounded-control bg-state-rechazada/10 px-3 py-2 text-sm text-state-rechazada">@error</p>
@@ -43,6 +44,8 @@
     private string motivo = string.Empty;
     private string? error;
     private bool guardando;
+    private bool mostrarValidaciones;
+    private int cicloValidacion;
     private string Titulo => Aprobar ? "Aprobar tercera reprogramación" : "Rechazar autorización";
 
     protected override void OnParametersSet()
@@ -51,18 +54,17 @@
         {
             motivo = string.Empty;
             error = null;
+            mostrarValidaciones = false;
+            cicloValidacion++;
         }
         aperturaAnterior = IsOpen;
     }
 
     private async Task GuardarAsync()
     {
-        if (Autorizacion is null) return;
-        if (!Aprobar && motivo.Trim().Length < 5)
-        {
-            error = "Escribe un motivo de rechazo de al menos 5 caracteres.";
-            return;
-        }
+        if (Autorizacion is null || guardando) return;
+        mostrarValidaciones = true;
+        if (!Aprobar && FormValidation.ValidateText(motivo, true, 5, 500, "Motivo del rechazo") is not null) return;
 
         guardando = true;
         error = null;
@@ -72,15 +74,11 @@
                 ? await AdminApi.AprobarAutorizacionAsync(Autorizacion.AutorizacionId, motivo.Trim())
                 : await AdminApi.RechazarAutorizacionAsync(Autorizacion.AutorizacionId, motivo.Trim());
             if (!resultado.Exito) { error = resultado.Error; return; }
-
             Toast.Exito(Aprobar ? "Autorización aprobada." : "Autorización rechazada.");
             await OnGuardado.InvokeAsync();
             await IsOpenChanged.InvokeAsync(false);
         }
-        finally
-        {
-            guardando = false;
-        }
+        finally { guardando = false; }
     }
 
     private Task Cancelar() => IsOpenChanged.InvokeAsync(false);
