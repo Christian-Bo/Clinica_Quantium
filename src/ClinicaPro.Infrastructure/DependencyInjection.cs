@@ -74,7 +74,7 @@ public static class DependencyInjection
         services.AddSingleton<IAuthAttemptLimiter, MemoryAuthAttemptLimiter>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
-      
+        services.AddScoped<IPreconsultaRepository, PreconsultaRepository>();
         services.AddScoped<IPacienteRepository, PacienteRepository>();
         services.AddScoped<IMedicoRepository, MedicoRepository>();
         services.AddScoped<IHorarioRepository, HorarioRepository>();

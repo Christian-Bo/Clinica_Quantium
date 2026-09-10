@@ -33,7 +33,8 @@ public static class DependencyInjection
         services.AddScoped<SolicitarAutorizacionReprogramacionService>();
         services.AddScoped<ListarAutorizacionesReprogramacionService>();
         services.AddScoped<ResolverAutorizacionReprogramacionService>();
-    
+        services.AddScoped<RegistrarPreconsultaService>();
+        services.AddScoped<ObtenerPreconsultaService>();
         services.AddScoped<BuscarPacientesService>();
         services.AddScoped<ListarReporteCitasService>();
         services.AddScoped<EncolarNotificacionCitaService>();

@@ -97,3 +97,21 @@ public sealed record PacienteLlegoDto(
     string PacienteNombre,
     string Mensaje,
     DateTime FechaHoraInicio);
+
+    public sealed record RegistrarPreconsultaRequest(
+    short PresionSistolicaMmHg,
+    short PresionDiastolicaMmHg,
+    decimal TemperaturaCelsius,
+    decimal OxigenoSangrePorcentaje,
+    string? Observacion);
+
+public sealed record PreconsultaDto(
+    Guid PreconsultaId,
+    Guid CitaId,
+    short PresionSistolicaMmHg,
+    short PresionDiastolicaMmHg,
+    decimal TemperaturaCelsius,
+    decimal OxigenoSangrePorcentaje,
+    string? Observacion,
+    Guid RegistradaPorUsuarioId,
+    DateTime FechaRegistroUtc);
