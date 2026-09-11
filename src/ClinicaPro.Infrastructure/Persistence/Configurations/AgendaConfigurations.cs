@@ -104,3 +104,26 @@ public sealed class PreconsultaConfiguration : IEntityTypeConfiguration<Preconsu
         builder.Property(preconsulta => preconsulta.RowVersion).IsRowVersion();
     }
 }
+
+public sealed class ImagenIrisConfiguration : IEntityTypeConfiguration<ImagenIris>
+{
+    public void Configure(EntityTypeBuilder<ImagenIris> builder)
+    {
+        builder.ToTable("ImagenesIris");
+        builder.HasKey(imagen => imagen.Id);
+        builder.Property(imagen => imagen.Id).HasColumnName("ImagenIrisId");
+        builder.Property(imagen => imagen.Lateralidad).HasMaxLength(ImagenIris.LateralidadMaxLength).IsRequired();
+        builder.Property(imagen => imagen.NombreArchivo).HasMaxLength(ImagenIris.NombreArchivoMaxLength).IsRequired();
+        builder.Property(imagen => imagen.TipoContenido).HasMaxLength(ImagenIris.TipoContenidoMaxLength).IsRequired();
+        builder.Property(imagen => imagen.Imagen).HasColumnType("varbinary(max)").IsRequired();
+        builder.Property(imagen => imagen.HashSha256).HasColumnType("char(64)");
+        builder.Property(imagen => imagen.Observacion).HasMaxLength(ImagenIris.ObservacionMaxLength);
+        builder.Property(imagen => imagen.FechaCapturaUtc).HasColumnType("datetime2(0)");
+        builder.Property(imagen => imagen.CreatedAtUtc).HasColumnType("datetime2(0)");
+        builder.Property(imagen => imagen.RowVersion).IsRowVersion();
+
+        builder.Property(imagen => imagen.TamanoBytes)
+            .HasComputedColumnSql()
+            .ValueGeneratedOnAddOrUpdate();
+    }
+}

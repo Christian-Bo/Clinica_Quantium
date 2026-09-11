@@ -115,3 +115,14 @@ public sealed record PreconsultaDto(
     string? Observacion,
     Guid RegistradaPorUsuarioId,
     DateTime FechaRegistroUtc);
+
+    public sealed record ImagenIrisDto(
+    Guid ImagenIrisId,
+    Guid CitaId,
+    Guid TomadaPorUsuarioId,
+    string Lateralidad,
+    string NombreArchivo,
+    string TipoContenido,
+    long? TamanoBytes,
+    string? Observacion,
+    DateTime FechaCapturaUtc);
