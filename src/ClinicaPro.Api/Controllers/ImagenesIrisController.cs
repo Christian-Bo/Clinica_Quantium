@@ -19,13 +19,12 @@ public sealed class ImagenesIrisController(
     [Authorize(Roles = RolNombres.Secretaria + "," + RolNombres.Administrador)]
     [HttpPost("api/citas/{citaId:guid}/imagenes-iris")]
     [RequestSizeLimit(12 * 1024 * 1024)]
+    [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(ImagenIrisDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ImagenIrisDto>> Subir(
         Guid citaId,
-        [FromForm] IFormFile archivo,
-        [FromForm] string? lateralidad,
-        [FromForm] string? observacion,
+        [FromForm] SubirImagenIrisForm form,
         CancellationToken cancellationToken)
     {
         var usuarioId = User.ObtenerUsuarioId();
@@ -34,23 +33,23 @@ public sealed class ImagenesIrisController(
             return Unauthorized();
         }
 
-        if (archivo is null || archivo.Length == 0)
+        if (form.Archivo is null || form.Archivo.Length == 0)
         {
             return BadRequest(new { error = "Debe adjuntar un archivo de imagen." });
         }
 
         using var memoria = new MemoryStream();
-        await archivo.CopyToAsync(memoria, cancellationToken);
+        await form.Archivo.CopyToAsync(memoria, cancellationToken);
 
         var imagen = await subirImagen.ExecuteAsync(
             citaId,
             usuarioId.Value,
             new SubirImagenIrisInput(
-                archivo.FileName,
-                archivo.ContentType,
+                form.Archivo.FileName,
+                form.Archivo.ContentType,
                 memoria.ToArray(),
-                lateralidad,
-                observacion),
+                form.Lateralidad,
+                form.Observacion),
             cancellationToken);
 
         return Created(
