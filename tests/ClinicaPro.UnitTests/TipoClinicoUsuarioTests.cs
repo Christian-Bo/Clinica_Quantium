@@ -17,7 +17,15 @@ public sealed class TipoClinicoUsuarioTests
         var error = Assert.Throws<ClinicaPro.Domain.Exceptions.DomainException>(
             () => TipoClinicoUsuario.Inferir([RolNombres.Medico, RolNombres.Paciente]));
 
-        Assert.Contains("a la vez", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("combinarse", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Inferir_AdminSecretariaYPaciente_EsPaciente()
+    {
+        Assert.Equal(
+            TipoClinicoUsuario.Paciente,
+            TipoClinicoUsuario.Inferir([RolNombres.Administrador, RolNombres.Secretaria, RolNombres.Paciente]));
     }
 
     [Fact]

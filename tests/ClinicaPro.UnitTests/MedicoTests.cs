@@ -15,7 +15,27 @@ public sealed class MedicoTests
         Assert.Equal(usuarioId, medico.UsuarioId);
         Assert.Equal("Carlos", medico.Nombres);
         Assert.Equal("Carlos Hernandez", medico.NombreCompleto);
+        Assert.Equal("COL-1", medico.NumeroColegiado);
         Assert.True(medico.IsActive);
+    }
+
+    [Fact]
+    public void Create_SinColegiado_LanzaExcepcionDeDominio()
+    {
+        var exception = Assert.Throws<DomainException>(
+            () => Medico.Create(Guid.NewGuid(), Guid.NewGuid(), "Carlos", "Hernandez"));
+
+        Assert.Contains("colegiado", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Actualizar_SinColegiado_LanzaExcepcionDeDominio()
+    {
+        var medico = Medico.Create(Guid.NewGuid(), Guid.NewGuid(), "Carlos", "Hernandez", "COL-1");
+
+        var exception = Assert.Throws<DomainException>(() => medico.Actualizar("Carlos", "Hernandez", null, "555"));
+
+        Assert.Contains("colegiado", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

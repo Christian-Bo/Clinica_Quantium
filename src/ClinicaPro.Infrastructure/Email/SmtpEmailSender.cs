@@ -1,5 +1,6 @@
 using System.Text;
 using ClinicaPro.Application.Notificaciones;
+using ClinicaPro.Domain;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Hosting;
@@ -17,7 +18,7 @@ public sealed class SmtpOptions
     public int Port { get; set; } = 587;
     public string UserName { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
-    public string From { get; set; } = "Clínica Pro <noreply@clinica.local>";
+    public string From { get; set; } = ClinicaMarca.RemitentePorDefecto;
     public bool EnableSsl { get; set; } = true;
     public string PickupDirectory { get; set; } = "App_Data/mail";
 }

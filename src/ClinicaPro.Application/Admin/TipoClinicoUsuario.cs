@@ -16,7 +16,8 @@ public static class TipoClinicoUsuario
         var esPaciente = lista.Contains(RolNombres.Paciente);
         if (esMedico && esPaciente)
         {
-            throw new DomainException("Un usuario no puede ser médico y paciente a la vez.");
+            throw new DomainException(
+                "Médico y Paciente no pueden combinarse. Los roles de acceso (Administrador y Secretaría) sí pueden acumularse junto a un solo tipo clínico.");
         }
 
         if (esMedico)
