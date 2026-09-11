@@ -89,6 +89,7 @@ public static class DependencyInjection
         services.AddScoped<IAdminStaffService, AdminStaffService>();
         services.AddScoped<IEliminarPacienteYUsuario, EliminarPacienteYUsuarioService>();
         services.AddScoped<IPrepararAgendaDemo, PrepararAgendaDemoService>();
+        services.AddScoped<IImagenIrisRepository, ImagenIrisRepository>();
 
         var smtpSection = configuration.GetSection(SmtpOptions.SectionName);
         services.Configure<SmtpOptions>(options =>

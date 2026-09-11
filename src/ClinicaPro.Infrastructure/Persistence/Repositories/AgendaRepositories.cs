@@ -408,3 +408,52 @@ public sealed class PreconsultaRepository(ClinicaProDbContext dbContext) : IPrec
         await dbContext.Preconsultas.AddAsync(preconsulta, cancellationToken);
     }
 }
+
+public sealed class ImagenIrisRepository(ClinicaProDbContext dbContext) : IImagenIrisRepository
+{
+    public async Task<IReadOnlyList<ImagenIrisMetadato>> ListarPorCitaAsync(
+        Guid citaId,
+        CancellationToken cancellationToken = default)
+    {
+        return await dbContext.ImagenesIris.AsNoTracking()
+            .Where(imagen => imagen.CitaId == citaId && imagen.IsActive)
+            .OrderByDescending(imagen => imagen.FechaCapturaUtc)
+            .Select(imagen => new ImagenIrisMetadato(
+                imagen.Id,
+                imagen.CitaId,
+                imagen.TomadaPorUsuarioId,
+                imagen.Lateralidad,
+                imagen.NombreArchivo,
+                imagen.TipoContenido,
+                imagen.TamanoBytes,
+                imagen.Observacion,
+                imagen.FechaCapturaUtc))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<ImagenIrisArchivo?> ObtenerArchivoAsync(
+        Guid imagenIrisId,
+        CancellationToken cancellationToken = default)
+    {
+        return await dbContext.ImagenesIris.AsNoTracking()
+            .Where(imagen => imagen.Id == imagenIrisId && imagen.IsActive)
+            .Select(imagen => new ImagenIrisArchivo(
+                imagen.NombreArchivo,
+                imagen.TipoContenido,
+                imagen.Imagen))
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public Task<ImagenIris?> ObtenerRastreadaAsync(
+        Guid imagenIrisId,
+        CancellationToken cancellationToken = default)
+    {
+        return dbContext.ImagenesIris
+            .FirstOrDefaultAsync(imagen => imagen.Id == imagenIrisId, cancellationToken);
+    }
+
+    public async Task AgregarAsync(ImagenIris imagen, CancellationToken cancellationToken = default)
+    {
+        await dbContext.ImagenesIris.AddAsync(imagen, cancellationToken);
+    }
+}
