@@ -114,7 +114,14 @@ public sealed class CancelarCitaService(
             2,
             cancellationToken);
 
-        cita.Cancelar(HoraClinica.Ahora(), horas);
+        if (pacienteId is not null)
+        {
+            cita.CancelarPorPaciente(HoraClinica.Ahora(), horas);
+        }
+        else
+        {
+            cita.Cancelar(HoraClinica.Ahora(), horas);
+        }
         await unitOfWork.SaveChangesWithSqlSessionContextAsync(usuarioId, motivo, cancellationToken);
         await ajustarRecordatorio.AnularPendientesAsync(cita.Id, "Cita cancelada.", cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);

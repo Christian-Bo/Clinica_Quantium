@@ -11,7 +11,7 @@ public sealed class ListarAgendaServiceTests
     public async Task ExecuteAsync_Medico_IgnoraMedicoIdAjenoYUsaElPropio()
     {
         var usuarioId = Guid.NewGuid();
-        var medico = Medico.Create(Guid.NewGuid(), usuarioId, "Carlos", "Hernandez");
+        var medico = Medico.Create(Guid.NewGuid(), usuarioId, "Carlos", "Hernandez", "15422");
         var citas = new CitasFalso();
         var servicio = new ListarAgendaService(citas, new MedicosFalso(medico));
 

@@ -30,7 +30,10 @@ public sealed class AdminStaffService(
             throw new DomainException("El correo ya está registrado.");
         }
 
-    
+        if (string.IsNullOrWhiteSpace(input.NumeroColegiado))
+        {
+            throw new DomainException("El número de colegiado es obligatorio para registrar un médico.");
+        }
 
         var rol = await roleManager.FindByNameAsync(RolNombres.Medico)
             ?? throw new DomainException("No existe el rol Médico.");
@@ -243,6 +246,11 @@ public sealed class AdminStaffService(
 
         var actuales = await userManager.GetRolesAsync(user);
         var staffNuevo = RolesStaffAdministrables.Normalizar(roles);
+        var tipoDestino = tipoClinico is null
+            ? TipoClinicoUsuario.Inferir(actuales)
+            : TipoClinicoUsuario.Normalizar(tipoClinico);
+        MatrizCompatibilidadRoles.ExigirCompatible(staffNuevo, tipoDestino);
+
         var staffActual = actuales
             .Where(rol => RolesStaffAdministrables.Nombres.Contains(rol))
             .ToList();
@@ -414,7 +422,8 @@ public sealed class AdminStaffService(
         {
             if (ficha is null
                 || string.IsNullOrWhiteSpace(ficha.Nombres)
-                || string.IsNullOrWhiteSpace(ficha.Apellidos))
+                || string.IsNullOrWhiteSpace(ficha.Apellidos)
+                || string.IsNullOrWhiteSpace(ficha.NumeroColegiado))
             {
                 throw new DomainException("Para asignar el rol Médico indique nombres, apellidos y colegiado.");
             }

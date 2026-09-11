@@ -51,7 +51,7 @@ public sealed class EncolarRecordatoriosCitaService(
                         cita.Id,
                         NotificacionTipos.RecordatorioCita,
                         email,
-                        "Clínica Pro — recordatorio de su cita",
+                        ClinicaMarca.Asunto("recordatorio de su cita"),
                         $"Hola {paciente?.NombreCompleto ?? "paciente"},\n\nLe recordamos su cita con {medico?.NombreCompleto ?? "el médico asignado"}.\nFecha y hora: {cuando}.\n\nSi no puede asistir, cancele con al menos 2 horas de anticipación."),
                     cancellationToken);
 

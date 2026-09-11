@@ -43,7 +43,7 @@ public sealed class SolicitarCitaServiceTests
     [Fact]
     public async Task CrearPendienteAsync_MedicoActivo_AgregaCitaDelMedico()
     {
-        var medico = Medico.Create(Guid.NewGuid(), Guid.NewGuid(), "Carlos", "Hernandez");
+        var medico = Medico.Create(Guid.NewGuid(), Guid.NewGuid(), "Carlos", "Hernandez", "15422");
         var citas = new CitasFalso();
         var parametros = new ParametrosFalso();
         var paciente = Paciente.Create(Guid.NewGuid(), "Ana", "Lopez");
@@ -70,7 +70,7 @@ public sealed class SolicitarCitaServiceTests
     [Fact]
     public async Task CrearPendienteAsync_MotivoCorto_LanzaDomainException()
     {
-        var medico = Medico.Create(Guid.NewGuid(), Guid.NewGuid(), "Carlos", "Hernandez");
+        var medico = Medico.Create(Guid.NewGuid(), Guid.NewGuid(), "Carlos", "Hernandez", "15422");
         var paciente = Paciente.Create(Guid.NewGuid(), "Ana", "Lopez");
         var citas = new CitasFalso();
         var parametros = new ParametrosFalso();
@@ -96,7 +96,7 @@ public sealed class SolicitarCitaServiceTests
     [Fact]
     public async Task CrearPendienteAsync_PacienteYaTieneEseHorario_LanzaDomainException()
     {
-        var medico = Medico.Create(Guid.NewGuid(), Guid.NewGuid(), "Carlos", "Hernandez");
+        var medico = Medico.Create(Guid.NewGuid(), Guid.NewGuid(), "Carlos", "Hernandez", "15422");
         var paciente = Paciente.Create(Guid.NewGuid(), "Ana", "Lopez");
         var citas = new CitasFalso
         {
@@ -128,7 +128,7 @@ public sealed class SolicitarCitaServiceTests
     [Fact]
     public async Task ExecuteAsync_MedicoInactivo_LanzaDomainException()
     {
-        var medico = Medico.Create(Guid.NewGuid(), Guid.NewGuid(), "Carlos", "Hernandez");
+        var medico = Medico.Create(Guid.NewGuid(), Guid.NewGuid(), "Carlos", "Hernandez", "15422");
         var servicio = Construir(medico: null);
 
         var error = await Assert.ThrowsAsync<DomainException>(

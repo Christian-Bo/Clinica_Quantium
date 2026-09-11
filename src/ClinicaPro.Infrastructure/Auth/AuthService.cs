@@ -370,7 +370,7 @@ public sealed class AuthService(
         var token = await userManager.GeneratePasswordResetTokenAsync(user);
         await emailSender.SendAsync(
             user.Email ?? email,
-            "Clínica Pro — restablecer contraseña",
+            ClinicaMarca.Asunto("restablecer contraseña"),
             $"Hola,\n\nPara restablecer su contraseña use este código en la aplicación:\n\n{token}\n\nSi usted no lo pidió, ignore este correo.",
             cancellationToken);
     }
