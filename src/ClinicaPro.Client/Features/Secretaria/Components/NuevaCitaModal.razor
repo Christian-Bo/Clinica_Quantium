@@ -224,6 +224,8 @@
         motivo = string.Empty;
         error = null;
         errorDisponibilidad = null;
+        mostrarValidaciones = false;
+        cicloValidacion++;
         disponibilidadCts?.Cancel();
     }
 
@@ -254,7 +256,7 @@
         }
         catch (HttpRequestException ex)
         {
-            error = ex.Message;
+            error = MensajeUsuario.Limpiar(ex.Message, "No pudimos cargar la información necesaria para crear la cita.");
         }
         finally
         {
@@ -313,7 +315,7 @@
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            errorDisponibilidad = ex.Message;
+            errorDisponibilidad = MensajeUsuario.Limpiar(ex.Message, "No pudimos consultar los horarios disponibles.");
         }
         finally
         {

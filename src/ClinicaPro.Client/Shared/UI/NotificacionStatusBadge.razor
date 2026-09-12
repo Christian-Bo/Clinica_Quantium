@@ -9,9 +9,9 @@
     private string Etiqueta => Estado switch
     {
         NotificacionEstados.Pendiente => "Pendiente",
-        NotificacionEstados.Procesando => "Procesando",
+        NotificacionEstados.Procesando => "Enviando",
         NotificacionEstados.Enviada => "Enviada",
-        NotificacionEstados.Fallida => "Fallida",
+        NotificacionEstados.Fallida => "No enviada",
         _ => Estado
     };
 

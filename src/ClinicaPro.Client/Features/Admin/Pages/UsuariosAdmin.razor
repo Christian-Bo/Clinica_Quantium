@@ -4,15 +4,15 @@
 @inject ConfirmDialogService Confirmar
 @inject ToastService Toast
 
-<PageTitle>Usuarios y roles · Administración</PageTitle>
+<PageTitle>Usuarios y permisos · Administración</PageTitle>
 <AutoRefresh Enabled="@(!string.IsNullOrWhiteSpace(error))" IntervalSeconds="12" OnRefresh="CargarAsync" />
 
 <div class="space-y-5">
     <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">Seguridad y acceso</p>
-            <h1 class="mt-1 text-xl font-semibold text-ink">Usuarios y roles</h1>
-            <p class="mt-1 text-sm text-ink-muted">Crea personal administrativo, asigna roles y controla el acceso al sistema.</p>
+            <h1 class="mt-1 text-xl font-semibold text-ink">Usuarios y permisos</h1>
+            <p class="mt-1 text-sm text-ink-muted">Crea cuentas de personal y define a qué secciones puede acceder cada una.</p>
         </div>
         <Button Variant="ButtonVariant.Primary" IconName="user-plus" OnClick="NuevoUsuario">Nuevo usuario</Button>
     </div>
@@ -31,7 +31,7 @@
                 <input class="w-full rounded-control border border-border py-2 pl-9 pr-3 text-sm text-ink focus:border-brand-500 focus:outline-none" placeholder="Buscar correo..." @bind="busqueda" @bind:event="oninput" />
             </div>
             <select class="rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink" @bind="rolFiltro">
-                <option value="">Todos los roles</option>
+                <option value="">Todos los perfiles</option>
                 <option value="Administrador">Administrador</option>
                 <option value="Secretaria">Secretaría</option>
                 <option value="Medico">Médico</option>
@@ -64,18 +64,31 @@
             <div class="overflow-x-auto">
                 <table class="w-full min-w-[780px] text-left text-sm">
                     <thead class="bg-surface-muted text-xs uppercase tracking-wide text-ink-muted">
-                        <tr><th class="px-5 py-3 font-medium">Usuario</th><th class="px-5 py-3 font-medium">Roles</th><th class="px-5 py-3 font-medium">Estado</th><th class="px-5 py-3 text-right font-medium">Acciones</th></tr>
+                        <tr><th class="px-5 py-3 font-medium">Usuario</th><th class="px-5 py-3 font-medium">Permisos</th><th class="px-5 py-3 font-medium">Estado</th><th class="px-5 py-3 text-right font-medium">Acciones</th></tr>
                     </thead>
                     <tbody class="divide-y divide-border">
                         @foreach (var usuario in Filtrados)
                         {
                             <tr class="hover:bg-surface-muted/60">
-                                <td class="px-5 py-3"><p class="font-medium text-ink">@usuario.Email</p><p class="mt-0.5 text-xs text-ink-muted">ID: @Corto(usuario.UsuarioId)</p></td>
+                                <td class="px-5 py-3"><p class="font-medium text-ink">@usuario.Email</p></td>
                                 <td class="px-5 py-3">
-                                    <div class="flex flex-wrap gap-1">
-                                        @foreach (var rol in usuario.Roles)
+                                    <div class="space-y-1.5">
+                                        @if (RolesAcceso(usuario).Count > 0)
                                         {
-                                            <span class="rounded-pill bg-surface-muted px-2 py-1 text-xs text-ink-muted">@EtiquetaRol(rol)</span>
+                                            <div class="flex flex-wrap items-center gap-1">
+                                                <span class="mr-1 text-[10px] font-semibold uppercase tracking-wide text-ink-muted">Acceso</span>
+                                                @foreach (var rol in RolesAcceso(usuario))
+                                                {
+                                                    <span class="rounded-pill bg-brand-50 px-2 py-1 text-xs font-medium text-brand-700">@EtiquetaRol(rol)</span>
+                                                }
+                                            </div>
+                                        }
+                                        @if (TipoClinico(usuario) is { } tipo)
+                                        {
+                                            <div class="flex flex-wrap items-center gap-1">
+                                                <span class="mr-1 text-[10px] font-semibold uppercase tracking-wide text-ink-muted">Perfil</span>
+                                                <span class="rounded-pill bg-surface-muted px-2 py-1 text-xs text-ink-muted">@EtiquetaRol(tipo)</span>
+                                            </div>
                                         }
                                     </div>
                                 </td>
@@ -83,7 +96,7 @@
                                 <td class="px-5 py-3">
                                     <div class="flex justify-end gap-1">
                                         <Button Variant="ButtonVariant.Ghost" Size="sm" IconName="edit" Disabled="@procesando" OnClick="() => EditarIdentidad(usuario)">Editar</Button>
-                                        <Button Variant="ButtonVariant.Ghost" Size="sm" IconName="key" Disabled="@procesando" OnClick="() => EditarRoles(usuario)">Roles</Button>
+                                        <Button Variant="ButtonVariant.Ghost" Size="sm" IconName="key" Disabled="@procesando" OnClick="() => EditarRoles(usuario)">Permisos</Button>
                                         <Button Variant="ButtonVariant.Ghost" Size="sm" IconName="@(usuario.IsActive ? "lock" : "unlock")"
                                                 Loading="@(procesando && usuarioProcesando == usuario.UsuarioId)"
                                                 Disabled="@(procesando || NoPuedeDesactivar(usuario))"
@@ -133,7 +146,7 @@
     {
         cargando = usuarios.Count == 0;
         try { usuarios = await AdminApi.ListarUsuariosAsync(); error = null; }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { error = ex.Message; }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException) { error = MensajeUsuario.Limpiar(ex.Message, "No pudimos cargar los usuarios. Revisa tu conexión e intenta nuevamente."); }
         finally { cargando = false; }
     }
 
@@ -173,6 +186,13 @@
     private static bool NoPuedeDesactivar(UsuarioAdminDto usuario) =>
         usuario.IsActive && usuario.Roles.Contains(Roles.Administrador);
 
-    private static string Corto(Guid id) => id.ToString()[..8];
+    private static IReadOnlyList<string> RolesAcceso(UsuarioAdminDto usuario)
+        => usuario.Roles.Where(rol => rol is Roles.Administrador or Roles.Secretaria).ToList();
+
+    private static string? TipoClinico(UsuarioAdminDto usuario)
+        => usuario.Roles.Contains(Roles.Medico) ? Roles.Medico
+            : usuario.Roles.Contains(Roles.Paciente) ? Roles.Paciente
+            : null;
+
     private static string EtiquetaRol(string rol) => rol switch { "Secretaria" => "Secretaría", "Medico" => "Médico", _ => rol };
 }

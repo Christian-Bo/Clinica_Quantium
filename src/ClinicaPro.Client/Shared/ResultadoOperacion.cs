@@ -29,5 +29,5 @@ public sealed class ResultadoOperacion<T>
     public static ResultadoOperacion<T> Ok(T valor) => new(true, valor, null, null);
 
     public static ResultadoOperacion<T> Fallo(string error, HttpStatusCode? statusCode = null)
-        => new(false, default, error, statusCode);
+        => new(false, default, MensajeUsuario.Limpiar(error), statusCode);
 }

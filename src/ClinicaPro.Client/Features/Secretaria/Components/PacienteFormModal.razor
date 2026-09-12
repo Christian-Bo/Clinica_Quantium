@@ -219,9 +219,7 @@
         }
         catch (HttpRequestException ex)
         {
-            errorGeneral = ex.Message.Contains("CP-FE-", StringComparison.OrdinalIgnoreCase)
-                ? ex.Message
-                : FrontendErrorCatalog.WithCode("No se pudo contactar a la API. Intenta nuevamente.", FrontendErrorCatalog.Connection);
+            errorGeneral = MensajeUsuario.Limpiar(ex.Message, "No pudimos guardar al paciente. Revisa tu conexión e intenta nuevamente.");
         }
         catch (TaskCanceledException)
         {
@@ -244,7 +242,7 @@
         }
         if (mensaje.Contains("contraseña", StringComparison.OrdinalIgnoreCase) || mensaje.Contains("password", StringComparison.OrdinalIgnoreCase))
         {
-            errorPassword = "La contraseña no cumple la política de seguridad indicada.";
+            errorPassword = "La contraseña no cumple los requisitos mostrados.";
             return;
         }
         errorGeneral = mensaje;

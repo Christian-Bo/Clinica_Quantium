@@ -4,8 +4,9 @@
 @inject AuthApiService AuthApi
 @inject TokenStorageService TokenStorage
 @inject NavigationManager Navigation
+@inject BrandingService Branding
 
-<PageTitle>Cambiar contraseña · Clínica Pro</PageTitle>
+<PageTitle>Cambiar contraseña · @Branding.ClinicName</PageTitle>
 
 <div class="flex min-h-screen items-center justify-center bg-surface-muted px-4">
     <div class="w-full max-w-md rounded-card border border-border bg-surface p-8 shadow-card">
@@ -17,7 +18,7 @@
             <p class="mt-1 text-sm text-ink-muted">
                 @(cambioObligatorio
                     ? "Por seguridad debes reemplazar la contraseña temporal antes de continuar."
-                    : "Actualiza tu contraseña de acceso a Clínica Pro.")
+                    : $"Actualiza tu contraseña de acceso a {Branding.ClinicName}.")
             </p>
         </div>
 

@@ -25,15 +25,15 @@ public static class ApiErrorReader
             return "Tu usuario no tiene permiso para realizar esta acción.";
         }
 
-        // Los 5xx nunca muestran el cuerpo devuelto por el servidor: podría contener
-        // detalles internos. El usuario recibe una referencia estable para soporte.
+        // Los fallos internos nunca muestran el cuerpo devuelto por el servidor: podría contener
+        // detalles de implementación que no ayudan al usuario.
         if ((int)respuesta.StatusCode >= 500)
         {
             var contexto = string.IsNullOrWhiteSpace(mensajePorDefecto)
                 ? "El sistema no pudo completar la operación en este momento."
                 : mensajePorDefecto.Trim();
             return FrontendErrorCatalog.WithCode(
-                $"{contexto} Intenta nuevamente; si continúa, comparte esta referencia con soporte.",
+                $"{contexto} Intenta nuevamente; si continúa, comunícate con soporte.",
                 FrontendErrorCatalog.ServerError);
         }
 
@@ -58,7 +58,7 @@ public static class ApiErrorReader
                     && errorProp.ValueKind == JsonValueKind.String
                     && !string.IsNullOrWhiteSpace(errorProp.GetString()))
                 {
-                    return errorProp.GetString()!;
+                    return MensajeUsuario.Limpiar(errorProp.GetString(), mensajePorDefecto);
                 }
 
                 if (raiz.TryGetProperty("errors", out var erroresProp)
@@ -77,7 +77,7 @@ public static class ApiErrorReader
                             var texto = item.GetString();
                             if (!string.IsNullOrWhiteSpace(texto))
                             {
-                                mensajes.Add(texto);
+                                mensajes.Add(MensajeUsuario.Limpiar(texto, mensajePorDefecto));
                             }
                         }
                     }
@@ -92,7 +92,7 @@ public static class ApiErrorReader
                     && titleProp.ValueKind == JsonValueKind.String
                     && !string.IsNullOrWhiteSpace(titleProp.GetString()))
                 {
-                    return titleProp.GetString()!;
+                    return MensajeUsuario.Limpiar(titleProp.GetString(), mensajePorDefecto);
                 }
             }
             catch (JsonException)
@@ -112,12 +112,12 @@ public static class ApiErrorReader
             HttpStatusCode.Forbidden => "Tu usuario no tiene permiso para realizar esta acción.",
             HttpStatusCode.NotFound => "La información solicitada ya no está disponible.",
             HttpStatusCode.Conflict => "La información cambió mientras trabajabas. Actualiza los datos e intenta nuevamente.",
-            (HttpStatusCode)422 => "Hay datos que no cumplen las reglas requeridas.",
+            (HttpStatusCode)422 => "Revisa la información ingresada e intenta nuevamente.",
             (HttpStatusCode)423 => "La cuenta está bloqueada temporalmente por seguridad.",
             (HttpStatusCode)429 => "Se realizaron demasiados intentos. Espera unos minutos y vuelve a intentar.",
             HttpStatusCode.InternalServerError or HttpStatusCode.BadGateway or HttpStatusCode.ServiceUnavailable or HttpStatusCode.GatewayTimeout
                 => FrontendErrorCatalog.WithCode(
-                    "El sistema no pudo completar la operación en este momento. Intenta nuevamente; si continúa, comparte esta referencia con soporte.",
+                    "El sistema no pudo completar la operación en este momento. Intenta nuevamente; si continúa, comunícate con soporte.",
                     FrontendErrorCatalog.ServerError),
             HttpStatusCode.RequestTimeout => FrontendErrorCatalog.WithCode(
                 "La operación tardó demasiado. Intenta nuevamente.",

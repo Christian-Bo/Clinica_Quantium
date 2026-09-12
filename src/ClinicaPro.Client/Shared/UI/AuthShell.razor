@@ -1,5 +1,6 @@
-@* Armazón de las pantallas públicas (login, registro, recuperación).
+@inject BrandingService Branding
 
+@* Armazón de las pantallas públicas (login, registro, recuperación).
    La forma viene de las apps móviles: un hero de color arriba y una "hoja"
    blanca de esquinas redondeadas montada encima. En escritorio esa misma
    idea se gira 90 grados y queda pantalla partida, para no dejar una columna
@@ -65,7 +66,7 @@
                     <Icon Name="leaf" Size="24" />
                 </div>
                 <div>
-                    <p class="text-base font-bold leading-tight text-white lg:text-lg">Clínica Pro</p>
+                    <p class="text-base font-bold leading-tight text-white lg:text-lg">@Branding.ClinicName</p>
                     <p class="text-xs text-white/45">Portal del paciente</p>
                 </div>
             </div>

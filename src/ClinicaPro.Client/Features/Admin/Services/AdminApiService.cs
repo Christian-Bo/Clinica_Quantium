@@ -26,13 +26,13 @@ public sealed class AdminApiService(ApiClient api, MedicosCacheService medicosCa
     public Task<IReadOnlyList<ParametroDto>> ListarParametrosAsync(CancellationToken ct = default)
         => api.ObtenerListaAsync<ParametroDto>(
             "api/parametros",
-            "No fue posible cargar los parámetros.",
+            "No fue posible cargar los ajustes.",
             ct);
 
     public Task<IReadOnlyList<AuditoriaDto>> ListarAuditoriaAsync(CancellationToken ct = default)
         => api.ObtenerListaAsync<AuditoriaDto>(
             "api/admin/auditoria",
-            "No fue posible cargar la auditoría.",
+            "No fue posible cargar la actividad.",
             ct);
 
     public Task<IReadOnlyList<AutorizacionReprogramacionDto>> ListarAutorizacionesAsync(
@@ -188,6 +188,6 @@ public sealed class AdminApiService(ApiClient api, MedicosCacheService medicosCa
             HttpMethod.Put,
             $"api/admin/parametros/{Uri.EscapeDataString(clave)}",
             new ActualizarParametroRequest(valor),
-            "No fue posible actualizar el parámetro.",
+            "No fue posible actualizar el ajuste.",
             ct);
 }

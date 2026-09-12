@@ -2,8 +2,9 @@
 @attribute [Authorize(Roles = Roles.Paciente)]
 @layout PacienteLayout
 @inject NotificacionesPacienteApiService NotificacionesApi
+@inject BrandingService Branding
 
-<PageTitle>Mis avisos · Clínica Pro</PageTitle>
+<PageTitle>Mis avisos · @Branding.ClinicName</PageTitle>
 
 <h1 class="text-xl font-semibold text-ink">Mis avisos</h1>
 <p class="mt-1 text-sm text-ink-muted">

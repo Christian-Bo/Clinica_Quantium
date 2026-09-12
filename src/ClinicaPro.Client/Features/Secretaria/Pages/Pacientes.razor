@@ -2,8 +2,9 @@
 @attribute [Authorize(Roles = "Secretaria,Administrador")]
 @inject PacientesApiService PacientesApi
 @inject ToastService Toasts
+@inject BrandingService Branding
 
-<PageTitle>Pacientes · Clínica Pro</PageTitle>
+<PageTitle>Pacientes · @Branding.ClinicName</PageTitle>
 <AutoRefresh Enabled="@(!string.IsNullOrWhiteSpace(errorCarga))" IntervalSeconds="12" OnRefresh="RecargarAsync" />
 
 <div class="space-y-6">
@@ -144,7 +145,7 @@
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            errorCarga = ex.Message;
+            errorCarga = MensajeUsuario.Limpiar(ex.Message, "No pudimos cargar los pacientes. Revisa tu conexión e intenta nuevamente.");
         }
         finally
         {

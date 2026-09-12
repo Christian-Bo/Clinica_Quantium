@@ -3,8 +3,9 @@
 @layout Layout.EmptyLayout
 @inject AuthApiService AuthApi
 @inject NavigationManager Navigation
+@inject BrandingService Branding
 
-<PageTitle>Iniciar sesión · Clínica Pro</PageTitle>
+<PageTitle>Iniciar sesión · @Branding.ClinicName</PageTitle>
 
 <AuthShell Titulo="Bienvenido de vuelta"
            Subtitulo="Ingresa con tu correo y contraseña para continuar.">
@@ -105,7 +106,7 @@
 
     <p class="mt-7 text-center text-xs leading-relaxed text-ink-muted">
         ¿Eres parte del personal? Usa este mismo formulario:<br class="hidden sm:block" />
-        el sistema te lleva a tu panel según tu rol.
+        te llevaremos al panel correspondiente a tu cuenta.
     </p>
 
 </AuthShell>

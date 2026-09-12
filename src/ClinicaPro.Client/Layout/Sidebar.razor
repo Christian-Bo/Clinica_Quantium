@@ -2,6 +2,7 @@
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
 @inject UiPermissionService Permisos
+@inject BrandingService Branding
 @implements IDisposable
 
 <div class="flex h-full flex-col">
@@ -10,37 +11,39 @@
             <Icon Name="leaf" Size="18" />
         </div>
         <div>
-            <p class="text-sm font-semibold leading-tight">Clínica Pro</p>
+            <p class="text-sm font-semibold leading-tight">@Branding.ClinicName</p>
             <p class="text-xs text-white/50">@Subtitulo</p>
         </div>
     </div>
 
-    @if (!rolCargado)
-    {
-        <div class="space-y-2 px-3 py-2">
-            <div class="h-9 animate-pulse rounded-control bg-white/5"></div>
-            <div class="h-9 animate-pulse rounded-control bg-white/5"></div>
-            <div class="h-9 animate-pulse rounded-control bg-white/5"></div>
-        </div>
-    }
-    else if (esAdministrador)
-    {
-        <NavMenuAdmin />
-    }
-    else if (esMedico)
-    {
-        <NavMenuMedico />
-    }
-    else if (esSecretaria)
-    {
-        <NavMenu />
-    }
-    else
-    {
-        <div class="px-5 py-3 text-xs text-white/50">Sin opciones disponibles para este rol.</div>
-    }
+    <div class="min-h-0 flex-1 overflow-y-auto">
+        @if (!rolCargado)
+        {
+            <div class="space-y-2 px-3 py-2">
+                <div class="h-9 animate-pulse rounded-control bg-white/5"></div>
+                <div class="h-9 animate-pulse rounded-control bg-white/5"></div>
+                <div class="h-9 animate-pulse rounded-control bg-white/5"></div>
+            </div>
+        }
+        else if (esAdministrador)
+        {
+            <NavMenuAdmin />
+        }
+        else if (esMedico)
+        {
+            <NavMenuMedico />
+        }
+        else if (esSecretaria)
+        {
+            <NavMenu />
+        }
+        else
+        {
+            <div class="px-5 py-3 text-xs text-white/50">No hay opciones disponibles para esta cuenta.</div>
+        }
+    </div>
 
-    <div class="mt-auto border-t border-white/10 px-5 py-4">
+    <div class="shrink-0 border-t border-white/10 px-5 py-4">
         <AuthorizeView>
             <Authorized>
                 <p class="truncate text-sm font-medium">@context.User.Identity?.Name</p>

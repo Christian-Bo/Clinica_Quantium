@@ -2,15 +2,16 @@
 @attribute [Authorize(Roles = "Secretaria,Administrador")]
 @inject CitasApiService CitasApi
 @inject NavigationManager Navigation
+@inject BrandingService Branding
 
-<PageTitle>Dashboard · Clínica Pro</PageTitle>
+<PageTitle>Dashboard · @Branding.ClinicName</PageTitle>
 <AutoRefresh Enabled="true" IntervalSeconds="45" OnRefresh="CargarSilenciosoAsync" />
 
 <div class="space-y-6">
     <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
             <h1 class="text-xl font-semibold text-ink">@Saludo 👋</h1>
-            <p class="text-sm text-ink-muted">Resumen operativo de hoy.</p>
+            <p class="text-sm text-ink-muted">Lo más importante de hoy.</p>
         </div>
         <div class="flex gap-2">
             <Button Variant="ButtonVariant.Primary" IconName="plus" OnClick="IrACitas">Nueva cita</Button>
@@ -31,7 +32,7 @@
     else if (!TieneDatos && errorCarga is not null)
     {
         <Card>
-            <EmptyState IconName="alert-triangle" Title="No se pudo cargar el resumen" Description="No fue posible obtener la información operativa. El sistema volverá a intentarlo automáticamente." />
+            <EmptyState IconName="alert-triangle" Title="No se pudo cargar el resumen" Description="No pudimos cargar la información de hoy. Volveremos a intentarlo automáticamente." />
             <div class="mt-3 flex justify-center">
                 <Button Variant="ButtonVariant.Secondary" Size="sm" IconName="refresh" OnClick="CargarAsync">Reintentar</Button>
             </div>
@@ -162,7 +163,7 @@
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            errorCarga = ex.Message;
+            errorCarga = MensajeUsuario.Limpiar(ex.Message, "No pudimos actualizar el resumen. Revisa tu conexión e intenta nuevamente.");
         }
         finally
         {
