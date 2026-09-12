@@ -29,7 +29,7 @@ public sealed class CitasPacienteApiService(HttpClient http)
         catch (HttpRequestException)
         {
             return ResultadoOperacion<IReadOnlyList<CitaDto>>.Fallo(
-                "No se pudo contactar al servidor. Verifica tu conexión y vuelve a intentar.");
+                "No pudimos conectarnos. Revisa tu conexión e intenta nuevamente.");
         }
 
         if (!respuesta.IsSuccessStatusCode)
@@ -59,7 +59,7 @@ public sealed class CitasPacienteApiService(HttpClient http)
         catch (HttpRequestException)
         {
             return ResultadoOperacion<IReadOnlyList<SlotDisponibleDto>>.Fallo(
-                "No se pudo contactar al servidor. Verifica tu conexión.");
+                "No pudimos conectarnos. Revisa tu conexión e intenta nuevamente.");
         }
 
         if (respuesta.IsSuccessStatusCode)
@@ -114,7 +114,7 @@ public sealed class CitasPacienteApiService(HttpClient http)
         }
         catch (HttpRequestException)
         {
-            return ResultadoOperacion<CitaDto>.Fallo("No se pudo contactar al servidor. Verifica tu conexión.");
+            return ResultadoOperacion<CitaDto>.Fallo("No pudimos conectarnos. Revisa tu conexión e intenta nuevamente.");
         }
 
         if (respuesta.IsSuccessStatusCode)
@@ -122,7 +122,7 @@ public sealed class CitasPacienteApiService(HttpClient http)
             var cita = await respuesta.Content.ReadFromJsonAsync<CitaDto>(cancellationToken: ct);
             return cita is not null
                 ? ResultadoOperacion<CitaDto>.Ok(cita)
-                : ResultadoOperacion<CitaDto>.Fallo("La cita se procesó pero no se pudo leer la respuesta.");
+                : ResultadoOperacion<CitaDto>.Fallo("La cita se procesó, pero no pudimos actualizar la información en pantalla.");
         }
 
         try

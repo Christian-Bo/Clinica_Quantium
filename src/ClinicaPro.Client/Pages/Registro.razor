@@ -3,6 +3,7 @@
 @layout Layout.EmptyLayout
 @inject AuthApiService AuthApi
 @inject NavigationManager Navigation
+@inject BrandingService Branding
 
 @* Registro en cuatro pasos. Un formulario de esta extensión de un solo golpe
    ahuyenta: partirlo baja el costo percibido y permite validar por tramos,
@@ -12,7 +13,7 @@
    registro si no viene médico, fecha y motivo, porque crea la cuenta y la cita
    en la misma transacción. Sin este paso, registrarse falla siempre. *@
 
-<PageTitle>Crear cuenta · Clínica Pro</PageTitle>
+<PageTitle>Crear cuenta · @Branding.ClinicName</PageTitle>
 
 <AuthShell Titulo="@TituloPaso" Subtitulo="@SubtituloPaso" AnchoCard="max-w-xl">
 

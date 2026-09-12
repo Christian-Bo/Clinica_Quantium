@@ -3,47 +3,66 @@
 @inject ApiAuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Navigation
 
+@if (listo)
+{
+    @ChildContent
+}
+else
+{
+    <div class="flex min-h-screen items-center justify-center bg-surface-muted" role="status" aria-live="polite">
+        <div class="flex items-center gap-3 text-sm text-ink-muted">
+            <span class="h-4 w-4 animate-spin rounded-full border-2 border-brand-200 border-t-brand-600" aria-hidden="true"></span>
+            Preparando tu sesión...
+        </div>
+    </div>
+}
+
 @code {
-    private bool validado;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool listo;
+    private bool inicializando;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender || validado)
+        if (!firstRender || inicializando || listo)
         {
             return;
         }
 
-        validado = true;
-        var sesion = await TokenStorage.ObtenerAsync();
-        if (sesion is null)
+        inicializando = true;
+        try
         {
-            return;
+            var sesion = await TokenStorage.ObtenerAsync();
+            if (sesion is not null)
+            {
+                var resultado = await AuthApi.ObtenerUsuarioActualSeguroAsync();
+                if (resultado.Exito && resultado.Valor is not null)
+                {
+                    await TokenStorage.ActualizarDesdeServidorAsync(resultado.Valor);
+                    AuthStateProvider.NotificarUsuarioValidado(resultado.Valor);
+
+                    var rutaActual = new Uri(Navigation.Uri).AbsolutePath;
+                    if (resultado.Valor.MustChangePassword
+                        && !rutaActual.Equals(RoleRoutes.CambioContrasenaObligatorio, StringComparison.OrdinalIgnoreCase))
+                    {
+                        Navigation.NavigateTo(RoleRoutes.CambioContrasenaObligatorio, replace: true);
+                    }
+                    else if (rutaActual.Equals("/login", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Navigation.NavigateTo(RoleRoutes.Inicio(resultado.Valor.Roles), replace: true);
+                    }
+                }
+                // Si la validación falla por red, el token almacenado se conserva.
+                // El router arranca con la sesión local y las pantallas aplican su
+                // recuperación automática sin obligar al usuario a presionar F5.
+            }
         }
-
-        var resultado = await AuthApi.ObtenerUsuarioActualSeguroAsync();
-        if (!resultado.Exito || resultado.Valor is null)
+        finally
         {
-            // Un fallo de red no destruye una sesión que todavía podría ser válida.
-            // Un 401 sí es procesado por BearerTokenHandler y limpia la sesión.
-            return;
-        }
-
-        await TokenStorage.ActualizarDesdeServidorAsync(resultado.Valor);
-        AuthStateProvider.NotificarUsuarioValidado(resultado.Valor);
-
-        var rutaActual = new Uri(Navigation.Uri).AbsolutePath;
-        if (resultado.Valor.MustChangePassword
-            && !rutaActual.Equals(
-                RoleRoutes.CambioContrasenaObligatorio,
-                StringComparison.OrdinalIgnoreCase))
-        {
-            Navigation.NavigateTo(RoleRoutes.CambioContrasenaObligatorio, replace: true);
-            return;
-        }
-
-        if (rutaActual.Equals("/login", StringComparison.OrdinalIgnoreCase))
-        {
-            Navigation.NavigateTo(RoleRoutes.Inicio(resultado.Valor.Roles), replace: true);
+            listo = true;
+            inicializando = false;
+            await InvokeAsync(StateHasChanged);
         }
     }
 }

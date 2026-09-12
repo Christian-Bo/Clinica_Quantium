@@ -1,26 +1,22 @@
 @inject AdminApiService AdminApi
 @inject ToastService Toast
 
-<Modal IsOpen="IsOpen" IsOpenChanged="CambiarApertura" Title="Editar parámetro" IconName="edit" MaxWidthClass="max-w-md" CloseOnBackdrop="false">
+<Modal IsOpen="IsOpen" IsOpenChanged="CambiarApertura" Title="Editar ajuste" IconName="edit" MaxWidthClass="max-w-md" CloseOnBackdrop="false">
     <Body>
         @if (Parametro is not null)
         {
             <div class="space-y-4">
                 <div>
-                    <p class="text-xs font-medium uppercase tracking-wide text-ink-muted">Clave</p>
-                    <p class="mt-1 break-all text-sm font-semibold text-ink">@Parametro.Clave</p>
-                    @if (!string.IsNullOrWhiteSpace(Parametro.Descripcion))
-                    {
-                        <p class="mt-1 text-xs text-ink-muted">@Parametro.Descripcion</p>
-                    }
+                    <p class="text-sm font-semibold text-ink">@NombreAjuste</p>
+                    <p class="mt-1 text-xs leading-5 text-ink-muted">@DescripcionAjuste</p>
                 </div>
                 <div>
-                    <label class="text-sm font-medium text-ink" for="adm-param-valor">Valor <span class="text-state-rechazada">*</span></label>
+                    <label class="text-sm font-medium text-ink" for="adm-param-valor">Nuevo valor <span class="text-state-rechazada">*</span></label>
                     @if (Parametro.TipoDato.Equals("Bool", StringComparison.OrdinalIgnoreCase))
                     {
                         <select id="adm-param-valor" class="@ClaseInput" @bind="valor">
-                            <option value="true">Verdadero</option>
-                            <option value="false">Falso</option>
+                            <option value="true">Sí</option>
+                            <option value="false">No</option>
                         </select>
                     }
                     else
@@ -34,7 +30,7 @@
                     }
                     else
                     {
-                        <p class="mt-1 text-xs text-ink-muted">Tipo esperado: @Parametro.TipoDato. @EjemploTipo</p>
+                        <p class="mt-1 text-xs text-ink-muted">@AyudaValor</p>
                     }
                 </div>
                 @if (!string.IsNullOrWhiteSpace(error))
@@ -56,6 +52,7 @@
     [Parameter] public ParametroDto? Parametro { get; set; }
     [Parameter] public EventCallback OnGuardado { get; set; }
 
+    private const string MaximoReprogramaciones = "Citas.MaximoReprogramaciones";
     private const string ClaseInput = "mt-1 w-full rounded-control border border-border bg-surface px-3 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100";
     private string valor = string.Empty;
     private string? error;
@@ -65,27 +62,47 @@
     private bool valorTocado;
 
     private string TipoInput => Parametro?.TipoDato switch { "Int" => "number", "Decimal" => "number", "Time" => "time", _ => "text" };
-    private string PlaceholderValor => Parametro?.TipoDato switch { "Int" => "Ej. 30", "Decimal" => "Ej. 2.5", "Time" => "Ej. 08:00", _ => "Ej. valor de configuración" };
-    private string EjemploTipo => Parametro?.TipoDato switch
+    private string PlaceholderValor => Parametro?.TipoDato switch { "Int" => "Ej. 30", "Decimal" => "Ej. 2.5", "Time" => "Ej. 08:00", _ => "Ingresa el nuevo valor" };
+
+    private string NombreAjuste => Parametro?.Clave switch
     {
-        "Int" => "Ingresa un número entero.",
-        "Decimal" => "Ingresa un número; usa punto como separador decimal.",
-        "Time" => "Selecciona una hora válida.",
-        "Bool" => "Selecciona Verdadero o Falso.",
-        _ => "Respeta el formato descrito para este parámetro."
+        "Citas.HorasMinimasCancelacion" => "Anticipación para cancelar",
+        "Citas.MaximoReprogramaciones" => "Máximo de reprogramaciones",
+        "Citas.DuracionPredeterminadaMinutos" => "Duración de las citas",
+        "Citas.MaximoActivasPorPaciente" => "Citas activas por paciente",
+        _ => "Ajuste general"
     };
+
+    private string DescripcionAjuste => Parametro?.Clave switch
+    {
+        "Citas.HorasMinimasCancelacion" => "Define con cuánta anticipación puede cancelarse una cita sin marcar inasistencia.",
+        "Citas.DuracionPredeterminadaMinutos" => "Define cuánto tiempo se reserva normalmente para cada cita.",
+        "Citas.MaximoActivasPorPaciente" => "Define cuántas citas activas puede tener un paciente al mismo tiempo.",
+        _ => "Configuración general de la clínica."
+    };
+
+    private string AyudaValor => Parametro?.TipoDato switch
+    {
+        "Int" => "Ingresa una cantidad sin decimales.",
+        "Decimal" => "Ingresa un número, por ejemplo 2.5.",
+        "Time" => "Selecciona una hora.",
+        "Bool" => "Selecciona Sí o No.",
+        _ => "Ingresa el valor correspondiente."
+    };
+
     private string? ErrorValor
     {
         get
         {
-            if (string.IsNullOrWhiteSpace(valor)) return "El valor es obligatorio.";
+            if (string.IsNullOrWhiteSpace(valor)) return "Ingresa un valor.";
             if (Parametro is null) return null;
-            if (Parametro.TipoDato.Equals("Int", StringComparison.OrdinalIgnoreCase) && !int.TryParse(valor, out _)) return "Ingresa un número entero válido.";
-            if (Parametro.TipoDato.Equals("Decimal", StringComparison.OrdinalIgnoreCase) && !decimal.TryParse(valor, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out _)) return "Ingresa un número decimal válido usando punto como separador.";
-            if (Parametro.TipoDato.Equals("Time", StringComparison.OrdinalIgnoreCase) && !TimeOnly.TryParse(valor, out _)) return "Ingresa una hora válida.";
+            if (Parametro.TipoDato.Equals("Int", StringComparison.OrdinalIgnoreCase) && !int.TryParse(valor, out _)) return "Ingresa una cantidad sin decimales.";
+            if (Parametro.TipoDato.Equals("Decimal", StringComparison.OrdinalIgnoreCase) && !decimal.TryParse(valor, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out _)) return "Ingresa un número válido, por ejemplo 2.5.";
+            if (Parametro.TipoDato.Equals("Time", StringComparison.OrdinalIgnoreCase) && !TimeOnly.TryParse(valor, out _)) return "Selecciona una hora válida.";
             return null;
         }
     }
+
     private string ClaseValor => !valorTocado ? ClaseInput : ErrorValor is null
         ? "mt-1 w-full rounded-control border border-state-atendida bg-surface px-3 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-100"
         : "mt-1 w-full rounded-control border border-state-rechazada bg-state-rechazada/5 px-3 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-state-rechazada/10";
@@ -102,11 +119,22 @@
         aperturaAnterior = IsOpen;
     }
 
-    private void CambiarValor(ChangeEventArgs e) { valor = e.Value?.ToString() ?? string.Empty; valorTocado = true; }
+    private void CambiarValor(ChangeEventArgs e)
+    {
+        valor = e.Value?.ToString() ?? string.Empty;
+        valorTocado = true;
+    }
 
     private async Task GuardarAsync()
     {
         if (Parametro is null || guardando) return;
+
+        if (Parametro.Clave.Equals(MaximoReprogramaciones, StringComparison.OrdinalIgnoreCase))
+        {
+            error = "Este ajuste está definido por la clínica y no puede modificarse aquí.";
+            return;
+        }
+
         valorTocado = true;
         if (ErrorValor is not null) return;
 
@@ -115,12 +143,20 @@
         try
         {
             var resultado = await AdminApi.ActualizarParametroAsync(Parametro.Clave, valor.Trim());
-            if (!resultado.Exito) { error = resultado.Error; return; }
-            Toast.Exito("Parámetro actualizado correctamente.");
+            if (!resultado.Exito)
+            {
+                error = MensajeUsuario.Limpiar(resultado.Error, "No pudimos guardar el ajuste. Intenta nuevamente.");
+                return;
+            }
+
+            Toast.Exito("Ajuste actualizado.");
             await OnGuardado.InvokeAsync();
             await IsOpenChanged.InvokeAsync(false);
         }
-        finally { guardando = false; }
+        finally
+        {
+            guardando = false;
+        }
     }
 
     private Task Cancelar() => IsOpenChanged.InvokeAsync(false);

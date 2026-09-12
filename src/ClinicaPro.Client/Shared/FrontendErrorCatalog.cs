@@ -1,9 +1,8 @@
 namespace ClinicaPro.Client.Shared;
 
 /// <summary>
-/// Catálogo estable de referencias técnicas del frontend. El usuario recibe
-/// un mensaje comprensible y, solo en fallos técnicos, una referencia que el
-/// equipo puede buscar sin exponer stack traces ni detalles internos.
+/// Catálogo interno para clasificar fallos del cliente. Los códigos se conservan
+/// para diagnóstico, pero nunca se incluyen en los mensajes visibles al usuario.
 /// </summary>
 public static class FrontendErrorCatalog
 {
@@ -14,15 +13,15 @@ public static class FrontendErrorCatalog
     public const string UnexpectedUi = "CP-FE-090";
 
     public static string WithCode(string message, string code)
-        => $"{message} Código de referencia: {code}.";
+        => message;
 
     public static string Description(string code) => code switch
     {
-        Connection => "No fue posible establecer comunicación con la API.",
-        Timeout => "La API no respondió dentro del tiempo configurado.",
-        InvalidResponse => "La respuesta recibida no pudo interpretarse con el contrato esperado.",
-        ServerError => "La API devolvió un error interno o de infraestructura (5xx).",
-        UnexpectedUi => "Se produjo una excepción no controlada al renderizar o ejecutar la interfaz.",
-        _ => "Referencia no registrada."
+        Connection => "No pudimos conectarnos. Revisa tu conexión e intenta nuevamente.",
+        Timeout => "La operación tardó demasiado. Intenta nuevamente.",
+        InvalidResponse => "No pudimos procesar la información recibida. Intenta nuevamente.",
+        ServerError => "Ocurrió un problema inesperado. Intenta nuevamente.",
+        UnexpectedUi => "No pudimos mostrar esta sección. Vuelve al inicio e intenta nuevamente.",
+        _ => "Ocurrió un problema inesperado."
     };
 }

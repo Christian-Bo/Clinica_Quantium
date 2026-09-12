@@ -4,8 +4,9 @@
 @inject MedicosApiService MedicosApi
 @inject ToastService Toasts
 @inject NavigationManager Navigation
+@inject BrandingService Branding
 
-<PageTitle>Citas · Clínica Pro</PageTitle>
+<PageTitle>Citas · @Branding.ClinicName</PageTitle>
 <AutoRefresh Enabled="true" IntervalSeconds="45" OnRefresh="CargarAgendaSilenciosaAsync" />
 <AutoRefresh Enabled="true" IntervalSeconds="30" OnRefresh="CargarPendientesSilenciosoAsync" />
 
@@ -54,6 +55,16 @@
                         }
                     </select>
 
+                    <select class="rounded-control border border-border px-2 py-1.5 text-sm text-ink"
+                            @bind="estadoFiltro" aria-label="Filtrar por estado de cita">
+                        <option value="">Todos los estados</option>
+                        @foreach (var estado in EstadosFiltro)
+                        {
+                            <option value="@estado">@EtiquetaEstado(estado)</option>
+                        }
+                        <option value="__reprogramadas">Con reprogramaciones</option>
+                    </select>
+
                     <div class="flex rounded-control border border-border p-0.5">
                         <button type="button" class="@ClaseVista(VistaAgenda.Dia)" @onclick="() => CambiarVista(VistaAgenda.Dia)">Día</button>
                         <button type="button" class="@ClaseVista(VistaAgenda.Semana)" @onclick="() => CambiarVista(VistaAgenda.Semana)">Semana</button>
@@ -75,11 +86,11 @@
             }
             else if (vista == VistaAgenda.Mes)
             {
-                <AgendaMes Mes="fechaSeleccionada" Citas="citasRango" OnSeleccionarDia="IrADia" />
+                <AgendaMes Mes="fechaSeleccionada" Citas="CitasAgendaFiltradas" OnSeleccionarDia="IrADia" />
             }
             else
             {
-                <AgendaGrid Dias="DiasVisibles" Citas="citasRango" OnSeleccionarCita="AbrirDetalle" />
+                <AgendaGrid Dias="DiasVisibles" Citas="CitasAgendaFiltradas" OnSeleccionarCita="AbrirDetalle" />
             }
         </Card>
     }
@@ -149,8 +160,16 @@
     private VistaAgenda vista = VistaAgenda.Semana;
     private DateOnly fechaSeleccionada = DateOnly.FromDateTime(DateTime.Today);
 
+    private static readonly string[] EstadosFiltro =
+    [
+        CitaEstados.Solicitada, CitaEstados.Programada, CitaEstados.Confirmada,
+        CitaEstados.EnEspera, CitaEstados.EnAtencion, CitaEstados.Atendida,
+        CitaEstados.Cancelada, CitaEstados.NoPresentada, CitaEstados.Rechazada
+    ];
+
     private List<MedicoDto> medicos = [];
     private string? medicoIdTexto;
+    private string estadoFiltro = string.Empty;
 
     private List<CitaDto> citasRango = [];
     private bool cargandoAgenda = true;
@@ -197,7 +216,7 @@
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            Toasts.Error(ex.Message);
+            Toasts.Error(MensajeUsuario.Limpiar(ex.Message, "No pudimos completar la acción. Intenta nuevamente."));
         }
     }
 
@@ -206,6 +225,26 @@
         VistaAgenda.Dia => [fechaSeleccionada],
         VistaAgenda.Semana => Enumerable.Range(0, 7).Select(InicioSemana(fechaSeleccionada).AddDays).ToList(),
         _ => [fechaSeleccionada]
+    };
+
+    private IReadOnlyList<CitaDto> CitasAgendaFiltradas => citasRango
+        .Where(cita => string.IsNullOrWhiteSpace(estadoFiltro)
+            || (estadoFiltro == "__reprogramadas" && cita.NumeroReprogramaciones > 0)
+            || string.Equals(cita.Estado, estadoFiltro, StringComparison.OrdinalIgnoreCase))
+        .ToList();
+
+    private static string EtiquetaEstado(string estado) => estado switch
+    {
+        CitaEstados.Solicitada => "Solicitada",
+        CitaEstados.Programada => "Programada",
+        CitaEstados.Confirmada => "Confirmada",
+        CitaEstados.EnEspera => "En espera",
+        CitaEstados.EnAtencion => "En atención",
+        CitaEstados.Atendida => "Atendida",
+        CitaEstados.Cancelada => "Cancelada",
+        CitaEstados.NoPresentada => "No presentada",
+        CitaEstados.Rechazada => "Rechazada",
+        _ => estado
     };
 
     private static DateOnly InicioSemana(DateOnly dia) => dia.AddDays(-(int)dia.DayOfWeek);
@@ -241,7 +280,7 @@
         {
             if (!silencioso || !agendaCargada)
             {
-                errorAgenda = ex.Message;
+                errorAgenda = MensajeUsuario.Limpiar(ex.Message, "No pudimos cargar la agenda. Revisa tu conexión e intenta nuevamente.");
             }
         }
         finally
@@ -286,7 +325,7 @@
         {
             if (!silencioso || !pendientesCargados)
             {
-                errorPendientes = ex.Message;
+                errorPendientes = MensajeUsuario.Limpiar(ex.Message, "No pudimos cargar las solicitudes pendientes. Revisa tu conexión e intenta nuevamente.");
             }
         }
         finally

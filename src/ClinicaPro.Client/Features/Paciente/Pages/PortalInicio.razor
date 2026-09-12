@@ -5,8 +5,9 @@
 @inject CitasPacienteApiService CitasApi
 @inject NavigationManager Navigation
 @inject ToastService Toasts
+@inject BrandingService Branding
 
-<PageTitle>Mi portal · Clínica Pro</PageTitle>
+<PageTitle>Mi portal · @Branding.ClinicName</PageTitle>
 
 <h1 class="text-xl font-semibold text-ink">@Saludo</h1>
 <p class="mt-1 text-sm text-ink-muted">Este es el resumen de tu atención en la clínica.</p>
@@ -149,12 +150,7 @@ else
         var resultadoFicha = await PerfilApi.ObtenerMiFichaAsync();
         if (!resultadoFicha.Exito)
         {
-            // El código HTTP acompaña al mensaje: sin él, "no fue posible" no
-            // distingue un permiso denegado de una caída del servidor, ni para
-            // el paciente ni para quien tenga que arreglarlo.
-            error = resultadoFicha.StatusCode is null
-                ? resultadoFicha.Error
-                : $"{resultadoFicha.Error} (código {(int)resultadoFicha.StatusCode})";
+            error = MensajeUsuario.Limpiar(resultadoFicha.Error, "No pudimos cargar tu información. Intenta nuevamente.");
             cargando = false;
             return;
         }

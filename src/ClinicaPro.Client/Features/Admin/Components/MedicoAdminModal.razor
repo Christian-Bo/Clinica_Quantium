@@ -13,7 +13,7 @@
                             <Icon Name="key" Size="18" CssClass="mt-0.5 text-brand-600" />
                             <div>
                                 <p class="text-sm font-semibold text-brand-700">Cuenta de acceso médica</p>
-                                <p class="mt-1 text-xs leading-5 text-brand-700">Se crea el usuario y el perfil médico al mismo tiempo. La contraseña es temporal y se cambia en el primer ingreso.</p>
+                                <p class="mt-1 text-xs leading-5 text-brand-700">Se crea la cuenta del médico en un solo paso. La contraseña es temporal y deberá cambiarla al ingresar por primera vez.</p>
                             </div>
                         </div>
                     </div>
@@ -39,9 +39,9 @@
                     <ValidatedTextInput Id="med-apellidos" Label="Apellidos" Required="true" Kind="FormFieldKind.Name"
                                         Value="@modelo.Apellidos" ValueChanged="v => modelo.Apellidos = v" Placeholder="Ej. Pérez López"
                                         Autocomplete="family-name" MaxLength="100" ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
-                    <ValidatedTextInput Id="med-colegiado" Label="No. colegiado" Kind="FormFieldKind.Collegiate"
+                    <ValidatedTextInput Id="med-colegiado" Label="No. colegiado" Required="true" Kind="FormFieldKind.Collegiate"
                                         Value="@modelo.NumeroColegiado" ValueChanged="v => modelo.NumeroColegiado = v" Placeholder="Ej. 15422"
-                                        MaxLength="50" HelperText="Opcional. Usa el número registrado por el colegio profesional."
+                                        MaxLength="50" HelperText="Obligatorio. Usa el número registrado por el colegio profesional."
                                         ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
                     <ValidatedTextInput Id="med-telefono" Label="Teléfono" Kind="FormFieldKind.GuatemalaPhone"
                                         Value="@modelo.Telefono" ValueChanged="v => modelo.Telefono = v" Placeholder="55123456"
@@ -124,6 +124,7 @@
         if (FormValidation.Validate(FormFieldKind.Email, modelo.Email, true, 254, "Correo electrónico") is not null) return false;
         if (FormValidation.Validate(FormFieldKind.Name, modelo.Nombres, true, 100, "Nombres") is not null) return false;
         if (FormValidation.Validate(FormFieldKind.Name, modelo.Apellidos, true, 100, "Apellidos") is not null) return false;
+        if (FormValidation.Validate(FormFieldKind.Collegiate, modelo.NumeroColegiado, true, 50, "No. colegiado") is not null) return false;
         if (!string.IsNullOrWhiteSpace(modelo.Telefono)
             && FormValidation.Validate(FormFieldKind.GuatemalaPhone, modelo.Telefono, false) is not null) return false;
         if (!EsEdicion && !FormValidation.IsPasswordValid(modelo.Password)) return false;

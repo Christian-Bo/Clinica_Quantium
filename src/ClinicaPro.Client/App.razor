@@ -1,27 +1,28 @@
 <ErrorBoundary>
     <ChildContent>
         <CascadingAuthenticationState>
-            <SessionBootstrapper />
-            <Router AppAssembly="@typeof(App).Assembly">
-                <Found Context="routeData">
-                    <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)">
-                        <NotAuthorized>
-                            <RedirectForAuthorization />
-                        </NotAuthorized>
-                        <Authorizing>
-                            <div class="flex min-h-screen items-center justify-center bg-surface-muted text-sm text-ink-muted">
-                                Verificando sesión...
-                            </div>
-                        </Authorizing>
-                    </AuthorizeRouteView>
-                    <FocusOnNavigate RouteData="@routeData" Selector="h1" />
-                </Found>
-                <NotFound>
-                    <LayoutView Layout="@typeof(Layout.EmptyLayout)">
-                        <PaginaNoEncontrada />
-                    </LayoutView>
-                </NotFound>
-            </Router>
+            <SessionBootstrapper>
+                <Router AppAssembly="@typeof(App).Assembly">
+                    <Found Context="routeData">
+                        <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)">
+                            <NotAuthorized>
+                                <RedirectForAuthorization />
+                            </NotAuthorized>
+                            <Authorizing>
+                                <div class="flex min-h-screen items-center justify-center bg-surface-muted text-sm text-ink-muted">
+                                    Verificando sesión...
+                                </div>
+                            </Authorizing>
+                        </AuthorizeRouteView>
+                        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+                    </Found>
+                    <NotFound>
+                        <LayoutView Layout="@typeof(Layout.EmptyLayout)">
+                            <PaginaNoEncontrada />
+                        </LayoutView>
+                    </NotFound>
+                </Router>
+            </SessionBootstrapper>
         </CascadingAuthenticationState>
     </ChildContent>
     <ErrorContent Context="error">
@@ -31,8 +32,7 @@
                     <Icon Name="alert-triangle" Size="22" />
                 </div>
                 <h1 class="mt-4 text-lg font-semibold text-ink">No pudimos mostrar esta sección</h1>
-                <p class="mt-2 text-sm leading-6 text-ink-muted">Ocurrió un problema inesperado en la interfaz. Puedes volver al inicio y continuar trabajando.</p>
-                <p class="mt-3 text-xs font-medium text-ink-muted">Código de referencia: @FrontendErrorCatalog.UnexpectedUi</p>
+                <p class="mt-2 text-sm leading-6 text-ink-muted">Ocurrió un problema inesperado. Vuelve al inicio e intenta nuevamente.</p>
                 <a href="/" class="mt-5 inline-flex items-center justify-center rounded-pill bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-600">Volver al inicio</a>
             </div>
         </div>

@@ -1,5 +1,6 @@
 @inject AdminApiService AdminApi
 @inject ToastService Toast
+@inject ConfirmDialogService Confirmar
 
 <Modal IsOpen="IsOpen" IsOpenChanged="CambiarApertura" Title="@Titulo" IconName="users" MaxWidthClass="max-w-lg" CloseOnBackdrop="false">
     <Body>
@@ -7,7 +8,7 @@
             @if (Usuario is null)
             {
                 <div class="rounded-control border border-brand-200 bg-brand-50 px-3 py-2 text-xs text-brand-700">
-                    Crea únicamente cuentas de personal administrativo. Los médicos se crean desde su módulo y deberán cambiar la contraseña temporal al ingresar.
+                    Crea aquí cuentas para Secretaría o Administración. Los médicos se registran desde la sección Médicos y horarios.
                 </div>
 
                 <ValidatedTextInput Id="usr-email" Label="Correo" Required="true" Kind="FormFieldKind.Email"
@@ -21,17 +22,17 @@
                                ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
 
                 <div>
-                    <label class="text-sm font-medium text-ink" for="usr-rol">Rol <span class="text-state-rechazada">*</span></label>
+                    <label class="text-sm font-medium text-ink" for="usr-rol">Tipo de acceso <span class="text-state-rechazada">*</span></label>
                     <select id="usr-rol" class="@ClaseInput" @bind="rolCrear">
                         <option value="Secretaria">Secretaría</option>
                         <option value="Administrador">Administrador</option>
                     </select>
-                    <p class="mt-1 text-xs text-ink-muted">Secretaría opera agenda y pacientes; Administrador también accede a configuración y seguridad.</p>
+                    <p class="mt-1 text-xs text-ink-muted">Secretaría gestiona citas y pacientes; Administración también puede gestionar usuarios y ajustes.</p>
                 </div>
             }
             else if (EsIdentidad)
             {
-                <p class="text-xs text-ink-muted">Actualiza correo, contraseña temporal y estado. Un cambio de credenciales requiere un nuevo inicio de sesión.</p>
+                <p class="text-xs text-ink-muted">Actualiza el correo, la contraseña o el estado de la cuenta. Si cambias el acceso, el usuario deberá iniciar sesión nuevamente.</p>
 
                 <ValidatedTextInput Id="usr-edit-email" Label="Correo" Required="true" Kind="FormFieldKind.Email"
                                     Value="@email" ValueChanged="v => email = v" Placeholder="Ej. usuario@clinicapro.com"
@@ -51,27 +52,35 @@
             {
                 <div class="rounded-control bg-surface-muted px-3 py-2 text-sm text-ink">
                     <strong>@Usuario.Email</strong>
-                    <p class="mt-0.5 text-xs text-ink-muted">Médico y paciente no pueden combinarse. Al cambiar el tipo clínico, la sesión actual se cierra.</p>
+                    <p class="mt-0.5 text-xs text-ink-muted">Una cuenta puede ser médico o paciente, pero no ambos. Si cambias este perfil, el usuario deberá iniciar sesión nuevamente.</p>
                 </div>
 
-                <label class="flex items-center gap-2 rounded-control border border-border px-3 py-3 text-sm text-ink">
-                    <input type="checkbox" class="h-4 w-4 rounded border-border" @bind="rolAdministrador" /> Administrador
-                </label>
-                <label class="flex items-center gap-2 rounded-control border border-border px-3 py-3 text-sm text-ink">
-                    <input type="checkbox" class="h-4 w-4 rounded border-border" @bind="rolSecretaria" /> Secretaría
-                </label>
+                <section class="space-y-2" aria-labelledby="roles-acceso-titulo">
+                    <div>
+                        <p id="roles-acceso-titulo" class="text-sm font-semibold text-ink">Permisos de acceso</p>
+                        <p class="mt-0.5 text-xs text-ink-muted">Puedes habilitar Administración, Secretaría o ambos accesos.</p>
+                    </div>
+                    <label class="flex items-center gap-2 rounded-control border border-border px-3 py-3 text-sm text-ink">
+                        <input type="checkbox" class="h-4 w-4 rounded border-border" @bind="rolAdministrador" /> Administrador
+                    </label>
+                    <label class="flex items-center gap-2 rounded-control border border-border px-3 py-3 text-sm text-ink">
+                        <input type="checkbox" class="h-4 w-4 rounded border-border" @bind="rolSecretaria" /> Secretaría
+                    </label>
+                </section>
 
-                <div>
-                    <label class="text-sm font-medium text-ink" for="usr-tipo-clinico">Tipo clínico</label>
+                <section class="space-y-2 border-t border-border pt-4" aria-labelledby="tipo-clinico-titulo">
+                    <div>
+                        <label id="tipo-clinico-titulo" class="text-sm font-semibold text-ink" for="usr-tipo-clinico">Perfil en la clínica</label>
+                        <p class="mt-0.5 text-xs text-ink-muted">Selecciona si esta cuenta corresponde a un médico, a un paciente o a ninguno.</p>
+                    </div>
                     <select id="usr-tipo-clinico" class="@ClaseInput" @bind="tipoClinico">
-                        <option value="Ninguno">Ninguno (solo staff)</option>
+                        <option value="Ninguno">Ninguno</option>
                         <option value="Medico">Médico</option>
                         <option value="Paciente">Paciente</option>
                     </select>
-                    <p class="mt-1 text-xs text-ink-muted">El tipo clínico define si la cuenta también representa a un médico o a un paciente.</p>
-                </div>
+                </section>
 
-                @if (tipoClinico == "Medico")
+                @if (RequiereFichaClinica && tipoClinico == "Medico")
                 {
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <ValidatedTextInput Id="usr-med-nombres" Label="Nombres" Required="true" Kind="FormFieldKind.Name"
@@ -80,9 +89,9 @@
                         <ValidatedTextInput Id="usr-med-apellidos" Label="Apellidos" Required="true" Kind="FormFieldKind.Name"
                                             Value="@medicoApellidos" ValueChanged="v => medicoApellidos = v" Placeholder="Ej. Morales Pérez"
                                             Autocomplete="family-name" MaxLength="100" ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
-                        <ValidatedTextInput Id="usr-med-colegiado" Label="No. colegiado" Kind="FormFieldKind.Collegiate"
+                        <ValidatedTextInput Id="usr-med-colegiado" Label="No. colegiado" Required="true" Kind="FormFieldKind.Collegiate"
                                             Value="@medicoColegiado" ValueChanged="v => medicoColegiado = v" Placeholder="Ej. 15422"
-                                            MaxLength="50" HelperText="Opcional." ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
+                                            MaxLength="50" HelperText="Necesario para registrar al médico." ForceTouched="mostrarValidaciones" ValidationCycle="cicloValidacion" />
                         <ValidatedTextInput Id="usr-med-telefono" Label="Teléfono" Kind="FormFieldKind.GuatemalaPhone"
                                             Value="@medicoTelefono" ValueChanged="v => medicoTelefono = v" Placeholder="55123456"
                                             Autocomplete="tel-national" HelperText="8 dígitos; +502 se agrega automáticamente."
@@ -90,7 +99,7 @@
                     </div>
                 }
 
-                @if (tipoClinico == "Paciente")
+                @if (RequiereFichaClinica && tipoClinico == "Paciente")
                 {
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <ValidatedTextInput Id="usr-pac-nombres" Label="Nombres" Required="true" Kind="FormFieldKind.Name"
@@ -141,6 +150,7 @@
     private bool rolSecretaria;
     private bool isActive = true;
     private string tipoClinico = "Ninguno";
+    private string tipoClinicoOriginal = "Ninguno";
     private string medicoNombres = string.Empty;
     private string medicoApellidos = string.Empty;
     private string medicoColegiado = string.Empty;
@@ -155,7 +165,10 @@
     private int cicloValidacion;
 
     private bool EsIdentidad => Usuario is not null && Modo == "identidad";
-    private string Titulo => Usuario is null ? "Nuevo usuario" : EsIdentidad ? "Editar usuario" : "Editar roles";
+    private bool RequiereFichaClinica => Usuario is not null
+        && !string.Equals(tipoClinico, tipoClinicoOriginal, StringComparison.Ordinal)
+        && tipoClinico is "Medico" or "Paciente";
+    private string Titulo => Usuario is null ? "Nuevo usuario" : EsIdentidad ? "Editar usuario" : "Editar permisos";
 
     protected override void OnParametersSet()
     {
@@ -172,6 +185,7 @@
                 : Usuario.Roles.Contains(Roles.Medico) ? "Medico"
                 : Usuario.Roles.Contains(Roles.Paciente) ? "Paciente"
                 : "Ninguno";
+            tipoClinicoOriginal = tipoClinico;
             medicoNombres = string.Empty;
             medicoApellidos = string.Empty;
             medicoColegiado = string.Empty;
@@ -206,18 +220,19 @@
 
         if (!rolAdministrador && !rolSecretaria && tipoClinico == "Ninguno")
         {
-            error = "Selecciona al menos un rol administrativo o un tipo clínico.";
+            error = "Selecciona al menos un permiso de acceso o un perfil en la clínica.";
             return false;
         }
 
-        if (tipoClinico == "Medico")
+        if (RequiereFichaClinica && tipoClinico == "Medico")
         {
             if (FormValidation.Validate(FormFieldKind.Name, medicoNombres, true, 100, "Nombres") is not null) return false;
             if (FormValidation.Validate(FormFieldKind.Name, medicoApellidos, true, 100, "Apellidos") is not null) return false;
+            if (FormValidation.Validate(FormFieldKind.Collegiate, medicoColegiado, true, 50, "No. colegiado") is not null) return false;
             if (!string.IsNullOrWhiteSpace(medicoTelefono)
                 && FormValidation.Validate(FormFieldKind.GuatemalaPhone, medicoTelefono, false) is not null) return false;
         }
-        else if (tipoClinico == "Paciente")
+        else if (RequiereFichaClinica && tipoClinico == "Paciente")
         {
             if (FormValidation.Validate(FormFieldKind.Name, pacienteNombres, true, 100, "Nombres") is not null) return false;
             if (FormValidation.Validate(FormFieldKind.Name, pacienteApellidos, true, 100, "Apellidos") is not null) return false;
@@ -236,6 +251,20 @@
         error = null;
         mostrarValidaciones = true;
         if (!ValidarFormulario()) return;
+
+        if (Usuario is not null && !EsIdentidad)
+        {
+            var accesos = new List<string>();
+            if (rolAdministrador) accesos.Add("Administrador");
+            if (rolSecretaria) accesos.Add("Secretaría");
+            var accesoTexto = accesos.Count == 0 ? "sin permisos administrativos" : string.Join(" + ", accesos);
+            var tipoTexto = tipoClinico switch { "Medico" => "Médico", "Paciente" => "Paciente", _ => "Ninguno" };
+            var confirmar = await Confirmar.ConfirmarAsync(
+                $"Se aplicarán estos cambios: {accesoTexto}; perfil {tipoTexto}. El usuario deberá iniciar sesión nuevamente.",
+                titulo: "Confirmar cambios",
+                textoConfirmar: "Aplicar cambios");
+            if (!confirmar) return;
+        }
 
         guardando = true;
         try
@@ -278,7 +307,7 @@
                 FichaMedicoAccesoRequest? medico = null;
                 FichaPacienteAccesoRequest? paciente = null;
 
-                if (tipoClinico == "Medico")
+                if (RequiereFichaClinica && tipoClinico == "Medico")
                 {
                     medico = new FichaMedicoAccesoRequest(
                         FormValidation.NormalizeName(medicoNombres),
@@ -286,7 +315,7 @@
                         Limpio(medicoColegiado),
                         FormValidation.ToApiGuatemalaPhone(medicoTelefono));
                 }
-                else if (tipoClinico == "Paciente")
+                else if (RequiereFichaClinica && tipoClinico == "Paciente")
                 {
                     paciente = new FichaPacienteAccesoRequest(
                         FormValidation.NormalizeName(pacienteNombres),
@@ -303,7 +332,7 @@
                     return;
                 }
 
-                Toast.Exito("Roles actualizados. El usuario deberá volver a iniciar sesión.");
+                Toast.Exito("Permisos actualizados. El usuario deberá iniciar sesión nuevamente.");
             }
 
             await OnGuardado.InvokeAsync();

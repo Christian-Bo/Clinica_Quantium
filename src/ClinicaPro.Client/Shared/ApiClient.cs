@@ -30,12 +30,12 @@ public sealed class ApiClient(HttpClient http)
         catch (JsonException)
         {
             throw new ApiClientException(HttpStatusCode.OK,
-                FrontendErrorCatalog.WithCode("La respuesta del servidor no coincide con el formato esperado.", FrontendErrorCatalog.InvalidResponse));
+                FrontendErrorCatalog.WithCode("No pudimos procesar la información recibida. Intenta nuevamente.", FrontendErrorCatalog.InvalidResponse));
         }
         return valor ?? throw new ApiClientException(
             HttpStatusCode.OK,
             FrontendErrorCatalog.WithCode(
-                "El servidor respondió correctamente, pero no devolvió datos válidos.",
+                "No pudimos cargar la información. Intenta nuevamente.",
                 FrontendErrorCatalog.InvalidResponse));
     }
 
@@ -64,7 +64,7 @@ public sealed class ApiClient(HttpClient http)
         catch (JsonException)
         {
             throw new ApiClientException(HttpStatusCode.OK,
-                FrontendErrorCatalog.WithCode("La lista recibida no coincide con el formato esperado.", FrontendErrorCatalog.InvalidResponse));
+                FrontendErrorCatalog.WithCode("No pudimos cargar la información. Intenta nuevamente.", FrontendErrorCatalog.InvalidResponse));
         }
     }
 
@@ -86,13 +86,13 @@ public sealed class ApiClient(HttpClient http)
             var valor = await respuesta.Content.ReadFromJsonAsync<T>(cancellationToken: ct);
             return valor is null
                 ? ResultadoOperacion<T>.Fallo(FrontendErrorCatalog.WithCode(
-                    "El servidor no devolvió datos válidos.", FrontendErrorCatalog.InvalidResponse))
+                    "No pudimos cargar la información. Intenta nuevamente.", FrontendErrorCatalog.InvalidResponse))
                 : ResultadoOperacion<T>.Ok(valor);
         }
         catch (JsonException)
         {
             return ResultadoOperacion<T>.Fallo(FrontendErrorCatalog.WithCode(
-                "La respuesta del servidor no coincide con el formato esperado.", FrontendErrorCatalog.InvalidResponse));
+                "No pudimos procesar la información recibida. Intenta nuevamente.", FrontendErrorCatalog.InvalidResponse));
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
@@ -126,13 +126,13 @@ public sealed class ApiClient(HttpClient http)
             var valor = await respuesta.Content.ReadFromJsonAsync<T>(cancellationToken: ct);
             return valor is null
                 ? ResultadoOperacion<T>.Fallo(FrontendErrorCatalog.WithCode(
-                    "La operación se completó, pero no se pudo leer la respuesta.", FrontendErrorCatalog.InvalidResponse))
+                    "La operación terminó, pero no pudimos actualizar la información en pantalla. Intenta nuevamente.", FrontendErrorCatalog.InvalidResponse))
                 : ResultadoOperacion<T>.Ok(valor);
         }
         catch (JsonException)
         {
             return ResultadoOperacion<T>.Fallo(FrontendErrorCatalog.WithCode(
-                "La respuesta de la operación no coincide con el formato esperado.", FrontendErrorCatalog.InvalidResponse));
+                "No pudimos procesar la información recibida. Intenta nuevamente.", FrontendErrorCatalog.InvalidResponse));
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
@@ -210,7 +210,7 @@ public sealed class ApiClient(HttpClient http)
             await Task.Delay(espera, ct);
         }
 
-        throw new HttpRequestException("No se pudo contactar al servidor después de varios intentos.");
+        throw new HttpRequestException("No pudimos conectarnos. Revisa tu conexión e intenta nuevamente.");
     }
 
     private static bool EsErrorTransitorio(HttpStatusCode statusCode)
@@ -234,10 +234,10 @@ public sealed class ApiClient(HttpClient http)
     private static string MensajeConexion(Exception ex, string contexto)
         => ex is TaskCanceledException
             ? FrontendErrorCatalog.WithCode(
-                $"{contexto} La solicitud tardó demasiado. Intenta nuevamente.",
+                $"{contexto} La operación tardó demasiado. Intenta nuevamente.",
                 FrontendErrorCatalog.Timeout)
             : FrontendErrorCatalog.WithCode(
-                $"{contexto} No se pudo contactar al servidor. Verifica tu conexión y vuelve a intentar.",
+                $"{contexto} No pudimos conectarnos. Revisa tu conexión e intenta nuevamente.",
                 FrontendErrorCatalog.Connection);
 }
 
