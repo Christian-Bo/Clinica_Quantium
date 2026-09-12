@@ -30,6 +30,7 @@ public interface ICitaRepository
         DateTime desde,
         DateTime hasta,
         Guid? medicoId,
+        string? estado = null,
         CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Cita>> ListarQueBloqueanEnRangoAsync(
         Guid medicoId,

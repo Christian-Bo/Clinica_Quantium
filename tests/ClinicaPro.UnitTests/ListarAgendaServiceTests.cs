@@ -1,5 +1,6 @@
 using ClinicaPro.Application.Agenda;
 using ClinicaPro.Application.Citas;
+using ClinicaPro.Domain;
 using ClinicaPro.Domain.Entities;
 using ClinicaPro.Domain.Exceptions;
 
@@ -40,6 +41,41 @@ public sealed class ListarAgendaServiceTests
             soloAgendaPropia: false);
 
         Assert.Equal(medicoAjeno, citas.MedicoIdFiltrado);
+        Assert.Null(citas.EstadoFiltrado);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ConEstado_PropagaAlRepositorio()
+    {
+        var citas = new CitasFalso();
+        var servicio = new ListarAgendaService(citas, new MedicosFalso(null));
+
+        await servicio.ExecuteAsync(
+            new DateTime(2026, 9, 7),
+            new DateTime(2026, 9, 8),
+            medicoId: null,
+            Guid.NewGuid(),
+            soloAgendaPropia: false,
+            estado: CitaEstados.Atendida);
+
+        Assert.Equal(CitaEstados.Atendida, citas.EstadoFiltrado);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_EstadoInvalido_LanzaExcepcion()
+    {
+        var servicio = new ListarAgendaService(new CitasFalso(), new MedicosFalso(null));
+
+        var exception = await Assert.ThrowsAsync<DomainException>(
+            () => servicio.ExecuteAsync(
+                new DateTime(2026, 9, 7),
+                new DateTime(2026, 9, 8),
+                medicoId: null,
+                Guid.NewGuid(),
+                soloAgendaPropia: false,
+                estado: "Reprogramadas"));
+
+        Assert.Contains("estado", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -82,6 +118,7 @@ public sealed class ListarAgendaServiceTests
     private sealed class CitasFalso : ICitaRepository
     {
         public Guid? MedicoIdFiltrado { get; private set; }
+        public string? EstadoFiltrado { get; private set; }
 
         public Task<Cita?> ObtenerPorIdAsync(Guid citaId, CancellationToken cancellationToken = default)
             => Task.FromResult<Cita?>(null);
@@ -101,9 +138,11 @@ public sealed class ListarAgendaServiceTests
             DateTime desde,
             DateTime hasta,
             Guid? medicoId,
+            string? estado = null,
             CancellationToken cancellationToken = default)
         {
             MedicoIdFiltrado = medicoId;
+            EstadoFiltrado = estado;
             return Task.FromResult<IReadOnlyList<Cita>>([]);
         }
 

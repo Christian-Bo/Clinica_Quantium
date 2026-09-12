@@ -89,7 +89,7 @@ public sealed class ValidarAgendaPacienteServiceTests
         public Task<IReadOnlyList<Cita>> ListarPorEstadoAsync(string estado, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<Cita>>([]);
 
-        public Task<IReadOnlyList<Cita>> ListarEnRangoAsync(DateTime desde, DateTime hasta, Guid? medicoId, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyList<Cita>> ListarEnRangoAsync(DateTime desde, DateTime hasta, Guid? medicoId, string? estado = null, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<Cita>>([]);
 
         public Task<IReadOnlyList<Cita>> ListarQueBloqueanEnRangoAsync(Guid medicoId, DateTime desde, DateTime hasta, CancellationToken cancellationToken = default)

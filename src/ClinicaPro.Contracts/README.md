@@ -27,6 +27,8 @@ Header: `Authorization: Bearer {accessToken}`. En Swagger pegar solo el token.
 
 Password: 8+, mayúscula, minúscula, dígito y símbolo. `sexo`: `M`, `F`, `X` o null.
 
+Login, registro, cambio y reset de contraseña devuelven `AuthResponse` con `nombreCompleto` (paciente, si no médico, si no el correo). `GET /api/auth/me` usa la misma resolución. El front puede pintar el menú con ese campo; si viniera null, seguir con email.
+
 ## Citas
 
 El paciente pide con `medicoId` + `fechaHoraInicio` (Guatemala, **sin Z**) + `motivoConsulta` (≥ 5). La fecha/hora se valida **en el instante del request** (`HoraClinica.Ahora()`): no se crea ni se reprograma a un horario ya pasado. Al **registrarse** (`POST /api/auth/register/paciente`) esos tres campos van en el mismo body: no se crea la cuenta si no agenda la primera cita.
@@ -51,7 +53,7 @@ Estados: Solicitada → Programada → Confirmada → En Espera → En Atencion 
 
 `POST /api/citas/{id}/iniciar` y `finalizar`: el médico autenticado debe ser el asignado; si no, 403. Un Administrador sí puede.
 
-`GET /api/citas/agenda`: Secretaria/Admin pueden filtrar con `medicoId`. Un Médico **ignora** `medicoId` ajeno y solo ve la suya. `GET /api/citas/medico` sigue resolviendo al usuario autenticado.
+`GET /api/citas/agenda`: Secretaria/Admin pueden filtrar con `medicoId`. Query opcional `estado` (exacto: `Solicitada`, `Programada`, `Confirmada`, `En Espera`, `En Atencion`, `Atendida`, `Cancelada`, `No presentada`, `Rechazada`). Sin `estado` o vacío = todos. 400 si el valor no es uno de esos. **Reprogramadas no es un estado** (siguen `Programada`/`Confirmada` con `numeroReprogramaciones > 0`). Un Médico **ignora** `medicoId` ajeno y solo ve la suya. `GET /api/citas/medico` sigue resolviendo al usuario autenticado.
 
 Aviso de llegada: `POST /api/citas/{id}/llegada` publica SignalR `pacienteLlego` en `/hubs/agenda-medico` (JWT en `access_token`). El doctor conectado recibe `{ citaId, pacienteId, pacienteNombre, mensaje, fechaHoraInicio }`.
 
