@@ -67,7 +67,7 @@ Especialidades crear/editar. `GET /api/admin/medicos` lista activos e inactivos 
 
 `GET /api/notificaciones/mias` (Paciente) y `GET /api/notificaciones?estado=&desde=&hasta=` (staff). `estado`: Pendiente, Procesando, Enviada, Fallida. Fechas en hora de Guatemala, sin Z; tope 100. Correo SMTP; no hay WhatsApp.
 
-En el VPS / Docker: `Smtp__Host`, `Smtp__UserName`, `Smtp__Password` y `Smtp__From` (display **Clínica Quantium** + el correo real). Ver `src/ClinicaPro.Api/README.md`.
+En el VPS / Docker: `Smtp__Host`, `Smtp__UserName`, `Smtp__Password` y `Smtp__From` (display **Clínica Quantium** + el correo real). Sin UserName/Password el worker deja el HTML en `App_Data/mail`. Ver `src/ClinicaPro.Api/README.md`.
 
 ## Cuentas demo
 
