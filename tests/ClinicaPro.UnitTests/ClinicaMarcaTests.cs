@@ -40,4 +40,24 @@ public sealed class ClinicaMarcaTests
     {
         Assert.Equal("Clínica Quantium — su cita fue programada", ClinicaMarca.Asunto("su cita fue programada"));
     }
+
+    [Fact]
+    public void CuerpoHtml_IncluyeMarcaYConvierteParrafos()
+    {
+        var html = ClinicaMarca.CuerpoHtml("Hola Ana,\n\nSu cita quedó programada.");
+
+        Assert.Contains("Clínica Quantium", html, StringComparison.Ordinal);
+        Assert.Contains("<p style=\"margin:0 0 1rem 0;\">Hola Ana,</p>", html, StringComparison.Ordinal);
+        Assert.Contains("No responda a esta dirección.", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Hola Ana,\n\nSu cita", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CuerpoHtml_EscapaHtmlDelContenido()
+    {
+        var html = ClinicaMarca.CuerpoHtml("Hola <script>alert(1)</script>");
+
+        Assert.Contains("Hola &lt;script&gt;alert(1)&lt;/script&gt;", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("<script>alert(1)</script>", html, StringComparison.Ordinal);
+    }
 }

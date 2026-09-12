@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MimeKit;
+using MimeKit.Text;
 
 namespace ClinicaPro.Infrastructure.Email;
 
@@ -36,7 +37,7 @@ public sealed class SmtpEmailSender(
     {
         var smtp = options.Value;
 
-        if (string.IsNullOrWhiteSpace(smtp.Host))
+        if (FaltanCredenciales(smtp))
         {
             return await GuardarEnCarpetaAsync(destinatario, asunto, contenido, smtp, cancellationToken);
         }
@@ -91,14 +92,23 @@ public sealed class SmtpEmailSender(
             .AppendLine($"To: {destinatario}")
             .AppendLine($"Subject: {asunto}")
             .AppendLine($"Date: {DateTimeOffset.Now:r}")
+            .AppendLine("Content-Type: multipart/alternative")
             .AppendLine()
             .AppendLine(contenido)
+            .AppendLine()
+            .AppendLine("---- html ----")
+            .AppendLine(ClinicaMarca.CuerpoHtml(contenido))
             .ToString();
 
         await File.WriteAllTextAsync(archivo, texto, Encoding.UTF8, cancellationToken);
-        logger.LogInformation("Smtp:Host vacío. Correo de desarrollo escrito en {Archivo}", archivo);
+        logger.LogInformation("SMTP sin credenciales. Correo escrito en {Archivo}", archivo);
         return new EmailSendResult(true, "file", archivo);
     }
+
+    private static bool FaltanCredenciales(SmtpOptions smtp) =>
+        string.IsNullOrWhiteSpace(smtp.Host)
+        || string.IsNullOrWhiteSpace(smtp.UserName)
+        || string.IsNullOrWhiteSpace(smtp.Password);
 
     private static MimeMessage CrearMensaje(string from, string to, string asunto, string contenido)
     {
@@ -106,10 +116,10 @@ public sealed class SmtpEmailSender(
         message.From.Add(MailboxAddress.Parse(from));
         message.To.Add(MailboxAddress.Parse(to));
         message.Subject = asunto;
-        message.Body = new TextPart("plain")
-        {
-            Text = contenido
-        };
+
+        var plano = new TextPart(TextFormat.Plain) { Text = contenido };
+        var html = new TextPart(TextFormat.Html) { Text = ClinicaMarca.CuerpoHtml(contenido) };
+        message.Body = new MultipartAlternative { plano, html };
         return message;
     }
 }
