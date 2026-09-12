@@ -2,7 +2,7 @@
 @source "../**/*.{razor,html,cs}";
 
 /*
- * Sistema de diseño único de Clínica Pro.
+ * Sistema de diseño único de Clínica Quantium.
  * Todo color, borde, sombra o fuente que se use en cualquier parte del
  * frontend (Secretaría, Paciente, Médico, Admin) se define UNA sola vez
  * aquí. Cambiar la marca es cambiar este archivo, no buscar hex codes

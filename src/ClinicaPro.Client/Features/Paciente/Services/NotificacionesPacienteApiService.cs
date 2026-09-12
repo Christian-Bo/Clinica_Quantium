@@ -22,7 +22,7 @@ public sealed class NotificacionesPacienteApiService(HttpClient http)
         catch (HttpRequestException)
         {
             return ResultadoOperacion<IReadOnlyList<NotificacionDto>>.Fallo(
-                "No se pudo contactar al servidor. Verifica tu conexión y vuelve a intentar.");
+                "No pudimos conectarnos. Revisa tu conexión e intenta nuevamente.");
         }
 
         if (!respuesta.IsSuccessStatusCode)

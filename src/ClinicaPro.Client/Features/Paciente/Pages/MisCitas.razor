@@ -4,8 +4,9 @@
 @inject CitasPacienteApiService CitasApi
 @inject ToastService Toasts
 @inject ConfirmDialogService Confirmaciones
+@inject BrandingService Branding
 
-<PageTitle>Mis citas · Clínica Pro</PageTitle>
+<PageTitle>Mis citas · @Branding.ClinicName</PageTitle>
 
 <div class="flex flex-wrap items-center justify-between gap-3">
     <div>
@@ -98,13 +99,20 @@ else
                                 Anular solicitud
                             </Button>
                         }
-                        else if (cita.Estado is CitaEstados.Programada or CitaEstados.Confirmada)
+                        else if (cita.Estado == CitaEstados.Programada)
                         {
                             <Button Variant="ButtonVariant.Secondary" Size="sm"
                                     Disabled="@(citaEnProceso == cita.CitaId)"
                                     OnClick="() => Cancelar(cita)">
                                 Cancelar cita
                             </Button>
+                        }
+                        else if (cita.Estado == CitaEstados.Confirmada)
+                        {
+                            <span class="inline-flex items-center gap-1.5 text-xs text-ink-muted">
+                                <Icon Name="shield-check" Size="14" />
+                                Asistencia confirmada; para cambios comunícate con la clínica.
+                            </span>
                         }
                     </Acciones>
                 </TarjetaCita>
@@ -212,7 +220,6 @@ else
     private Task ConfirmarAsistencia(CitaDto cita)
         => EjecutarAsync(
             cita,
-            CitaEstados.Confirmada,
             () => CitasApi.ConfirmarAsistenciaAsync(cita.CitaId),
             "Confirmaste tu asistencia. Te esperamos.");
 
@@ -231,7 +238,6 @@ else
 
         await EjecutarAsync(
             cita,
-            CitaEstados.Cancelada,
             () => CitasApi.AnularSolicitudAsync(cita.CitaId),
             "Tu solicitud quedó anulada.");
     }
@@ -251,48 +257,44 @@ else
 
         await EjecutarAsync(
             cita,
-            CitaEstados.Cancelada,
             () => CitasApi.CancelarAsync(cita.CitaId, "Cancelación del paciente desde el portal"),
             "Tu cita quedó cancelada.");
     }
 
     /// <summary>
-    /// Respuesta optimista: el estado cambia en pantalla antes de que la API
-    /// conteste, y si falla se revierte al valor original. Sin esto, el
-    /// paciente ve la tarjeta congelada mientras viaja la petición y vuelve a
-    /// hacer clic pensando que no funcionó.
+    /// Las acciones sensibles esperan la respuesta del servidor antes de cambiar
+    /// el estado visible. Así nunca mostramos una cancelación o confirmación que
+    /// el backend finalmente haya rechazado.
     /// </summary>
     private async Task EjecutarAsync(
         CitaDto cita,
-        string estadoOptimista,
         Func<Task<ResultadoOperacion<CitaDto>>> accion,
         string mensajeExito)
     {
         var indice = todas.FindIndex(item => item.CitaId == cita.CitaId);
-        if (indice < 0)
+        if (indice < 0 || citaEnProceso is not null)
         {
             return;
         }
 
-        var original = todas[indice];
         citaEnProceso = cita.CitaId;
-        todas[indice] = original with { Estado = estadoOptimista };
-        StateHasChanged();
-
-        var resultado = await accion();
-        citaEnProceso = null;
-
-        if (resultado.Exito && resultado.Valor is not null)
+        try
         {
-            // La respuesta de la API manda sobre la suposición optimista.
-            todas[indice] = resultado.Valor;
-            Ordenar();
-            Toasts.Exito(mensajeExito);
-            return;
-        }
+            var resultado = await accion();
+            if (resultado.Exito && resultado.Valor is not null)
+            {
+                todas[indice] = resultado.Valor;
+                Ordenar();
+                Toasts.Exito(mensajeExito);
+                return;
+            }
 
-        todas[indice] = original;
-        Toasts.Error(resultado.Error ?? "No fue posible completar la acción.");
+            Toasts.Error(resultado.Error ?? "No fue posible completar la acción.");
+        }
+        finally
+        {
+            citaEnProceso = null;
+        }
     }
 
     private async Task CitaSolicitada(CitaDto cita)

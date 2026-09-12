@@ -25,6 +25,8 @@ public sealed class CitasController(
     ListarDisponibilidadService listarDisponibilidad,
     ListarHistorialCitaService listarHistorial,
     HistorialMedicoPacienteService historialMedicoPaciente,
+    RegistrarPreconsultaService registrarPreconsulta,
+    ObtenerPreconsultaService obtenerPreconsulta,
     SolicitarAutorizacionReprogramacionService solicitarAutorizacion,
     ResolverNombresCitaService resolverNombres) : ControllerBase
 {
@@ -118,6 +120,7 @@ public sealed class CitasController(
         [FromQuery] DateTime? desde,
         [FromQuery] DateTime? hasta,
         [FromQuery] Guid? medicoId,
+        [FromQuery] string? estado,
         CancellationToken cancellationToken)
     {
         var usuarioId = User.ObtenerUsuarioId();
@@ -136,6 +139,7 @@ public sealed class CitasController(
             medicoId,
             usuarioId.Value,
             soloAgendaPropia,
+            estado,
             cancellationToken);
         return Ok(await MapManyAsync(citas, cancellationToken));
     }
@@ -213,6 +217,47 @@ public sealed class CitasController(
             slot.FechaHoraFin,
             slot.MedicoId,
             slot.MedicoNombre)).ToList());
+    }
+
+    [Authorize(Roles = RolNombres.Secretaria + "," + RolNombres.Administrador)]
+    [HttpPut("{citaId:guid}/preconsulta")]
+    [ProducesResponseType(typeof(PreconsultaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<PreconsultaDto>> RegistrarPreconsulta(
+        Guid citaId,
+        [FromBody] RegistrarPreconsultaRequest request,
+        CancellationToken cancellationToken)
+    {
+        var usuarioId = User.ObtenerUsuarioId();
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+
+        var preconsulta = await registrarPreconsulta.ExecuteAsync(
+            citaId,
+            usuarioId.Value,
+            new RegistrarPreconsultaInput(
+                request.PresionSistolicaMmHg,
+                request.PresionDiastolicaMmHg,
+                request.TemperaturaCelsius,
+                request.OxigenoSangrePorcentaje,
+                request.Observacion),
+            cancellationToken);
+
+        return Ok(MapPreconsulta(preconsulta));
+    }
+
+    [Authorize(Roles = RolNombres.Secretaria + "," + RolNombres.Administrador + "," + RolNombres.Medico)]
+    [HttpGet("{citaId:guid}/preconsulta")]
+    [ProducesResponseType(typeof(PreconsultaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PreconsultaDto>> ObtenerPreconsulta(
+        Guid citaId,
+        CancellationToken cancellationToken)
+    {
+        var preconsulta = await obtenerPreconsulta.ExecuteAsync(citaId, cancellationToken);
+        return preconsulta is null ? NotFound() : Ok(MapPreconsulta(preconsulta));
     }
 
     [HttpGet("{citaId:guid}/historial")]
@@ -465,6 +510,18 @@ public sealed class CitasController(
                 cita.NumeroReprogramaciones);
         }).ToList();
     }
+
+    private static PreconsultaDto MapPreconsulta(Preconsulta preconsulta)
+        => new(
+            preconsulta.Id,
+            preconsulta.CitaId,
+            preconsulta.PresionSistolicaMmHg,
+            preconsulta.PresionDiastolicaMmHg,
+            preconsulta.TemperaturaCelsius,
+            preconsulta.OxigenoSangrePorcentaje,
+            preconsulta.Observacion,
+            preconsulta.RegistradaPorUsuarioId,
+            preconsulta.FechaRegistroUtc);
 
     private static AutorizacionReprogramacionDto MapAutorizacion(AutorizacionReprogramacion autorizacion)
         => new(

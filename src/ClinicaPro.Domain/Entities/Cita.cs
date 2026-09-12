@@ -100,9 +100,22 @@ public sealed class Cita
         AplicarEstado(CitaEstados.Confirmada);
     }
 
+    public const string MensajeCancelacionPacienteConfirmada =
+        "Una cita confirmada no puede cancelarse desde el portal del paciente. Comuníquese con la clínica.";
+
     public void Cancelar()
     {
         Cancelar(HoraClinica.Ahora(), horasMinimasAnticipacion: 2);
+    }
+
+    public void CancelarPorPaciente(DateTime ahoraClinica, int horasMinimasAnticipacion)
+    {
+        if (Estado == CitaEstados.Confirmada)
+        {
+            throw new DomainException(MensajeCancelacionPacienteConfirmada);
+        }
+
+        Cancelar(ahoraClinica, horasMinimasAnticipacion);
     }
 
     public void Cancelar(DateTime ahoraClinica, int horasMinimasAnticipacion)

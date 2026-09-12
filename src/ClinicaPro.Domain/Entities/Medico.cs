@@ -48,7 +48,7 @@ public sealed class Medico
             UsuarioId = usuarioId,
             Nombres = nombres.Trim(),
             Apellidos = apellidos.Trim(),
-            NumeroColegiado = string.IsNullOrWhiteSpace(numeroColegiado) ? null : numeroColegiado.Trim(),
+            NumeroColegiado = ExigirColegiado(numeroColegiado),
             Telefono = string.IsNullOrWhiteSpace(telefono) ? null : telefono.Trim(),
             IsActive = true,
             CreatedAtUtc = DateTime.UtcNow
@@ -64,8 +64,24 @@ public sealed class Medico
 
         Nombres = nombres.Trim();
         Apellidos = apellidos.Trim();
-        NumeroColegiado = string.IsNullOrWhiteSpace(numeroColegiado) ? null : numeroColegiado.Trim();
+        NumeroColegiado = ExigirColegiado(numeroColegiado);
         Telefono = string.IsNullOrWhiteSpace(telefono) ? null : telefono.Trim();
+    }
+
+    private static string ExigirColegiado(string? numeroColegiado)
+    {
+        if (string.IsNullOrWhiteSpace(numeroColegiado))
+        {
+            throw new DomainException("El número de colegiado es obligatorio para registrar un médico.");
+        }
+
+        var valor = numeroColegiado.Trim();
+        if (valor.Length > ColegiadoMaxLength)
+        {
+            throw new DomainException($"El número de colegiado no puede superar {ColegiadoMaxLength} caracteres.");
+        }
+
+        return valor;
     }
 
     public void CambiarActivo(bool activo) => IsActive = activo;

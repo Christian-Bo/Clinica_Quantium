@@ -27,6 +27,8 @@ Header: `Authorization: Bearer {accessToken}`. En Swagger pegar solo el token.
 
 Password: 8+, mayúscula, minúscula, dígito y símbolo. `sexo`: `M`, `F`, `X` o null.
 
+Login, registro, cambio y reset de contraseña devuelven `AuthResponse` con `nombreCompleto` (paciente, si no médico, si no el correo). `GET /api/auth/me` usa la misma resolución. El front puede pintar el menú con ese campo; si viniera null, seguir con email.
+
 ## Citas
 
 El paciente pide con `medicoId` + `fechaHoraInicio` (Guatemala, **sin Z**) + `motivoConsulta` (≥ 5). La fecha/hora se valida **en el instante del request** (`HoraClinica.Ahora()`): no se crea ni se reprograma a un horario ya pasado. Al **registrarse** (`POST /api/auth/register/paciente`) esos tres campos van en el mismo body: no se crea la cuenta si no agenda la primera cita.
@@ -43,7 +45,7 @@ Estados: Solicitada → Programada → Confirmada → En Espera → En Atencion 
 
 `POST /api/citas/{id}/llegada` acepta **Programada o Confirmada**.
 
-`POST /api/citas/{id}/reprogramar`. Las dos primeras las hace Secretaria. La tercera: `POST /api/citas/{id}/solicitar-autorizacion-reprogramacion`, Admin lista/aprueba/rechaza en `/api/admin/autorizaciones-reprogramacion`. Tras aprobar, Secretaria reprograma y el historial guarda quién autorizó. Un Administrador puede reprogramar la tercera directo. Cancelar con menos de 2 h → `No presentada`. El máximo es **3**, no es parámetro editable.
+`POST /api/citas/{id}/reprogramar`. Las dos primeras las hace Secretaria. La tercera: `POST /api/citas/{id}/solicitar-autorizacion-reprogramacion`, Admin lista/aprueba/rechaza en `/api/admin/autorizaciones-reprogramacion`. Tras aprobar, Secretaria reprograma y el historial guarda quién autorizó. Un Administrador puede reprogramar la tercera directo. **Paciente** `POST /api/citas/{id}/cancelar`: solo si está **Programada**. Si ya está **Confirmada**, 400 (*no puede cancelarse desde el portal*). Staff cancela Confirmada con `POST /api/citas/{id}/cancelar-administrativa`. Cancelar con menos de 2 h → `No presentada`. El máximo de reprogramaciones es **3**, no es parámetro editable.
 
 `GET /api/citas/{id}/historial` trae `descripcion` en español (quién, de/hacia, horas).
 
@@ -51,13 +53,13 @@ Estados: Solicitada → Programada → Confirmada → En Espera → En Atencion 
 
 `POST /api/citas/{id}/iniciar` y `finalizar`: el médico autenticado debe ser el asignado; si no, 403. Un Administrador sí puede.
 
-`GET /api/citas/agenda`: Secretaria/Admin pueden filtrar con `medicoId`. Un Médico **ignora** `medicoId` ajeno y solo ve la suya. `GET /api/citas/medico` sigue resolviendo al usuario autenticado.
+`GET /api/citas/agenda`: Secretaria/Admin pueden filtrar con `medicoId`. Query opcional `estado` (exacto: `Solicitada`, `Programada`, `Confirmada`, `En Espera`, `En Atencion`, `Atendida`, `Cancelada`, `No presentada`, `Rechazada`). Sin `estado` o vacío = todos. 400 si el valor no es uno de esos. **Reprogramadas no es un estado** (siguen `Programada`/`Confirmada` con `numeroReprogramaciones > 0`). Un Médico **ignora** `medicoId` ajeno y solo ve la suya. `GET /api/citas/medico` sigue resolviendo al usuario autenticado.
 
 Aviso de llegada: `POST /api/citas/{id}/llegada` publica SignalR `pacienteLlego` en `/hubs/agenda-medico` (JWT en `access_token`). El doctor conectado recibe `{ citaId, pacienteId, pacienteNombre, mensaje, fechaHoraInicio }`.
 
 ## Admin (`/api/admin`, solo Administrador)
 
-Especialidades crear/editar. `GET /api/admin/medicos` lista activos e inactivos (`isActive`). Médicos crear/editar. Especialidades del médico: GET/POST/PUT/DELETE `/api/admin/medicos/{id}/especialidades` (un primario activo por especialidad). Horarios crear/editar (`PUT .../horarios/{horarioId}` con `vigenteDesde`/`vigenteHasta`)/desactivar. Usuarios listar y activar/desactivar (no se desactiva un admin). `POST /api/admin/usuarios` crea Secretaria o Administrador. `PUT /api/admin/usuarios/{id}` actualiza email, contraseña opcional (`mustChangePassword`) y activo. `PUT /api/admin/usuarios/{id}/roles` cambia Admin/Secretaria y el **tipo clínico** (`tipoClinico`: `Ninguno` | `Medico` | `Paciente`). Médico y Paciente no se combinan; al asignar se crea la ficha (nombres/colegiado o DPI) en el mismo request. Quitar médico o paciente exige no tener citas activas futuras. El cambio de rol invalida el JWT (401 → volver a entrar). Médico se crea también en `POST /api/admin/medicos`. Autorizaciones de 3.ª reprogramación: GET/aprobar/rechazar. Parámetros PUT valor (no `Citas.MaximoReprogramaciones`). `GET /api/admin/auditoria`.
+Especialidades crear/editar. `GET /api/admin/medicos` lista activos e inactivos (`isActive`). Médicos crear/editar: **número de colegiado obligatorio**. Especialidades del médico: GET/POST/PUT/DELETE `/api/admin/medicos/{id}/especialidades` (un primario activo por especialidad). Horarios crear/editar (`PUT .../horarios/{horarioId}` con `vigenteDesde`/`vigenteHasta`)/desactivar. Usuarios listar y activar/desactivar (no se desactiva un admin). `POST /api/admin/usuarios` crea Secretaria o Administrador. `PUT /api/admin/usuarios/{id}` actualiza email, contraseña opcional (`mustChangePassword`) y activo. `PUT /api/admin/usuarios/{id}/roles` cambia Admin/Secretaria (**sí se pueden acumular**) y el **tipo clínico** (`tipoClinico`: `Ninguno` | `Medico` | `Paciente`). Médico y Paciente no se combinan; al asignar por primera vez se crea la ficha (nombres/colegiado o DPI) en el mismo request. Quitar médico o paciente exige no tener citas activas futuras. El cambio de rol invalida el JWT (401 → volver a entrar). Médico se crea también en `POST /api/admin/medicos`. Autorizaciones de 3.ª reprogramación: GET/aprobar/rechazar. Parámetros PUT valor (no `Citas.MaximoReprogramaciones`). `GET /api/admin/auditoria`.
 
 ## Reportes y notificaciones
 
@@ -65,7 +67,7 @@ Especialidades crear/editar. `GET /api/admin/medicos` lista activos e inactivos 
 
 `GET /api/notificaciones/mias` (Paciente) y `GET /api/notificaciones?estado=&desde=&hasta=` (staff). `estado`: Pendiente, Procesando, Enviada, Fallida. Fechas en hora de Guatemala, sin Z; tope 100. Correo SMTP; no hay WhatsApp.
 
-En el VPS: variables `Smtp__UserName` y `Smtp__Password`. Ver `src/ClinicaPro.Api/README.md`.
+En el VPS / Docker: `Smtp__Host`, `Smtp__UserName`, `Smtp__Password` y `Smtp__From` (display **Clínica Quantium** + el correo real). Sin UserName/Password el worker deja el HTML en `App_Data/mail`. Ver `src/ClinicaPro.Api/README.md`.
 
 ## Cuentas demo
 

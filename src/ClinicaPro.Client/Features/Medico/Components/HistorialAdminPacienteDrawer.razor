@@ -92,7 +92,7 @@
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            error = ex.Message;
+            error = MensajeUsuario.Limpiar(ex.Message, "No pudimos cargar el historial del paciente.");
         }
         finally
         {

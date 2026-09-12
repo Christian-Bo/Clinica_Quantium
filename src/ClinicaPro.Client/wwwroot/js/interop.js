@@ -83,6 +83,7 @@ window.clinicaProImpresion = {
         var resumen = data.resumen || {};
         var distribucion = Array.isArray(data.distribucion) ? data.distribucion : [];
         var citas = Array.isArray(data.citas) ? data.citas : [];
+        var clinicName = esc(data.clinicName || 'Clínica Quantium');
 
         var distribucionRows = distribucion.length
             ? distribucion.map(function (item) {
@@ -109,7 +110,7 @@ window.clinicaProImpresion = {
             : '<tr><td colspan="7" class="empty">No hay citas que coincidan con los filtros aplicados.</td></tr>';
 
         var html = '<!doctype html><html lang="es"><head><meta charset="utf-8">' +
-            '<title>Clínica Pro - Informe de citas</title>' +
+            '<title>' + clinicName + ' - Informe de citas</title>' +
             '<style>' +
             '@page{size:A4 landscape;margin:12mm 10mm 14mm}' +
             '*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#172033;margin:0;font-size:10px;line-height:1.35}' +
@@ -122,7 +123,7 @@ window.clinicaProImpresion = {
             '.distribution{width:52%;min-width:360px}.footer{margin-top:10px;padding-top:6px;border-top:1px solid #d9dee7;color:#657086;font-size:8px;display:flex;justify-content:space-between}' +
             '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}thead{display:table-header-group}tr{break-inside:avoid}}' +
             '</style></head><body>' +
-            '<div class="header"><div><div class="brand">Clínica Pro</div><div class="title">' + esc(data.titulo || 'Informe de citas') + '</div></div><div class="meta"><strong>Fecha de generación</strong><br>' + esc(data.generado) + '<br><br>Documento generado por el sistema</div></div>' +
+            '<div class="header"><div><div class="brand">' + clinicName + '</div><div class="title">' + esc(data.titulo || 'Informe de citas') + '</div></div><div class="meta"><strong>Fecha de generación</strong><br>' + esc(data.generado) + '<br><br>Documento generado por el sistema</div></div>' +
             '<div class="filters"><div class="filter"><span class="label">Período</span><strong>' + esc(data.periodo) + '</strong></div><div class="filter"><span class="label">Médico</span><strong>' + esc(data.medico) + '</strong></div><div class="filter"><span class="label">Estado</span><strong>' + esc(data.estado) + '</strong></div></div>' +
             '<div class="kpis">' +
                 '<div class="kpi"><div class="v">' + numero(resumen.total) + '</div><div class="l">Total</div></div>' +
@@ -134,7 +135,7 @@ window.clinicaProImpresion = {
             '</div>' +
             '<div class="section distribution"><h2>Distribución por estados</h2><table><thead><tr><th>Estado</th><th class="num">Cantidad</th><th class="num">Porcentaje</th></tr></thead><tbody>' + distribucionRows + '</tbody></table></div>' +
             '<div class="section"><h2>Detalle de citas (' + citas.length + ')</h2><table><thead><tr><th>#</th><th>Fecha y hora</th><th>Paciente</th><th>Médico</th><th>Motivo de consulta</th><th>Estado</th><th class="num">Reprog.</th></tr></thead><tbody>' + detalleRows + '</tbody></table></div>' +
-            '<div class="footer"><span>Clínica Pro · Informe de citas</span><span>Filtros aplicados al momento de exportar</span></div>' +
+            '<div class="footer"><span>' + clinicName + ' · Informe de citas</span><span>Filtros aplicados al momento de exportar</span></div>' +
             '</body></html>';
 
         var blob = new Blob([html], { type: 'text/html;charset=utf-8' });

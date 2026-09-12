@@ -122,6 +122,43 @@ public sealed class CitaTests
     }
 
     [Fact]
+    public void CancelarPorPaciente_Programada_PasaACancelada()
+    {
+        var cita = CrearCita();
+        cita.ConfirmarPorSecretaria(Guid.NewGuid());
+
+        cita.CancelarPorPaciente(Inicio.AddHours(-3), horasMinimasAnticipacion: 2);
+
+        Assert.Equal(CitaEstados.Cancelada, cita.Estado);
+    }
+
+    [Fact]
+    public void CancelarPorPaciente_Confirmada_LanzaExcepcionDeDominio()
+    {
+        var cita = CrearCita();
+        cita.ConfirmarPorSecretaria(Guid.NewGuid());
+        cita.ConfirmarAsistencia();
+
+        var exception = Assert.Throws<DomainException>(
+            () => cita.CancelarPorPaciente(Inicio.AddHours(-3), horasMinimasAnticipacion: 2));
+
+        Assert.Equal(Cita.MensajeCancelacionPacienteConfirmada, exception.Message);
+        Assert.Equal(CitaEstados.Confirmada, cita.Estado);
+    }
+
+    [Fact]
+    public void Cancelar_Staff_Confirmada_PasaACancelada()
+    {
+        var cita = CrearCita();
+        cita.ConfirmarPorSecretaria(Guid.NewGuid());
+        cita.ConfirmarAsistencia();
+
+        cita.Cancelar(Inicio.AddHours(-3), horasMinimasAnticipacion: 2);
+
+        Assert.Equal(CitaEstados.Cancelada, cita.Estado);
+    }
+
+    [Fact]
     public void Reprogramar_CambiaHorarioYCuenta()
     {
         var cita = CrearCita();

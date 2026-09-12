@@ -12,6 +12,7 @@
                     <p class="text-sm text-ink-muted">@(EsAdministrador ? "Vista administrativa de la atención" : "Cita asignada a tu agenda")</p>
                 </div>
                 <div class="rounded-control bg-surface-muted p-3"><p class="text-xs uppercase text-ink-muted">Motivo de consulta</p><p class="mt-1 text-sm text-ink">@Cita.MotivoConsulta</p></div>
+                <PreconsultaPanel CitaId="@Cita.CitaId" Editable="@EsAdministrador" />
 
                 <div>
                     <p class="mb-2 text-xs uppercase text-ink-muted">Historial de esta cita</p>
@@ -87,7 +88,7 @@ else
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            errorHistorial = ex.Message;
+            errorHistorial = MensajeUsuario.Limpiar(ex.Message, "No pudimos cargar el historial de la cita.");
         }
         finally
         {

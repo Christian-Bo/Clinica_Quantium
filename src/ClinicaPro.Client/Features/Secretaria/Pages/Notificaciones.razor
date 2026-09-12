@@ -2,8 +2,9 @@
 @attribute [Authorize(Roles = "Secretaria,Administrador")]
 @inject NotificacionesApiService NotificacionesApi
 @inject NavigationManager Navigation
+@inject BrandingService Branding
 
-<PageTitle>Notificaciones · Clínica Pro</PageTitle>
+<PageTitle>Notificaciones · @Branding.ClinicName</PageTitle>
 <AutoRefresh Enabled="true" IntervalSeconds="30" OnRefresh="CargarSilenciosoAsync" />
 
 <div class="space-y-6">
@@ -62,10 +63,6 @@
                                     <span class="text-xs text-ink-muted">· @NotificacionTipos.Etiqueta(notificacion.Tipo)</span>
                                 </div>
                                 <p class="mt-0.5 truncate text-sm text-ink-muted">@notificacion.Contenido</p>
-                                @if (notificacion.Estado == NotificacionEstados.Fallida && notificacion.NumeroIntentos > 0)
-                                {
-                                    <p class="mt-1 text-xs text-state-rechazada">Intentos realizados: @notificacion.NumeroIntentos</p>
-                                }
                             </div>
                             <div class="flex shrink-0 flex-col items-end gap-1">
                                 <NotificacionStatusBadge Estado="@notificacion.Estado" />
@@ -104,16 +101,16 @@
 
     private string TextoTodas => $"Todas ({todas.Count})";
     private string TextoPendientes => $"En cola ({Pendientes})";
-    private string TextoProcesando => $"Procesando ({Procesando})";
+    private string TextoProcesando => $"Enviando ({Procesando})";
     private string TextoEnviadas => $"Enviadas ({Enviadas})";
-    private string TextoFallidas => $"Fallidas ({Fallidas})";
+    private string TextoFallidas => $"No enviadas ({Fallidas})";
 
     private string DescripcionVacia => filtroEstado switch
     {
         NotificacionEstados.Pendiente => "No hay envíos en cola en este momento.",
-        NotificacionEstados.Procesando => "No hay envíos en procesamiento en este momento.",
+        NotificacionEstados.Procesando => "No hay avisos enviándose en este momento.",
         NotificacionEstados.Enviada => "No hay notificaciones enviadas dentro de los registros recientes.",
-        NotificacionEstados.Fallida => "No hay notificaciones fallidas. Los envíos recientes se procesaron sin errores registrados.",
+        NotificacionEstados.Fallida => "No hay avisos pendientes por revisar.",
         _ => "No hay notificaciones registradas recientemente."
     };
 
@@ -157,7 +154,7 @@
         {
             if (!silencioso || !datosCargados)
             {
-                errorCarga = ex.Message;
+                errorCarga = MensajeUsuario.Limpiar(ex.Message, "No pudimos cargar las notificaciones. Revisa tu conexión e intenta nuevamente.");
             }
         }
         finally

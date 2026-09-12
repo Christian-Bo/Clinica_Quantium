@@ -1,75 +1,57 @@
-@* Campos de datos del paciente. Se usa en dos lugares con la misma pinta:
-   el registro público (por pasos) y "Mi perfil" (completo).
-   El componente solo pinta y enlaza; validar y guardar es del contenedor. *@
+@* Formulario reutilizable para registro y perfil. Los componentes compartidos
+   mantienen la misma validación visual y normalización en todas las vistas. *@
 
 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-
     @if (Muestra(SeccionFormulario.Cuenta) && MostrarCredenciales)
     {
-        <div class="sm:col-span-2">
-            <label class="text-sm font-medium text-ink" for="dp-email">Correo electrónico *</label>
-            <input id="dp-email" type="email" autocomplete="email" class="@ClaseInput("Email")"
-                   placeholder="tucorreo@ejemplo.com"
-                   @bind="Modelo.Email" @bind:event="oninput" />
-            <MensajeCampo Mensaje='@Error("Email")' />
-            <p class="mt-1 text-xs text-ink-muted">Con este correo vas a entrar al portal.</p>
-        </div>
+        <ValidatedTextInput Id="dp-email" Label="Correo electrónico" Required="true" Kind="FormFieldKind.Email"
+                            Value="@Modelo.Email" ValueChanged="v => Modelo.Email = v"
+                            Placeholder="Ej. nombre@correo.com" Autocomplete="email" MaxLength="254"
+                            HelperText="Con este correo vas a entrar al portal."
+                            ForceTouched='@TieneError("Email")' ValidationCycle="ValidationCycle" CssClass="sm:col-span-2" />
 
-        <div>
-            <label class="text-sm font-medium text-ink" for="dp-password">Contraseña *</label>
-            <input id="dp-password" type="password" autocomplete="new-password" class="@ClaseInput("Password")"
-                   @bind="Modelo.Password" @bind:event="oninput" />
-            <MensajeCampo Mensaje='@Error("Password")' />
-            <MedidorPassword Password="@Modelo.Password" />
-        </div>
+        <PasswordField Id="dp-password" Label="Contraseña" Required="true"
+                       Value="@Modelo.Password" ValueChanged="v => Modelo.Password = v"
+                       Placeholder="Ej. Salud@2026" Autocomplete="new-password" ShowRules="true"
+                       ForceTouched='@TieneError("Password")' ValidationCycle="ValidationCycle" />
 
-        <div>
-            <label class="text-sm font-medium text-ink" for="dp-password-confirmacion">Repetir contraseña *</label>
-            <input id="dp-password-confirmacion" type="password" autocomplete="new-password"
-                   class="@ClaseInput("PasswordConfirmacion")"
-                   @bind="Modelo.PasswordConfirmacion" @bind:event="oninput" />
-            <MensajeCampo Mensaje='@Error("PasswordConfirmacion")' />
-        </div>
+        <PasswordField Id="dp-password-confirmacion" Label="Repetir contraseña" Required="true"
+                       Value="@Modelo.PasswordConfirmacion" ValueChanged="v => Modelo.PasswordConfirmacion = v"
+                       MatchValue="@Modelo.Password" ValidatePolicy="false" ValidateMatch="true"
+                       Placeholder="Repite la contraseña" Autocomplete="new-password"
+                       HelperText="Debe coincidir exactamente con la contraseña anterior."
+                       ForceTouched='@TieneError("PasswordConfirmacion")' ValidationCycle="ValidationCycle" />
     }
 
     @if (Muestra(SeccionFormulario.DatosPersonales))
     {
-        <div>
-            <label class="text-sm font-medium text-ink" for="dp-nombres">Nombres *</label>
-            <input id="dp-nombres" autocomplete="given-name" class="@ClaseInput("Nombres")"
-                   @bind="Modelo.Nombres" @bind:event="oninput" />
-            <MensajeCampo Mensaje='@Error("Nombres")' />
-        </div>
+        <ValidatedTextInput Id="dp-nombres" Label="Nombres" Required="true" Kind="FormFieldKind.Name"
+                            Value="@Modelo.Nombres" ValueChanged="v => Modelo.Nombres = v"
+                            Placeholder="Ej. María José" Autocomplete="given-name" MaxLength="100"
+                            ForceTouched='@TieneError("Nombres")' ValidationCycle="ValidationCycle" />
 
-        <div>
-            <label class="text-sm font-medium text-ink" for="dp-apellidos">Apellidos *</label>
-            <input id="dp-apellidos" autocomplete="family-name" class="@ClaseInput("Apellidos")"
-                   @bind="Modelo.Apellidos" @bind:event="oninput" />
-            <MensajeCampo Mensaje='@Error("Apellidos")' />
-        </div>
+        <ValidatedTextInput Id="dp-apellidos" Label="Apellidos" Required="true" Kind="FormFieldKind.Name"
+                            Value="@Modelo.Apellidos" ValueChanged="v => Modelo.Apellidos = v"
+                            Placeholder="Ej. López García" Autocomplete="family-name" MaxLength="100"
+                            ForceTouched='@TieneError("Apellidos")' ValidationCycle="ValidationCycle" />
 
-        <div>
-            <label class="text-sm font-medium text-ink" for="dp-documento">Documento (DPI)</label>
-            <input id="dp-documento" inputmode="numeric" maxlength="13" placeholder="Ejemplo: 3045291840101"
-                   class="@ClaseInput("Documento")"
-                   disabled="@DocumentoSoloLectura" @bind="Modelo.Documento" @bind:event="oninput" />
-            <MensajeCampo Mensaje='@Error("Documento")' />
-            @if (DocumentoSoloLectura)
-            {
-                <p class="mt-1 text-xs text-ink-muted">Si el DPI está mal, pida la corrección en recepción.</p>
-            }
-        </div>
+        <ValidatedTextInput Id="dp-documento" Label="DPI / CUI" Required="true" Kind="FormFieldKind.Dpi"
+                            Value="@Modelo.Documento" ValueChanged="v => Modelo.Documento = v"
+                            Placeholder="Ej. 3045291840101" Disabled="DocumentoSoloLectura"
+                            HelperText="@(DocumentoSoloLectura ? "Si el DPI necesita corrección, solicítala en recepción." : "Debe contener exactamente 13 dígitos.")"
+                            ForceTouched='@TieneError("Documento")' ValidationCycle="ValidationCycle" />
 
         <div>
             <label class="text-sm font-medium text-ink" for="dp-nacimiento">Fecha de nacimiento</label>
-            <input id="dp-nacimiento" type="date" max="@HoyIso" class="@ClaseInput("FechaNacimiento")"
-                   @bind="Modelo.FechaNacimiento" />
+            <input id="dp-nacimiento" type="date" max="@HoyIso"
+                   class="@ClaseInputNativo("FechaNacimiento")" @bind="Modelo.FechaNacimiento" />
             <MensajeCampo Mensaje='@Error("FechaNacimiento")' />
+            <p class="mt-1 text-xs text-ink-muted">No puede ser una fecha futura.</p>
         </div>
 
         <div>
             <label class="text-sm font-medium text-ink" for="dp-sexo">Sexo</label>
-            <select id="dp-sexo" class="@ClaseInput("Sexo")" @bind="Modelo.Sexo">
+            <select id="dp-sexo" class="@ClaseInputNativo("Sexo")" @bind="Modelo.Sexo">
                 <option value="">Sin especificar</option>
                 <option value="F">Femenino</option>
                 <option value="M">Masculino</option>
@@ -78,82 +60,56 @@
             <MensajeCampo Mensaje='@Error("Sexo")' />
         </div>
 
-        <div>
-            <label class="text-sm font-medium text-ink" for="dp-telefono">Teléfono</label>
-            <input id="dp-telefono" type="tel" inputmode="numeric" maxlength="8" autocomplete="tel"
-                   placeholder="Ejemplo: 55512345" class="@ClaseInput("Telefono")"
-                   @bind="Modelo.Telefono" @bind:event="oninput" />
-            <MensajeCampo Mensaje='@Error("Telefono")' />
-        </div>
+        <ValidatedTextInput Id="dp-telefono" Label="Teléfono" Kind="FormFieldKind.GuatemalaPhone"
+                            Value="@Modelo.Telefono" ValueChanged="v => Modelo.Telefono = v"
+                            Placeholder="55123456" Autocomplete="tel-national"
+                            HelperText="Ingresa 8 dígitos; +502 se agrega automáticamente."
+                            ForceTouched='@TieneError("Telefono")' ValidationCycle="ValidationCycle" />
 
-        <div class="sm:col-span-2">
-            <label class="text-sm font-medium text-ink" for="dp-direccion">Dirección</label>
-            <input id="dp-direccion" autocomplete="street-address" class="@ClaseInput("Direccion")"
-                   @bind="Modelo.Direccion" @bind:event="oninput" />
-            <MensajeCampo Mensaje='@Error("Direccion")' />
-        </div>
+        <ValidatedTextInput Id="dp-direccion" Label="Dirección" Kind="FormFieldKind.Text"
+                            Value="@Modelo.Direccion" ValueChanged="v => Modelo.Direccion = v"
+                            Placeholder="Ej. 6a avenida 10-25, zona 1, Guatemala" Autocomplete="street-address" MaxLength="250"
+                            HelperText="Incluye zona, municipio o referencias útiles si aplica."
+                            ForceTouched='@TieneError("Direccion")' ValidationCycle="ValidationCycle" CssClass="sm:col-span-2" />
     }
 
     @if (Muestra(SeccionFormulario.Salud))
     {
-        <div class="sm:col-span-2">
-            <label class="text-sm font-medium text-ink" for="dp-alergias">Alergias conocidas</label>
-            <textarea id="dp-alergias" rows="2" class="@ClaseInput("Alergias")"
-                      placeholder="Ej. penicilina, mariscos, ninguna conocida..."
-                      @bind="Modelo.Alergias" @bind:event="oninput"></textarea>
-            <MensajeCampo Mensaje='@Error("Alergias")' />
-            <p class="mt-1 text-xs text-ink-muted">Este dato lo ve el médico antes de atenderte.</p>
-        </div>
+        <ValidatedTextArea Id="dp-alergias" Label="Alergias conocidas"
+                           Value="@Modelo.Alergias" ValueChanged="v => Modelo.Alergias = v"
+                           Placeholder="Ej. Penicilina, mariscos o ninguna conocida"
+                           HelperText="Este dato lo revisa el personal clínico antes de atenderte."
+                           MaxLength="500" Rows="2" ShowCounter="true"
+                           ForceTouched='@TieneError("Alergias")' ValidationCycle="ValidationCycle" CssClass="sm:col-span-2" />
 
-        <div>
-            <label class="text-sm font-medium text-ink" for="dp-contacto-nombre">Nombre del contacto de emergencia</label>
-            <input id="dp-contacto-nombre" placeholder="Ejemplo: Juan Pérez"
-                   class="@ClaseInput("ContactoEmergenciaNombre")"
-                   @bind="Modelo.ContactoEmergenciaNombre" @bind:event="oninput" />
-            <MensajeCampo Mensaje='@Error("ContactoEmergenciaNombre")' />
-        </div>
+        <ValidatedTextInput Id="dp-contacto-nombre" Label="Contacto de emergencia" Kind="FormFieldKind.Name"
+                            Value="@Modelo.ContactoEmergenciaNombre" ValueChanged="v => Modelo.ContactoEmergenciaNombre = v"
+                            Placeholder="Ej. Juan Pérez" Autocomplete="name" MaxLength="150"
+                            ForceTouched='@TieneError("ContactoEmergenciaNombre")' ValidationCycle="ValidationCycle" />
 
-        <div>
-            <label class="text-sm font-medium text-ink" for="dp-contacto-telefono">Teléfono de emergencia</label>
-            <input id="dp-contacto-telefono" type="tel" inputmode="numeric" maxlength="8"
-                   placeholder="Ejemplo: 55512345" class="@ClaseInput("ContactoEmergenciaTelefono")"
-                   @bind="Modelo.ContactoEmergenciaTelefono" @bind:event="oninput" />
-            <MensajeCampo Mensaje='@Error("ContactoEmergenciaTelefono")' />
-        </div>
+        <ValidatedTextInput Id="dp-contacto-telefono" Label="Teléfono de emergencia" Kind="FormFieldKind.GuatemalaPhone"
+                            Value="@Modelo.ContactoEmergenciaTelefono" ValueChanged="v => Modelo.ContactoEmergenciaTelefono = v"
+                            Placeholder="55123456" Autocomplete="tel-national"
+                            HelperText="8 dígitos; +502 se agrega automáticamente."
+                            ForceTouched='@TieneError("ContactoEmergenciaTelefono")' ValidationCycle="ValidationCycle" />
     }
 </div>
 
 @code {
     [Parameter, EditorRequired] public ModeloDatosPaciente Modelo { get; set; } = new();
-
-    /// <summary>Errores por campo que devolvió <see cref="ModeloDatosPaciente.Validar"/>.</summary>
-    [Parameter] public IReadOnlyDictionary<string, string> Errores { get; set; } =
-        new Dictionary<string, string>();
-
-    /// <summary>true en el registro público; false al editar el propio perfil.</summary>
+    [Parameter] public IReadOnlyDictionary<string, string> Errores { get; set; } = new Dictionary<string, string>();
     [Parameter] public bool MostrarCredenciales { get; set; }
-
-    /// <summary>El paciente no puede cambiar su DPI; secretaría sí.</summary>
     [Parameter] public bool DocumentoSoloLectura { get; set; }
-
-    /// <summary>Qué parte del formulario pintar. Completo por defecto.</summary>
     [Parameter] public SeccionFormulario Seccion { get; set; } = SeccionFormulario.Completo;
-
-    private const string ClaseBase =
-        "mt-1 w-full rounded-control border px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2";
-
-    private const string ClaseNormal = "border-border focus:border-brand-500 focus:ring-brand-100";
-
-    private const string ClaseConError =
-        "border-state-rechazada focus:border-state-rechazada focus:ring-state-rechazada/20";
+    [Parameter] public int ValidationCycle { get; set; }
 
     private static readonly string HoyIso = DateTime.Today.ToString("yyyy-MM-dd");
+    private const string ClaseBase = "mt-1 w-full rounded-control border bg-surface px-3 py-2.5 text-sm text-ink focus:outline-none focus:ring-2";
 
-    private bool Muestra(SeccionFormulario cual)
-        => Seccion == SeccionFormulario.Completo || Seccion == cual;
-
-    private string ClaseInput(string campo)
-        => $"{ClaseBase} {(Errores.ContainsKey(campo) ? ClaseConError : ClaseNormal)}";
-
+    private bool Muestra(SeccionFormulario cual) => Seccion == SeccionFormulario.Completo || Seccion == cual;
+    private bool TieneError(string campo) => Errores.ContainsKey(campo);
     private string? Error(string campo) => Errores.TryGetValue(campo, out var mensaje) ? mensaje : null;
+    private string ClaseInputNativo(string campo) => TieneError(campo)
+        ? $"{ClaseBase} border-state-rechazada focus:border-state-rechazada focus:ring-state-rechazada/20"
+        : $"{ClaseBase} border-border focus:border-brand-500 focus:ring-brand-100";
 }

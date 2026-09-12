@@ -29,4 +29,14 @@ public sealed class RolesStaffAdministrablesTests
 
         Assert.Contains("Inventado", exception.Message);
     }
+
+    [Fact]
+    public void Normalizar_AdministradorYSecretaria_PermiteAmbos()
+    {
+        var roles = RolesStaffAdministrables.Normalizar(["Administrador", "Secretaria"]);
+
+        Assert.Equal(2, roles.Count);
+        Assert.Contains(RolNombres.Administrador, roles);
+        Assert.Contains(RolNombres.Secretaria, roles);
+    }
 }

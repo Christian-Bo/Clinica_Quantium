@@ -58,6 +58,7 @@ public static class Program
             sp.GetRequiredService<IHttpClientFactory>().CreateClient(NombreClienteApi));
 
         builder.Services.AddScoped<ApiClient>();
+        builder.Services.AddSingleton<BrandingService>();
 
         // --- UI transversal (toasts, confirmaciones) ---
         builder.Services.AddScoped<ToastService>();

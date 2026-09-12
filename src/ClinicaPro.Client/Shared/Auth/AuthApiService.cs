@@ -41,13 +41,13 @@ public sealed class AuthApiService(
                 cancellationToken: cancellationToken);
 
             return sesion is null
-                ? ResultadoOperacion<AuthResponse>.Fallo("El servidor no devolvió una sesión válida.")
+                ? ResultadoOperacion<AuthResponse>.Fallo("No pudimos iniciar tu sesión. Intenta nuevamente.")
                 : await GuardarSesionAsync(sesion, recordarme);
         }
         catch (JsonException)
         {
             return ResultadoOperacion<AuthResponse>.Fallo(
-                FrontendErrorCatalog.WithCode("El servidor respondió con una sesión que no coincide con el formato esperado.", FrontendErrorCatalog.InvalidResponse));
+                FrontendErrorCatalog.WithCode("No pudimos iniciar tu sesión. Intenta nuevamente.", FrontendErrorCatalog.InvalidResponse));
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
@@ -85,7 +85,7 @@ public sealed class AuthApiService(
         catch (JsonException)
         {
             return ResultadoOperacion<AuthResponse>.Fallo(
-                FrontendErrorCatalog.WithCode("La respuesta del registro no coincide con el formato esperado.", FrontendErrorCatalog.InvalidResponse));
+                FrontendErrorCatalog.WithCode("La cuenta se creó, pero no pudimos completar el ingreso. Intenta iniciar sesión.", FrontendErrorCatalog.InvalidResponse));
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
@@ -126,7 +126,7 @@ public sealed class AuthApiService(
         catch (JsonException)
         {
             return ResultadoOperacion<AuthResponse>.Fallo(
-                FrontendErrorCatalog.WithCode("La respuesta del cambio de contraseña no coincide con el formato esperado.", FrontendErrorCatalog.InvalidResponse));
+                FrontendErrorCatalog.WithCode("La contraseña cambió, pero no pudimos actualizar la pantalla. Inicia sesión nuevamente.", FrontendErrorCatalog.InvalidResponse));
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
@@ -208,13 +208,13 @@ public sealed class AuthApiService(
                 cancellationToken: cancellationToken);
 
             return usuario is null
-                ? ResultadoOperacion<UsuarioActualDto>.Fallo("La sesión no devolvió un usuario válido.")
+                ? ResultadoOperacion<UsuarioActualDto>.Fallo("No pudimos validar tu sesión. Inicia sesión nuevamente.")
                 : ResultadoOperacion<UsuarioActualDto>.Ok(usuario);
         }
         catch (JsonException)
         {
             return ResultadoOperacion<UsuarioActualDto>.Fallo(
-                FrontendErrorCatalog.WithCode("La sesión recibida no coincide con el formato esperado.", FrontendErrorCatalog.InvalidResponse));
+                FrontendErrorCatalog.WithCode("No pudimos validar tu sesión. Inicia sesión nuevamente.", FrontendErrorCatalog.InvalidResponse));
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
@@ -237,8 +237,8 @@ public sealed class AuthApiService(
 
     private static string MensajeConexion(Exception ex, string contexto)
         => ex is TaskCanceledException
-            ? FrontendErrorCatalog.WithCode($"{contexto} El servidor tardó demasiado en responder. Intenta nuevamente.", FrontendErrorCatalog.Timeout)
-            : FrontendErrorCatalog.WithCode($"{contexto} No se pudo contactar al servidor. Verifica tu conexión y vuelve a intentar.", FrontendErrorCatalog.Connection);
+            ? FrontendErrorCatalog.WithCode($"{contexto} La operación tardó demasiado. Intenta nuevamente.", FrontendErrorCatalog.Timeout)
+            : FrontendErrorCatalog.WithCode($"{contexto} No pudimos conectarnos. Revisa tu conexión e intenta nuevamente.", FrontendErrorCatalog.Connection);
 
     private async Task<ResultadoOperacion<AuthResponse>> GuardarSesionAsync(
         AuthResponse sesion,

@@ -5,15 +5,16 @@
 @inject AdminApiService AdminApi
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IJSRuntime JS
+@inject BrandingService Branding
 
-<PageTitle>Reportes · Clínica Pro</PageTitle>
+<PageTitle>Reportes · @Branding.ClinicName</PageTitle>
 
 <div class="space-y-6">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">Análisis operativo</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">Resumen de citas</p>
             <h1 class="mt-1 text-xl font-semibold text-ink">Reportes de citas</h1>
-            <p class="mt-1 text-sm text-ink-muted">Consulta indicadores y el detalle de la agenda por período, médico y estado.</p>
+            <p class="mt-1 text-sm text-ink-muted">Consulta las citas por período, médico y estado.</p>
         </div>
         <Button Variant="ButtonVariant.Secondary" IconName="download" Disabled="@(!datosCargados || cargando || CitasFiltradas.Count == 0)" OnClick="ExportarPdfAsync">Exportar PDF</Button>
     </div>
@@ -67,7 +68,7 @@
             <div class="cp-print-only">
                 <div class="cp-print-header">
                     <div>
-                        <p class="cp-print-brand">Clínica Pro</p>
+                        <p class="cp-print-brand">@Branding.ClinicName</p>
                         <h1>Reporte de citas</h1>
                     </div>
                     <div class="cp-print-meta-right">Generado: @DateTime.Now.ToString("dd/MM/yyyy HH:mm")</div>
@@ -146,7 +147,7 @@
                 </Card>
             </div>
 
-            <div class="cp-print-only cp-print-footer">Clínica Pro · Reporte operativo generado desde el sistema</div>
+            <div class="cp-print-only cp-print-footer">@Branding.ClinicName · Reporte de citas</div>
         </section>
     }
 </div>
@@ -257,7 +258,7 @@
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            error = "No se pudo contactar a la API para generar el reporte.";
+            error = "No pudimos generar el reporte. Revisa tu conexión e intenta nuevamente.";
         }
         finally { cargando = false; }
     }
@@ -281,6 +282,7 @@
 
         var payload = new
         {
+            clinicName = Branding.ClinicName,
             titulo = "Informe de citas",
             generado = DateTime.Now.ToString("dd/MM/yyyy HH:mm"),
             periodo = PeriodoSeleccionado,

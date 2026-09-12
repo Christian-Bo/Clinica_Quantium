@@ -12,7 +12,7 @@ public sealed class HistorialMedicoPacienteServiceTests
     public async Task ExecuteAsync_PacienteInexistente_DevuelveNull()
     {
         var usuarioId = Guid.NewGuid();
-        var medico = Medico.Create(Guid.NewGuid(), usuarioId, "Carlos", "Hernandez");
+        var medico = Medico.Create(Guid.NewGuid(), usuarioId, "Carlos", "Hernandez", "15422");
         var servicio = new HistorialMedicoPacienteService(
             new MedicosFalso(medico),
             new PacientesFalso(null),
@@ -27,7 +27,7 @@ public sealed class HistorialMedicoPacienteServiceTests
     public async Task ExecuteAsync_SinCitasConElMedico_LanzaForbidden()
     {
         var usuarioId = Guid.NewGuid();
-        var medico = Medico.Create(Guid.NewGuid(), usuarioId, "Carlos", "Hernandez");
+        var medico = Medico.Create(Guid.NewGuid(), usuarioId, "Carlos", "Hernandez", "15422");
         var paciente = Paciente.Create(Guid.NewGuid(), "Ana", "Lopez");
         var citaDeOtro = Cita.Solicitar(
             paciente.Id,
@@ -50,7 +50,7 @@ public sealed class HistorialMedicoPacienteServiceTests
     public async Task ExecuteAsync_ConCitasDelMedico_DevuelveContextoBasico()
     {
         var usuarioId = Guid.NewGuid();
-        var medico = Medico.Create(Guid.NewGuid(), usuarioId, "Carlos", "Hernandez");
+        var medico = Medico.Create(Guid.NewGuid(), usuarioId, "Carlos", "Hernandez", "15422");
         var paciente = Paciente.Create(Guid.NewGuid(), "Ana", "Lopez", alergias: "Penicilina");
         var cita = Cita.Solicitar(
             paciente.Id,
@@ -151,6 +151,7 @@ public sealed class HistorialMedicoPacienteServiceTests
             DateTime desde,
             DateTime hasta,
             Guid? medicoId,
+            string? estado = null,
             CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<Cita>>([]);
 

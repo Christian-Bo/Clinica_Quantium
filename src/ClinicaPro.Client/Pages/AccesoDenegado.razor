@@ -2,8 +2,9 @@
 @attribute [Authorize]
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Navigation
+@inject BrandingService Branding
 
-<PageTitle>Acceso restringido · Clínica Pro</PageTitle>
+<PageTitle>Acceso restringido · @Branding.ClinicName</PageTitle>
 
 <div class="flex min-h-[70vh] items-center justify-center px-4">
     <div class="w-full max-w-lg rounded-card border border-border bg-surface p-7 text-center shadow-card">
@@ -12,7 +13,7 @@
         </div>
         <h1 class="mt-5 text-xl font-semibold text-ink">Acceso restringido</h1>
         <p class="mt-2 text-sm leading-relaxed text-ink-muted">
-            Tu sesión está activa, pero tu rol no tiene permiso para abrir esta sección.
+            Tu sesión está activa, pero tu cuenta no tiene acceso a esta sección.
             No se modificó ningún dato.
         </p>
         <div class="mt-6 flex justify-center">

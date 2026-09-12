@@ -1,4 +1,5 @@
 using ClinicaPro.Application;
+using ClinicaPro.Application.Agenda;
 using ClinicaPro.Application.Auth;
 using ClinicaPro.Application.Citas;
 using ClinicaPro.Application.Notificaciones;
@@ -17,6 +18,7 @@ public sealed class AuthService(
     UserManager<ApplicationUser> userManager,
     RoleManager<ApplicationRole> roleManager,
     IPacienteRepository pacienteRepository,
+    IMedicoRepository medicoRepository,
     SolicitarCitaService solicitarCita,
     EncolarNotificacionCitaService encolarNotificacion,
     ClinicaProDbContext dbContext,
@@ -55,19 +57,11 @@ public sealed class AuthService(
         }
 
         var roles = await ObtenerRolesActivosAsync(user, cancellationToken);
-        var paciente = await pacienteRepository.ObtenerPorUsuarioIdAsync(user.Id, cancellationToken);
-        var (token, expiresAt) = jwtTokenGenerator.Create(user, roles, user.MustChangePassword);
 
         await auditoria.RegistrarAsync(user.Id, "Login", "Usuario", user.Id.ToString(), user.Email, cancellationToken);
 
-        return AuthOperationResult.Ok(new AuthSession(
-            token,
-            expiresAt,
-            user.Id,
-            user.Email ?? email,
-            roles,
-            user.MustChangePassword,
-            paciente?.Id));
+        return AuthOperationResult.Ok(
+            await CrearSesionAsync(user, roles, user.MustChangePassword, email, cancellationToken));
     }
 
     public async Task<AuthOperationResult> ChangePasswordAsync(
@@ -102,17 +96,9 @@ public sealed class AuthService(
         }
 
         var roles = await ObtenerRolesActivosAsync(user, cancellationToken);
-        var paciente = await pacienteRepository.ObtenerPorUsuarioIdAsync(user.Id, cancellationToken);
-        var (token, expiresAt) = jwtTokenGenerator.Create(user, roles, user.MustChangePassword);
 
-        return AuthOperationResult.Ok(new AuthSession(
-            token,
-            expiresAt,
-            user.Id,
-            user.Email ?? string.Empty,
-            roles,
-            false,
-            paciente?.Id));
+        return AuthOperationResult.Ok(
+            await CrearSesionAsync(user, roles, false, user.Email ?? string.Empty, cancellationToken));
     }
 
     public async Task<AuthOperationResult> RegisterPacienteAsync(
@@ -305,16 +291,9 @@ public sealed class AuthService(
             }
 
             var roles = new[] { RolNombres.Paciente };
-            var (token, expiresAt) = jwtTokenGenerator.Create(user, roles, user.MustChangePassword);
 
-            return AuthOperationResult.Ok(new AuthSession(
-                token,
-                expiresAt,
-                user.Id,
-                user.Email ?? email,
-                roles,
-                false,
-                paciente.Id));
+            return AuthOperationResult.Ok(
+                await CrearSesionAsync(user, roles, false, email, cancellationToken));
         });
     }
 
@@ -329,15 +308,16 @@ public sealed class AuthService(
         }
 
         var roles = await ObtenerRolesActivosAsync(user, cancellationToken);
-        var paciente = await pacienteRepository.ObtenerPorUsuarioIdAsync(user.Id, cancellationToken);
+        var email = user.Email ?? string.Empty;
+        var (pacienteId, nombreCompleto) = await ResolverIdentidadAsync(user.Id, email, cancellationToken);
 
         return new AuthUserInfo(
             user.Id,
-            user.Email ?? string.Empty,
+            email,
             roles,
             user.MustChangePassword,
-            paciente?.Id,
-            paciente?.NombreCompleto);
+            pacienteId,
+            nombreCompleto);
     }
 
     private async Task<IReadOnlyList<string>> ObtenerRolesActivosAsync(
@@ -370,7 +350,7 @@ public sealed class AuthService(
         var token = await userManager.GeneratePasswordResetTokenAsync(user);
         await emailSender.SendAsync(
             user.Email ?? email,
-            "Clínica Pro — restablecer contraseña",
+            ClinicaMarca.Asunto("restablecer contraseña"),
             $"Hola,\n\nPara restablecer su contraseña use este código en la aplicación:\n\n{token}\n\nSi usted no lo pidió, ignore este correo.",
             cancellationToken);
     }
@@ -397,13 +377,56 @@ public sealed class AuthService(
         user.UpdatedAtUtc = DateTime.UtcNow;
         await userManager.UpdateAsync(user);
         await auditoria.RegistrarAsync(user.Id, "ResetPassword", "Usuario", user.Id.ToString(), user.Email, cancellationToken);
-        return AuthOperationResult.Ok(new AuthSession(
-            string.Empty,
-            DateTimeOffset.UtcNow,
+        return AuthOperationResult.Ok(
+            await CrearSesionAsync(user, [], false, email, cancellationToken, emitirToken: false));
+    }
+
+    private async Task<AuthSession> CrearSesionAsync(
+        ApplicationUser user,
+        IReadOnlyList<string> roles,
+        bool mustChangePassword,
+        string emailFallback,
+        CancellationToken cancellationToken,
+        bool emitirToken = true)
+    {
+        var email = user.Email ?? emailFallback;
+        var (pacienteId, nombreCompleto) = await ResolverIdentidadAsync(user.Id, email, cancellationToken);
+
+        var token = string.Empty;
+        var expiresAt = DateTimeOffset.UtcNow;
+        if (emitirToken)
+        {
+            (token, expiresAt) = jwtTokenGenerator.Create(user, roles, mustChangePassword);
+        }
+
+        return new AuthSession(
+            token,
+            expiresAt,
             user.Id,
-            user.Email ?? email,
-            [],
-            false,
-            null));
+            email,
+            roles,
+            mustChangePassword,
+            pacienteId,
+            nombreCompleto);
+    }
+
+    private async Task<(Guid? PacienteId, string NombreCompleto)> ResolverIdentidadAsync(
+        Guid usuarioId,
+        string email,
+        CancellationToken cancellationToken)
+    {
+        var paciente = await pacienteRepository.ObtenerPorUsuarioIdAsync(usuarioId, cancellationToken);
+        if (paciente is not null)
+        {
+            return (paciente.Id, paciente.NombreCompleto);
+        }
+
+        var medico = await medicoRepository.ObtenerPorUsuarioIdAsync(usuarioId, cancellationToken);
+        if (medico is not null)
+        {
+            return (null, medico.NombreCompleto);
+        }
+
+        return (null, email);
     }
 }

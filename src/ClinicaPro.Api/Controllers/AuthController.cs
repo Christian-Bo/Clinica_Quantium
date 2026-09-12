@@ -230,7 +230,8 @@ public sealed class AuthController(IAuthService authService, IAuthAttemptLimiter
         session.Email,
         session.Roles,
         session.MustChangePassword,
-        session.PacienteId);
+        session.PacienteId,
+        session.NombreCompleto);
 
     private Guid? ObtenerUsuarioId()
     {

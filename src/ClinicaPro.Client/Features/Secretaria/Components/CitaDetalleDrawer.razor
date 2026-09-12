@@ -29,12 +29,14 @@
                     <p class="mt-1 text-sm text-ink">@citaActual.MotivoConsulta</p>
                 </div>
 
+                <PreconsultaPanel CitaId="@citaActual.CitaId" Editable="true" />
+
                 @if (RequiereAutorizacion)
                 {
                     <div class="rounded-control border border-state-solicitada/30 bg-state-solicitada/10 p-3">
                         <div class="flex items-start gap-2">
                             <Icon Name="shield" Size="18" CssClass="mt-0.5 text-state-solicitada" />
-                            <div><p class="text-sm font-medium text-ink">La siguiente será la tercera reprogramación</p><p class="mt-1 text-xs leading-5 text-ink-muted">Antes de completar el cambio debe existir una autorización aprobada por Administración. La decisión queda registrada en auditoría.</p></div>
+                            <div><p class="text-sm font-medium text-ink">La siguiente será la tercera reprogramación</p><p class="mt-1 text-xs leading-5 text-ink-muted">Necesitas una autorización de Administración antes de cambiar la fecha por tercera vez.</p></div>
                         </div>
                     </div>
                 }
@@ -52,7 +54,7 @@
                             <div class="mb-3 rounded-control bg-surface px-3 py-2 text-xs text-ink-muted">
                                 @if (autorizacionSolicitada)
                                 {
-                                    <p><span class="font-medium text-brand-700">Solicitud enviada.</span> Administración debe aprobarla antes de que el backend permita guardar la tercera reprogramación.</p>
+                                    <p><span class="font-medium text-brand-700">Solicitud enviada.</span> Administración debe aprobarla antes de guardar la nueva fecha.</p>
                                 }
                                 else
                                 {
@@ -226,7 +228,7 @@
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            errorHistorial = ex.Message;
+            errorHistorial = MensajeUsuario.Limpiar(ex.Message, "No pudimos cargar el historial de la cita.");
         }
         finally
         {
@@ -315,7 +317,7 @@
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            errorSlots = ex.Message;
+            errorSlots = MensajeUsuario.Limpiar(ex.Message, "No pudimos consultar los horarios disponibles.");
         }
         finally
         {

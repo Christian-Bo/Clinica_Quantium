@@ -6,6 +6,7 @@ using ClinicaPro.Application.Citas;
 
 using ClinicaPro.Application.Notificaciones;
 using ClinicaPro.Application.Pacientes;
+using ClinicaPro.Domain;
 using ClinicaPro.Infrastructure.Admin;
 using ClinicaPro.Infrastructure.Auth;
 using ClinicaPro.Infrastructure.Demo;
@@ -74,7 +75,7 @@ public static class DependencyInjection
         services.AddSingleton<IAuthAttemptLimiter, MemoryAuthAttemptLimiter>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
-      
+        services.AddScoped<IPreconsultaRepository, PreconsultaRepository>();
         services.AddScoped<IPacienteRepository, PacienteRepository>();
         services.AddScoped<IMedicoRepository, MedicoRepository>();
         services.AddScoped<IHorarioRepository, HorarioRepository>();
@@ -88,6 +89,7 @@ public static class DependencyInjection
         services.AddScoped<IAdminStaffService, AdminStaffService>();
         services.AddScoped<IEliminarPacienteYUsuario, EliminarPacienteYUsuarioService>();
         services.AddScoped<IPrepararAgendaDemo, PrepararAgendaDemoService>();
+        services.AddScoped<IImagenIrisRepository, ImagenIrisRepository>();
 
         var smtpSection = configuration.GetSection(SmtpOptions.SectionName);
         services.Configure<SmtpOptions>(options =>
@@ -95,7 +97,7 @@ public static class DependencyInjection
             options.Host = smtpSection["Host"] ?? string.Empty;
             options.UserName = smtpSection["UserName"] ?? string.Empty;
             options.Password = smtpSection["Password"] ?? string.Empty;
-            options.From = smtpSection["From"] ?? options.From;
+            options.From = ClinicaMarca.Remitente(smtpSection["From"]);
             options.PickupDirectory = smtpSection["PickupDirectory"] ?? options.PickupDirectory;
             if (int.TryParse(smtpSection["Port"], out var port))
             {

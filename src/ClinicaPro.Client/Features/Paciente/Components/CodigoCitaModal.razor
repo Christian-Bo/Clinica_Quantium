@@ -1,4 +1,5 @@
 @inject IJSRuntime JS
+@inject BrandingService Branding
 
 @* Lo que el paciente enseña en recepción. Recepción escanea y marca la
    llegada, en vez de buscarlo a mano en la agenda. *@
@@ -75,10 +76,9 @@
             }
 
             var texto =
-                $"Mi cita en Clínica Pro\n" +
+                $"Mi cita en {Branding.ClinicName}\n" +
                 $"Consulta con {Cita.MedicoNombre}\n" +
-                $"{FechaLarga} a las {Cita.FechaHoraInicio:HH:mm}\n" +
-                $"Código: {Cita.CitaId}";
+                $"{FechaLarga} a las {Cita.FechaHoraInicio:HH:mm}";
 
             return $"https://wa.me/?text={Uri.EscapeDataString(texto)}";
         }

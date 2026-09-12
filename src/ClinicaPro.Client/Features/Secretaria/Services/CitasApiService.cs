@@ -1,3 +1,5 @@
+using ClinicaPro.Client.Features.Secretaria.Models;
+
 namespace ClinicaPro.Client.Features.Secretaria.Services;
 
 public sealed class CitasApiService(ApiClient api)
@@ -97,6 +99,25 @@ public sealed class CitasApiService(ApiClient api)
         => api.ObtenerListaAsync<HistorialCitaDto>(
             $"api/citas/{citaId}/historial",
             "No fue posible cargar el historial de la cita.",
+            ct);
+
+    public Task<ResultadoOperacion<PreconsultaClientDto>> ObtenerPreconsultaAsync(
+        Guid citaId,
+        CancellationToken ct = default)
+        => api.ObtenerResultadoAsync<PreconsultaClientDto>(
+            $"api/citas/{citaId}/preconsulta",
+            "No fue posible cargar la preconsulta.",
+            ct);
+
+    public Task<ResultadoOperacion<PreconsultaClientDto>> GuardarPreconsultaAsync(
+        Guid citaId,
+        RegistrarPreconsultaClientRequest request,
+        CancellationToken ct = default)
+        => api.EnviarAsync<PreconsultaClientDto>(
+            HttpMethod.Put,
+            $"api/citas/{citaId}/preconsulta",
+            request,
+            "No fue posible guardar la preconsulta.",
             ct);
 
     public Task<ResultadoOperacion<CitaDto>> CrearParaPacienteAsync(

@@ -1,4 +1,4 @@
-# Catálogo de referencias del frontend — Clínica Pro
+# Catálogo de referencias del frontend — Clínica Quantium
 
 Los códigos `CP-FE-*` solo aparecen cuando el problema es técnico y el usuario no puede resolverlo corrigiendo un campo. Los errores funcionales (correo inválido, sin permiso, duplicado, etc.) se muestran directamente y no necesitan código.
 
@@ -11,7 +11,7 @@ Los códigos `CP-FE-*` solo aparecen cuando el problema es técnico y el usuario
 
 ## Regla de soporte
 
-1. Pedir al usuario únicamente el código de referencia y la operación que intentaba realizar.
+1. Pedir al usuario qué acción intentaba realizar y en qué pantalla ocurrió el problema.
 2. No solicitar contraseñas, JWT ni datos clínicos por chat/correo.
 3. Si el backend devuelve un identificador de correlación en el futuro, mostrarlo junto con `CP-FE-*`.
 4. El frontend nunca debe inventar una causa SQL para un HTTP 500; solo indica que el servidor no completó la operación.

@@ -80,31 +80,31 @@ public sealed class EncolarNotificacionCitaService(
         return tipo switch
         {
             NotificacionTipos.SolicitudRecibida => (
-                "Clínica Pro — recibimos su solicitud de cita",
+                ClinicaMarca.Asunto("recibimos su solicitud de cita"),
                 $"Hola {nombrePaciente},\n\nRecibimos su solicitud de cita con {medico}.\nHorario solicitado: {cuando}.\n\nRecepción revisará la solicitud y le avisaremos cuando quede programada."),
             NotificacionTipos.CitaProgramada => (
-                "Clínica Pro — su cita fue programada",
+                ClinicaMarca.Asunto("su cita fue programada"),
                 $"Hola {nombrePaciente},\n\nSu cita con {medico} quedó programada.\nFecha y hora: {cuando}.\n\nConfirme su asistencia desde la aplicación. Si no puede ir, cancele con anticipación o llame a recepción."),
             NotificacionTipos.CitaConfirmada => (
-                "Clínica Pro — asistencia confirmada",
+                ClinicaMarca.Asunto("asistencia confirmada"),
                 $"Hola {nombrePaciente},\n\nQuedó confirmada su asistencia a la cita con {medico}.\nFecha y hora: {cuando}.\n\nPreséntese en recepción a esa hora."),
             NotificacionTipos.CitaRechazada => (
-                "Clínica Pro — no fue posible programar su cita",
+                ClinicaMarca.Asunto("no fue posible programar su cita"),
                 $"Hola {nombrePaciente},\n\nLa solicitud de cita para {cuando} no pudo programarse.\nPuede pedir otro horario desde la aplicación o llamar a recepción."),
             NotificacionTipos.CitaCancelada => (
-                "Clínica Pro — su cita fue cancelada",
+                ClinicaMarca.Asunto("su cita fue cancelada"),
                 $"Hola {nombrePaciente},\n\nLa cita con {medico} ({cuando}) fue cancelada.\nSi desea otro espacio, solicite una nueva cita."),
             NotificacionTipos.CitaReprogramada => (
-                "Clínica Pro — su cita fue reprogramada",
+                ClinicaMarca.Asunto("su cita fue reprogramada"),
                 $"Hola {nombrePaciente},\n\nSu cita con {medico} cambió de horario.\nNueva fecha y hora: {cuando}.\n\nSi no puede asistir, cancele con anticipación o llame a recepción."),
             NotificacionTipos.CitaNoPresentada => (
-                "Clínica Pro — inasistencia registrada",
+                ClinicaMarca.Asunto("inasistencia registrada"),
                 $"Hola {nombrePaciente},\n\nLa cita con {medico} ({cuando}) quedó como no presentada.\nSi fue un error, comuníquese con recepción."),
             NotificacionTipos.RecordatorioCita => (
-                "Clínica Pro — recordatorio de su cita",
+                ClinicaMarca.Asunto("recordatorio de su cita"),
                 $"Hola {nombrePaciente},\n\nLe recordamos su cita con {medico}.\nFecha y hora: {cuando}."),
             _ => (
-                "Clínica Pro — actualización de cita",
+                ClinicaMarca.Asunto("actualización de cita"),
                 $"Hola {nombrePaciente},\n\nHay una actualización de su cita ({cuando}).")
         };
     }

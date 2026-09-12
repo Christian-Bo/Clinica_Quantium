@@ -3,8 +3,9 @@
 @layout PacienteLayout
 @inject PerfilPacienteApiService PerfilApi
 @inject ToastService Toasts
+@inject BrandingService Branding
 
-<PageTitle>Mi perfil · Clínica Pro</PageTitle>
+<PageTitle>Mi perfil · @Branding.ClinicName</PageTitle>
 
 <h1 class="text-xl font-semibold text-ink">Mi perfil</h1>
 <p class="mt-1 text-sm text-ink-muted">
@@ -52,9 +53,12 @@
             </EditForm>
         </Card>
 
-        <p class="mt-3 text-xs text-ink-muted">
-            Tu correo de acceso no se cambia desde aquí. Si necesitas cambiarlo, comunícate con la clínica.
-        </p>
+        <div class="mt-3 flex flex-col gap-2 text-xs text-ink-muted sm:flex-row sm:items-center sm:justify-between">
+            <p>Tu correo de acceso no se cambia desde aquí. Si necesitas cambiarlo, comunícate con la clínica.</p>
+            <a href="/cambiar-contrasena" class="inline-flex shrink-0 items-center gap-1.5 font-semibold text-brand-600 hover:text-brand-700">
+                <Icon Name="key" Size="14" /> Cambiar contraseña
+            </a>
+        </div>
     }
 </div>
 
@@ -99,6 +103,7 @@
 
         errores = [];
         errorGuardado = null;
+        Toasts.Info("Cambios descartados. Restauramos la información guardada.");
     }
 
     private async Task Guardar()

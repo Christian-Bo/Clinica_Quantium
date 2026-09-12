@@ -1,5 +1,6 @@
 using System.Text;
 using ClinicaPro.Application;
+using ClinicaPro.Domain;
 using ClinicaPro.Infrastructure;
 using ClinicaPro.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -14,7 +15,7 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "Clínica Pro API",
+        Title = ClinicaMarca.Nombre + " API",
         Version = "v1",
         Description =
             "Septiembre: login/register, citas, agenda. Correos: al solicitar/programar/confirmar/rechazar/cancelar se encola Email en Notificaciones; sin Smtp:Host el worker escribe archivos en App_Data/mail. FechaHoraInicio es hora de Guatemala, sin Z."

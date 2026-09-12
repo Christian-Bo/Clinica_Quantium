@@ -1,5 +1,6 @@
 using ClinicaPro.Application;
 using ClinicaPro.Application.Notificaciones;
+using ClinicaPro.Domain;
 using ClinicaPro.Domain.Entities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -56,7 +57,7 @@ public sealed class NotificationDispatchWorker(
 
             var resultado = await email.SendAsync(
                 aviso.Destinatario,
-                aviso.Asunto ?? "Clínica Pro",
+                aviso.Asunto ?? ClinicaMarca.Nombre,
                 aviso.Contenido,
                 cancellationToken);
 

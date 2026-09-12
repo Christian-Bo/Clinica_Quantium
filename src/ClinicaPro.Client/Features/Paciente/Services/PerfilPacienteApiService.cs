@@ -16,13 +16,13 @@ public sealed class PerfilPacienteApiService(HttpClient http)
         catch (HttpRequestException)
         {
             return ResultadoOperacion<PacienteDto>.Fallo(
-                "No se pudo contactar al servidor. Verifica tu conexión y vuelve a intentar.");
+                "No pudimos conectarnos. Revisa tu conexión e intenta nuevamente.");
         }
 
         if (respuesta.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
             return ResultadoOperacion<PacienteDto>.Fallo(
-                "Tu usuario todavía no tiene una ficha de paciente. Comunícate con la clínica.");
+                "Tu cuenta aún no está configurada como paciente. Comunícate con la clínica.");
         }
 
         if (!respuesta.IsSuccessStatusCode)
@@ -48,7 +48,7 @@ public sealed class PerfilPacienteApiService(HttpClient http)
         catch (HttpRequestException)
         {
             return ResultadoOperacion<PacienteDto>.Fallo(
-                "No se pudo contactar al servidor. Verifica tu conexión y vuelve a intentar.");
+                "No pudimos conectarnos. Revisa tu conexión e intenta nuevamente.");
         }
 
         if (!respuesta.IsSuccessStatusCode)
@@ -59,7 +59,7 @@ public sealed class PerfilPacienteApiService(HttpClient http)
         var paciente = await respuesta.Content.ReadFromJsonAsync<PacienteDto>(cancellationToken: ct);
         return paciente is not null
             ? ResultadoOperacion<PacienteDto>.Ok(paciente)
-            : ResultadoOperacion<PacienteDto>.Fallo("Los cambios se guardaron pero no se pudo leer la respuesta.");
+            : ResultadoOperacion<PacienteDto>.Fallo("Los cambios se guardaron, pero no pudimos actualizar la información en pantalla.");
     }
 
     /// <summary>

@@ -52,7 +52,7 @@ public sealed class ListarReporteCitasService(ICitaRepository citas)
             throw new DomainException("El rango del reporte es inválido.");
         }
 
-        var lista = await citas.ListarEnRangoAsync(inicio, fin, medicoId, cancellationToken);
+        var lista = await citas.ListarEnRangoAsync(inicio, fin, medicoId, estado: null, cancellationToken);
         var porEstado = lista
             .GroupBy(cita => cita.Estado)
             .OrderBy(grupo => grupo.Key)

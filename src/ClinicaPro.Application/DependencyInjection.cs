@@ -33,7 +33,8 @@ public static class DependencyInjection
         services.AddScoped<SolicitarAutorizacionReprogramacionService>();
         services.AddScoped<ListarAutorizacionesReprogramacionService>();
         services.AddScoped<ResolverAutorizacionReprogramacionService>();
-    
+        services.AddScoped<RegistrarPreconsultaService>();
+        services.AddScoped<ObtenerPreconsultaService>();
         services.AddScoped<BuscarPacientesService>();
         services.AddScoped<ListarReporteCitasService>();
         services.AddScoped<EncolarNotificacionCitaService>();
@@ -42,6 +43,10 @@ public static class DependencyInjection
         services.AddScoped<ListarNotificacionesStaffService>();
         services.AddScoped<ActualizarPerfilPacienteService>();
         services.AddScoped<DarDeBajaPacientePorInasistenciaService>();
+        services.AddScoped<SubirImagenIrisService>();
+        services.AddScoped<ListarImagenesIrisService>();
+        services.AddScoped<DescargarImagenIrisService>();
+        services.AddScoped<DesactivarImagenIrisService>();
         
         services.AddScoped<AdministrarHorariosService>();
         services.AddScoped<AdministrarParametrosService>();
