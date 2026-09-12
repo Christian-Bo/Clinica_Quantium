@@ -151,6 +151,7 @@ public sealed class HistorialMedicoPacienteServiceTests
             DateTime desde,
             DateTime hasta,
             Guid? medicoId,
+            string? estado = null,
             CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<Cita>>([]);
 

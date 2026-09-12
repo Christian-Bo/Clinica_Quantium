@@ -120,6 +120,7 @@ public sealed class CitasController(
         [FromQuery] DateTime? desde,
         [FromQuery] DateTime? hasta,
         [FromQuery] Guid? medicoId,
+        [FromQuery] string? estado,
         CancellationToken cancellationToken)
     {
         var usuarioId = User.ObtenerUsuarioId();
@@ -138,6 +139,7 @@ public sealed class CitasController(
             medicoId,
             usuarioId.Value,
             soloAgendaPropia,
+            estado,
             cancellationToken);
         return Ok(await MapManyAsync(citas, cancellationToken));
     }

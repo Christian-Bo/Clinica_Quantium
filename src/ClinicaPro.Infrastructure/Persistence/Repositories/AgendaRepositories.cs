@@ -112,6 +112,7 @@ public sealed class CitaRepository(ClinicaProDbContext dbContext) : ICitaReposit
         DateTime desde,
         DateTime hasta,
         Guid? medicoId,
+        string? estado = null,
         CancellationToken cancellationToken = default)
     {
         var consulta = dbContext.Citas.AsNoTracking()
@@ -120,6 +121,11 @@ public sealed class CitaRepository(ClinicaProDbContext dbContext) : ICitaReposit
         if (medicoId is not null)
         {
             consulta = consulta.Where(cita => cita.MedicoId == medicoId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(estado))
+        {
+            consulta = consulta.Where(cita => cita.Estado == estado);
         }
 
         return await consulta

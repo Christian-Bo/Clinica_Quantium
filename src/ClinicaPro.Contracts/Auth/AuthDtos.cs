@@ -44,7 +44,8 @@ public sealed record AuthResponse(
     string Email,
     IReadOnlyList<string> Roles,
     bool MustChangePassword,
-    Guid? PacienteId);
+    Guid? PacienteId,
+    string? NombreCompleto);
 
 public sealed record UsuarioActualDto(
     Guid UsuarioId,

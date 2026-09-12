@@ -32,7 +32,8 @@ public sealed record AuthSession(
     string Email,
     IReadOnlyList<string> Roles,
     bool MustChangePassword,
-    Guid? PacienteId);
+    Guid? PacienteId,
+    string? NombreCompleto);
 
 public sealed record AuthUserInfo(
     Guid UsuarioId,

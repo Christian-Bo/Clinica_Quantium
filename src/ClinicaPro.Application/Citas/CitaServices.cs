@@ -267,6 +267,7 @@ public sealed class ListarAgendaService(ICitaRepository citas, IMedicoRepository
         Guid? medicoId,
         Guid usuarioId,
         bool soloAgendaPropia,
+        string? estado = null,
         CancellationToken cancellationToken = default)
     {
         var inicio = DateTime.SpecifyKind(desde ?? DateTime.Today, DateTimeKind.Unspecified);
@@ -274,6 +275,16 @@ public sealed class ListarAgendaService(ICitaRepository citas, IMedicoRepository
         if (fin <= inicio)
         {
             throw new DomainException("El rango de agenda es inválido.");
+        }
+
+        string? filtroEstado = null;
+        if (!string.IsNullOrWhiteSpace(estado))
+        {
+            filtroEstado = estado.Trim();
+            if (!CitaEstados.EsConocido(filtroEstado))
+            {
+                throw new DomainException("El estado de la agenda no es válido.");
+            }
         }
 
         Guid? filtroMedicoId = medicoId;
@@ -284,6 +295,6 @@ public sealed class ListarAgendaService(ICitaRepository citas, IMedicoRepository
             filtroMedicoId = medico.Id;
         }
 
-        return await citas.ListarEnRangoAsync(inicio, fin, filtroMedicoId, cancellationToken);
+        return await citas.ListarEnRangoAsync(inicio, fin, filtroMedicoId, filtroEstado, cancellationToken);
     }
 }
