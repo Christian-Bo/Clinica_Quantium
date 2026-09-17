@@ -51,7 +51,7 @@ public static class Program
             .AddHttpClient(NombreClienteApi, cliente =>
             {
                 cliente.BaseAddress = new Uri(apiBaseUrl);
-                cliente.Timeout = TimeSpan.FromSeconds(90);
+                cliente.Timeout = TimeSpan.FromSeconds(30);
             })
             .AddHttpMessageHandler<BearerTokenHandler>();
         builder.Services.AddScoped(sp =>

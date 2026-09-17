@@ -16,7 +16,4 @@ public static class CitaEstados
     public const string Cancelada = "Cancelada";
     public const string NoPresentada = "No presentada";
     public const string Rechazada = "Rechazada";
-
-    public static bool PermiteCapturaClinica(string? estado) =>
-        estado is EnEspera or EnAtencion;
 }
