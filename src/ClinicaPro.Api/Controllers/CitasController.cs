@@ -1,4 +1,5 @@
 using ClinicaPro.Api.Security;
+using ClinicaPro.Application.Agenda;
 using ClinicaPro.Application.Citas;
 using ClinicaPro.Contracts.Admin;
 using ClinicaPro.Contracts.Agenda;
@@ -27,6 +28,7 @@ public sealed class CitasController(
     HistorialMedicoPacienteService historialMedicoPaciente,
     RegistrarPreconsultaService registrarPreconsulta,
     ObtenerPreconsultaService obtenerPreconsulta,
+    ObtenerExpedienteCitaService obtenerExpedienteCita,
     SolicitarAutorizacionReprogramacionService solicitarAutorizacion,
     ResolverNombresCitaService resolverNombres) : ControllerBase
 {
@@ -256,8 +258,50 @@ public sealed class CitasController(
         Guid citaId,
         CancellationToken cancellationToken)
     {
-        var preconsulta = await obtenerPreconsulta.ExecuteAsync(citaId, cancellationToken);
+        var usuarioId = User.ObtenerUsuarioId();
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+
+        var preconsulta = await obtenerPreconsulta.ExecuteAsync(
+            citaId,
+            usuarioId.Value,
+            EsStaffMostrador,
+            cancellationToken);
         return preconsulta is null ? NotFound() : Ok(MapPreconsulta(preconsulta));
+    }
+
+    [Authorize(Roles = RolNombres.Secretaria + "," + RolNombres.Administrador + "," + RolNombres.Medico)]
+    [HttpGet("{citaId:guid}/expediente")]
+    [ProducesResponseType(typeof(ExpedienteCitaDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ExpedienteCitaDto>> Expediente(
+        Guid citaId,
+        CancellationToken cancellationToken)
+    {
+        var usuarioId = User.ObtenerUsuarioId();
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+
+        var resultado = await obtenerExpedienteCita.ExecuteAsync(
+            citaId,
+            usuarioId.Value,
+            EsStaffMostrador,
+            cancellationToken);
+        if (resultado is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(new ExpedienteCitaDto(
+            await MapAsync(resultado.Cita, cancellationToken),
+            MapPacienteContexto(resultado.Paciente),
+            resultado.Preconsulta is null ? null : MapPreconsulta(resultado.Preconsulta),
+            resultado.ImagenesIris.Select(MapExpedienteIris).ToList()));
     }
 
     [HttpGet("{citaId:guid}/historial")]
@@ -510,6 +554,31 @@ public sealed class CitasController(
                 cita.NumeroReprogramaciones);
         }).ToList();
     }
+
+    private bool EsStaffMostrador =>
+        User.IsInRole(RolNombres.Secretaria) || User.IsInRole(RolNombres.Administrador);
+
+    private static PacienteContextoMedicoDto MapPacienteContexto(Paciente paciente)
+        => new(
+            paciente.Id,
+            paciente.NombreCompleto,
+            paciente.Sexo,
+            paciente.Alergias,
+            paciente.FechaNacimiento,
+            paciente.Telefono);
+
+    private static ExpedienteIrisDto MapExpedienteIris(ImagenIrisMetadato imagen)
+        => new(
+            imagen.ImagenIrisId,
+            imagen.CitaId,
+            imagen.TomadaPorUsuarioId,
+            imagen.Lateralidad,
+            imagen.NombreArchivo,
+            imagen.TipoContenido,
+            imagen.TamanoBytes,
+            imagen.Observacion,
+            imagen.FechaCapturaUtc,
+            $"/api/imagenes-iris/{imagen.ImagenIrisId}/archivo");
 
     private static PreconsultaDto MapPreconsulta(Preconsulta preconsulta)
         => new(

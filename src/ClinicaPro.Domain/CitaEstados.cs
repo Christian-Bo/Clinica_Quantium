@@ -28,6 +28,9 @@ public static class CitaEstados
     public static bool BloqueaHorario(string estado) =>
         estado is Solicitada or Programada or Confirmada or EnEspera or EnAtencion;
 
+    public static bool PermiteCapturaClinica(string estado) =>
+        estado is EnEspera or EnAtencion;
+
     public static bool EsConocido(string estado)
     {
         for (var i = 0; i < Todos.Length; i++)

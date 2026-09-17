@@ -51,6 +51,19 @@ Estados: Solicitada → Programada → Confirmada → En Espera → En Atencion 
 
 `GET /api/citas/paciente/{pacienteId}/historial-medico` (Médico): contexto básico del paciente (nombre, sexo, alergias) y citas **de ese médico** con el paciente. 403 si nunca lo atendió. No es expediente clínico.
 
+## Expediente clínico
+
+No sustituye a `historial-medico`. Es signos + iris de las visitas. Paciente: 403. Secretaria/Admin: cualquiera. Médico: 403 si nunca tuvo cita con esa persona (puede ver visitas de otros médicos de ese paciente).
+
+Captura (`PUT .../preconsulta` y `POST .../imagenes-iris`) **solo En Espera o En Atencion** (después de `POST .../llegada`). GET sí en Atendida.
+
+| Método | Ruta | Auth | Qué trae |
+|---|---|---|---|
+| GET | `/api/citas/{citaId}/expediente` | Secretaria, Admin, Médico | Cita + ficha breve + preconsulta + iris de **esa** visita con `urlArchivo` (`/api/imagenes-iris/{id}/archivo`). Sin VARBINARY |
+| GET | `/api/pacientes/{pacienteId}/expediente` | Secretaria, Admin, Médico | Ficha + todas las visitas (más recientes primero): fecha, estado, médico, motivo, signos o null, `tienePreconsulta`, `cantidadIris`. **Sin fotos ni URLs de archivo** |
+
+Front: lista = índice. Click = detalle. La foto se pide aparte con Bearer (no `<img src>` suelto). Flujo del día: llegada → signos/iris → médico lee expediente de hoy y del paciente → iniciar → finalizar. Esa visita queda en el timeline de solo lectura.
+
 `POST /api/citas/{id}/iniciar` y `finalizar`: el médico autenticado debe ser el asignado; si no, 403. Un Administrador sí puede.
 
 `GET /api/citas/agenda`: Secretaria/Admin pueden filtrar con `medicoId`. Query opcional `estado` (exacto: `Solicitada`, `Programada`, `Confirmada`, `En Espera`, `En Atencion`, `Atendida`, `Cancelada`, `No presentada`, `Rechazada`). Sin `estado` o vacío = todos. 400 si el valor no es uno de esos. **Reprogramadas no es un estado** (siguen `Programada`/`Confirmada` con `numeroReprogramaciones > 0`). Un Médico **ignora** `medicoId` ajeno y solo ve la suya. `GET /api/citas/medico` sigue resolviendo al usuario autenticado.
