@@ -26,10 +26,10 @@ public sealed class RegistrarPreconsultaService(
         var cita = await citas.ObtenerPorIdAsync(citaId, cancellationToken)
             ?? throw new DomainException("La cita no existe.");
 
-        if (cita.Estado is CitaEstados.Cancelada or CitaEstados.Rechazada or CitaEstados.NoPresentada)
+        if (!CitaEstados.PermiteCapturaClinica(cita.Estado))
         {
             throw new DomainException(
-                $"No se pueden registrar signos vitales en una cita {cita.Estado}.");
+                "Solo se pueden registrar signos vitales cuando la cita está En Espera o En Atencion.");
         }
 
         var existente = await preconsultas.ObtenerRastreadaPorCitaAsync(citaId, cancellationToken);
@@ -63,8 +63,29 @@ public sealed class RegistrarPreconsultaService(
     }
 }
 
-public sealed class ObtenerPreconsultaService(IPreconsultaRepository preconsultas)
+public sealed class ObtenerPreconsultaService(
+    ICitaRepository citas,
+    IPreconsultaRepository preconsultas,
+    AccesoExpedienteService accesoExpediente)
 {
-    public Task<Preconsulta?> ExecuteAsync(Guid citaId, CancellationToken cancellationToken = default)
-        => preconsultas.ObtenerActivaPorCitaAsync(citaId, cancellationToken);
+    public async Task<Preconsulta?> ExecuteAsync(
+        Guid citaId,
+        Guid usuarioId,
+        bool esStaffMostrador,
+        CancellationToken cancellationToken = default)
+    {
+        var cita = await citas.ObtenerPorIdAsync(citaId, cancellationToken);
+        if (cita is null)
+        {
+            return null;
+        }
+
+        await accesoExpediente.ExigirLecturaAsync(
+            usuarioId,
+            esStaffMostrador,
+            cita.PacienteId,
+            cancellationToken);
+
+        return await preconsultas.ObtenerActivaPorCitaAsync(citaId, cancellationToken);
+    }
 }

@@ -184,4 +184,52 @@ public sealed class CitasApiService(ApiClient api)
             null,
             "No fue posible marcar la cita como no presentada.",
             ct);
+
+    public Task<IReadOnlyList<ImagenIrisDto>> ListarImagenesIrisAsync(
+        Guid citaId,
+        CancellationToken ct = default)
+        => api.ObtenerListaAsync<ImagenIrisDto>(
+            $"api/citas/{citaId}/imagenes-iris",
+            "No fue posible cargar las fotos de iris.",
+            ct,
+            notFoundComoVacio: true);
+
+    public Task<ResultadoOperacion<(byte[] Bytes, string Tipo)>> DescargarImagenIrisAsync(
+        Guid imagenIrisId,
+        CancellationToken ct = default)
+        => api.ObtenerArchivoAsync(
+            $"api/imagenes-iris/{imagenIrisId}/archivo",
+            "No fue posible cargar la foto de iris.",
+            ct);
+
+    public async Task<ResultadoOperacion<ImagenIrisDto>> SubirImagenIrisAsync(
+        Guid citaId,
+        byte[] contenido,
+        string nombreArchivo,
+        string tipoContenido,
+        string lateralidad,
+        CancellationToken ct = default)
+    {
+        using var form = new MultipartFormDataContent();
+        var archivo = new ByteArrayContent(contenido);
+        archivo.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(tipoContenido);
+        form.Add(archivo, "archivo", nombreArchivo);
+        form.Add(new StringContent(lateralidad), "lateralidad");
+
+        return await api.EnviarMultipartAsync<ImagenIrisDto>(
+            $"api/citas/{citaId}/imagenes-iris",
+            form,
+            "No fue posible guardar la foto de iris.",
+            ct);
+    }
+
+    public Task<ResultadoOperacion<bool>> DesactivarImagenIrisAsync(
+        Guid imagenIrisId,
+        CancellationToken ct = default)
+        => api.EnviarSinContenidoAsync(
+            HttpMethod.Delete,
+            $"api/imagenes-iris/{imagenIrisId}",
+            null,
+            "No fue posible quitar la foto de iris.",
+            ct);
 }
