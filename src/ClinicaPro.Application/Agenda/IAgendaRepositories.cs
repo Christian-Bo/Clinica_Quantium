@@ -87,6 +87,9 @@ public interface IPreconsultaRepository
 {
     Task<Preconsulta?> ObtenerActivaPorCitaAsync(Guid citaId, CancellationToken cancellationToken = default);
     Task<Preconsulta?> ObtenerRastreadaPorCitaAsync(Guid citaId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Preconsulta>> ListarActivasPorCitasAsync(
+        IReadOnlyCollection<Guid> citaIds,
+        CancellationToken cancellationToken = default);
     Task AgregarAsync(Preconsulta preconsulta, CancellationToken cancellationToken = default);
 }
 
@@ -102,6 +105,7 @@ public sealed record ImagenIrisMetadato(
     DateTime FechaCapturaUtc);
 
 public sealed record ImagenIrisArchivo(
+    Guid CitaId,
     string NombreArchivo,
     string TipoContenido,
     byte[] Imagen);
@@ -110,6 +114,9 @@ public interface IImagenIrisRepository
 {
     Task<IReadOnlyList<ImagenIrisMetadato>> ListarPorCitaAsync(Guid citaId, CancellationToken cancellationToken = default);
     Task<ImagenIrisArchivo?> ObtenerArchivoAsync(Guid imagenIrisId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyDictionary<Guid, int>> ContarActivasPorCitasAsync(
+        IReadOnlyCollection<Guid> citaIds,
+        CancellationToken cancellationToken = default);
     Task<ImagenIris?> ObtenerRastreadaAsync(Guid imagenIrisId, CancellationToken cancellationToken = default);
     Task AgregarAsync(ImagenIris imagen, CancellationToken cancellationToken = default);
 }

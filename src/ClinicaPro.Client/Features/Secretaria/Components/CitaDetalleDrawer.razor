@@ -29,7 +29,8 @@
                     <p class="mt-1 text-sm text-ink">@citaActual.MotivoConsulta</p>
                 </div>
 
-                <PreconsultaPanel CitaId="@citaActual.CitaId" Editable="true" />
+                <PreconsultaPanel CitaId="@citaActual.CitaId" Editable="@PuedeCapturarClinica" />
+                <IrisPanel CitaId="@citaActual.CitaId" Estado="@citaActual.Estado" Editable="true" />
 
                 @if (RequiereAutorizacion)
                 {
@@ -193,6 +194,7 @@
     private bool PuedeReprogramar => citaActual?.Estado is CitaEstados.Solicitada or CitaEstados.Programada or CitaEstados.Confirmada;
     private bool PuedeCancelar => citaActual?.Estado is CitaEstados.Programada or CitaEstados.Confirmada;
     private bool PuedeMarcarNoPresentada => citaActual?.Estado is CitaEstados.Programada or CitaEstados.Confirmada or CitaEstados.EnEspera;
+    private bool PuedeCapturarClinica => CitaEstados.PermiteCapturaClinica(citaActual?.Estado);
     private string TextoReprogramaciones => citaActual?.NumeroReprogramaciones switch
     {
         1 => "1 reprogramación",

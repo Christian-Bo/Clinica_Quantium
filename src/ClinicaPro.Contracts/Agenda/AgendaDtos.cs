@@ -126,3 +126,40 @@ public sealed record PreconsultaDto(
     long? TamanoBytes,
     string? Observacion,
     DateTime FechaCapturaUtc);
+
+public sealed record ExpedienteIrisDto(
+    Guid ImagenIrisId,
+    Guid CitaId,
+    Guid TomadaPorUsuarioId,
+    string Lateralidad,
+    string NombreArchivo,
+    string TipoContenido,
+    long? TamanoBytes,
+    string? Observacion,
+    DateTime FechaCapturaUtc,
+    string UrlArchivo);
+
+public sealed record ExpedienteCitaDto(
+    CitaDto Cita,
+    PacienteContextoMedicoDto Paciente,
+    PreconsultaDto? Preconsulta,
+    IReadOnlyList<ExpedienteIrisDto> ImagenesIris);
+
+public sealed record ExpedienteVisitaResumenDto(
+    Guid CitaId,
+    DateTime FechaHoraInicio,
+    DateTime FechaHoraFin,
+    string Estado,
+    Guid MedicoId,
+    string MedicoNombre,
+    string MotivoConsulta,
+    bool TienePreconsulta,
+    int CantidadIris,
+    short? PresionSistolicaMmHg,
+    short? PresionDiastolicaMmHg,
+    decimal? TemperaturaCelsius,
+    decimal? OxigenoSangrePorcentaje);
+
+public sealed record ExpedientePacienteDto(
+    PacienteContextoMedicoDto Paciente,
+    IReadOnlyList<ExpedienteVisitaResumenDto> Visitas);
