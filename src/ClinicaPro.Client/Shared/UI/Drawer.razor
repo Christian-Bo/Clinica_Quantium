@@ -8,7 +8,7 @@
              aria-modal="true"
              aria-label="@Title"
              tabindex="-1"
-             class="flex h-full w-full max-w-md flex-col bg-surface shadow-modal outline-none"
+             class="flex h-full w-full @MaxWidthClass flex-col bg-surface shadow-modal outline-none"
              @onclick:stopPropagation="true"
              @onkeydown="ManejarTecla">
             <div class="flex items-center justify-between border-b border-border px-5 py-4">
@@ -39,6 +39,7 @@
     [Parameter] public bool IsOpen { get; set; }
     [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
     [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public string MaxWidthClass { get; set; } = "max-w-md";
     [Parameter] public bool CloseOnBackdrop { get; set; } = false;
     [Parameter] public bool CloseOnEscape { get; set; } = false;
     [Parameter] public RenderFragment? Body { get; set; }

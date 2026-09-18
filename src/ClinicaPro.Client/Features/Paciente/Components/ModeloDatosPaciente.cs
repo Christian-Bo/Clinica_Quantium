@@ -73,9 +73,9 @@ public sealed class ModeloDatosPaciente
         FechaNacimiento = paciente.FechaNacimiento?.ToDateTime(TimeOnly.MinValue),
         Sexo = paciente.Sexo ?? string.Empty,
         Telefono = paciente.Telefono ?? string.Empty,
-        Direccion = paciente.Direccion ?? string.Empty,
-        Alergias = paciente.Alergias ?? string.Empty,
-        ContactoEmergenciaNombre = paciente.ContactoEmergenciaNombre ?? string.Empty,
+        Direccion = LimpiarDatoRecibido(paciente.Direccion) ?? string.Empty,
+        Alergias = LimpiarDatoRecibido(paciente.Alergias) ?? string.Empty,
+        ContactoEmergenciaNombre = LimpiarDatoRecibido(paciente.ContactoEmergenciaNombre) ?? string.Empty,
         ContactoEmergenciaTelefono = paciente.ContactoEmergenciaTelefono ?? string.Empty
     };
 
@@ -352,6 +352,24 @@ public sealed class ModeloDatosPaciente
 
         var digitos = new string([.. valor.Where(char.IsDigit)]);
         return digitos.Length > tope ? digitos[..tope] : digitos;
+    }
+
+    private static string? LimpiarDatoRecibido(string? texto)
+    {
+        var limpio = Limpio(texto);
+        if (limpio is null)
+        {
+            return null;
+        }
+
+        var comparable = limpio.Trim('"', '\'').Trim();
+        return comparable.Equals("string", StringComparison.OrdinalIgnoreCase)
+            || comparable.Equals("null", StringComparison.OrdinalIgnoreCase)
+            || comparable.Equals("undefined", StringComparison.OrdinalIgnoreCase)
+            || comparable.Equals("<string>", StringComparison.OrdinalIgnoreCase)
+            || comparable.Equals("<null>", StringComparison.OrdinalIgnoreCase)
+                ? null
+                : limpio;
     }
 
     private static string? Limpio(string? texto) => string.IsNullOrWhiteSpace(texto) ? null : texto.Trim();

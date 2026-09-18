@@ -1,0 +1,345 @@
+@using ClinicaPro.Client.Features.Expediente.Models
+@using ClinicaPro.Client.Features.Expediente.Services
+@inject ExpedienteApiService ExpedienteApi
+@inject ToastService Toasts
+@inject ConfirmDialogService Confirm
+
+<section class="rounded-card border border-border bg-surface p-4" aria-labelledby="iris-titulo">
+    <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+            <div class="flex items-center gap-2">
+                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-700">
+                    <Icon Name="eye" Size="17" />
+                </span>
+                <div>
+                    <p id="iris-titulo" class="text-sm font-semibold text-ink">Capturas de iris</p>
+                    <p class="text-xs text-ink-muted">Imágenes asociadas a esta atención.</p>
+                </div>
+            </div>
+        </div>
+        @if (imagenes.Count > 0)
+        {
+            <span class="shrink-0 rounded-pill bg-surface-muted px-2 py-1 text-xs font-medium text-ink-muted">@imagenes.Count</span>
+        }
+    </div>
+
+    @if (Editable)
+    {
+        @if (PuedeCapturar)
+        {
+            <div class="mt-4 rounded-control border border-border bg-surface-muted/60 p-3">
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <div>
+                        <p class="text-xs font-medium text-ink">Ojo fotografiado</p>
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            @foreach (var opcion in Lateralidades)
+                            {
+                                <button type="button" class="@ClaseLateralidad(opcion.Valor)" @onclick="() => lateralidad = opcion.Valor">@opcion.Texto</button>
+                            }
+                        </div>
+                    </div>
+                    <div>
+                        <label for="iris-observacion" class="text-xs font-medium text-ink">Nota <span class="font-normal text-ink-muted">(opcional)</span></label>
+                        <input id="iris-observacion" type="text" maxlength="500" value="@observacion" @oninput="e => observacion = e.Value?.ToString() ?? string.Empty"
+                               placeholder="Ej. Imagen tomada con buena iluminación"
+                               class="mt-2 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-brand-500" />
+                    </div>
+                </div>
+
+                <div class="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="min-w-0">
+                        <label class="inline-flex cursor-pointer items-center gap-2 rounded-control border border-border bg-surface px-3 py-2 text-xs font-medium text-ink transition-colors hover:border-brand-500 hover:bg-brand-50">
+                            <Icon Name="plus" Size="15" />
+                            Tomar o elegir imagen
+                            <InputFile class="hidden" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" capture="environment" OnChange="SeleccionarArchivo" />
+                        </label>
+                        @if (archivoSeleccionado is not null)
+                        {
+                            <p class="mt-1 max-w-xs truncate text-xs text-ink-muted">@archivoSeleccionado.Name · @TamanoLegible(archivoSeleccionado.Size)</p>
+                        }
+                    </div>
+                    <Button Variant="ButtonVariant.Primary" Size="sm" IconName="check" Loading="subiendo" Disabled="@(subiendo || archivoSeleccionado is null)" OnClick="GuardarAsync">Guardar captura</Button>
+                </div>
+                <p class="mt-2 text-[11px] leading-5 text-ink-muted">Usa una imagen nítida en formato JPG, PNG o WebP. Máximo 10 MB.</p>
+            </div>
+        }
+        else
+        {
+            <div class="mt-4 flex items-start gap-2 rounded-control bg-surface-muted px-3 py-2.5">
+                <Icon Name="clock" Size="16" CssClass="mt-0.5 text-ink-muted" />
+                <p class="text-xs leading-5 text-ink-muted">La captura se habilita cuando se registra la llegada del paciente y mientras la atención está en curso.</p>
+            </div>
+        }
+    }
+
+    @if (cargando)
+    {
+        <div class="mt-4"><Skeleton Filas="2" HeightClass="h-14" /></div>
+    }
+    else if (!string.IsNullOrWhiteSpace(errorCarga))
+    {
+        <div class="mt-4 rounded-control border border-state-rechazada/20 bg-state-rechazada/5 p-3">
+            <p class="text-xs text-state-rechazada">@errorCarga</p>
+            <button type="button" class="mt-2 text-xs font-medium text-brand-600 hover:underline" @onclick="CargarAsync">Reintentar</button>
+        </div>
+    }
+    else if (imagenes.Count == 0)
+    {
+        <p class="mt-4 text-sm text-ink-muted">Aún no hay capturas registradas en esta atención.</p>
+    }
+    else
+    {
+        <div class="mt-4 space-y-2">
+            @foreach (var item in imagenes.OrderByDescending(x => x.FechaCapturaUtc))
+            {
+                <div class="rounded-control border border-border bg-surface p-3">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-ink">@LateralidadTexto(item.Lateralidad)</p>
+                            <p class="mt-0.5 text-xs text-ink-muted">@FechaLocal(item.FechaCapturaUtc).ToString("dd/MM/yyyy · HH:mm")</p>
+                            @if (TextoPresentacion.TieneContenido(item.Observacion))
+                            {
+                                <p class="mt-1 text-xs leading-5 text-ink-muted">@TextoPresentacion.Mostrar(item.Observacion)</p>
+                            }
+                        </div>
+                        <div class="flex shrink-0 items-center gap-1">
+                            <button type="button" class="rounded-control px-2 py-1 text-xs font-medium text-brand-600 hover:bg-brand-50" @onclick="() => AlternarVistaAsync(item)">
+                                @(previews.ContainsKey(item.ImagenIrisId) ? "Ocultar" : "Ver")
+                            </button>
+                            @if (Editable)
+                            {
+                                <button type="button" title="Quitar captura" class="rounded-control p-1.5 text-ink-muted hover:bg-surface-muted hover:text-ink" @onclick="() => QuitarAsync(item)">
+                                    <Icon Name="trash" Size="15" />
+                                </button>
+                            }
+                        </div>
+                    </div>
+
+                    @if (cargandoPreview == item.ImagenIrisId)
+                    {
+                        <div class="mt-3"><Skeleton Filas="1" HeightClass="h-36" /></div>
+                    }
+                    else if (previews.TryGetValue(item.ImagenIrisId, out var preview))
+                    {
+                        <div class="mt-3 overflow-hidden rounded-control border border-border bg-black/40">
+                            <img src="@preview" alt="Captura de @LateralidadTexto(item.Lateralidad).ToLowerInvariant()" class="max-h-52 w-full" style="object-fit: contain;" />
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    private const long TamanoMaximo = 10 * 1024 * 1024;
+    private static readonly (string Valor, string Texto)[] Lateralidades =
+    [
+        ("OI", "Izquierdo"),
+        ("OD", "Derecho"),
+        ("Ambos", "Ambos")
+    ];
+
+    private static readonly HashSet<string> TiposPermitidos = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "image/jpeg", "image/png", "image/webp"
+    };
+
+    [Parameter, EditorRequired] public Guid CitaId { get; set; }
+    [Parameter] public string? Estado { get; set; }
+    [Parameter] public bool Editable { get; set; }
+    [Parameter] public EventCallback OnActualizado { get; set; }
+
+    private List<ImagenIrisClientDto> imagenes = [];
+    private readonly Dictionary<Guid, string> previews = [];
+    private Guid citaCargada;
+    private Guid? cargandoPreview;
+    private bool cargando;
+    private bool subiendo;
+    private string? errorCarga;
+    private string lateralidad = "OI";
+    private string observacion = string.Empty;
+    private IBrowserFile? archivoSeleccionado;
+
+    private bool PuedeCapturar => Editable && CitaEstados.PermiteCapturaClinica(Estado);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (CitaId != Guid.Empty && CitaId != citaCargada)
+        {
+            citaCargada = CitaId;
+            archivoSeleccionado = null;
+            observacion = string.Empty;
+            previews.Clear();
+            await CargarAsync();
+        }
+    }
+
+    private async Task CargarAsync()
+    {
+        cargando = true;
+        errorCarga = null;
+        try
+        {
+            imagenes = (await ExpedienteApi.ListarIrisAsync(CitaId)).ToList();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            errorCarga = MensajeUsuario.Limpiar(ex.Message, "No pudimos cargar las capturas de iris.");
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void SeleccionarArchivo(InputFileChangeEventArgs e)
+    {
+        archivoSeleccionado = e.File;
+        if (archivoSeleccionado.Size > TamanoMaximo)
+        {
+            archivoSeleccionado = null;
+            Toasts.Error("La imagen debe pesar 10 MB o menos.");
+            return;
+        }
+
+        var tipo = TipoContenido(archivoSeleccionado);
+        if (!TiposPermitidos.Contains(tipo))
+        {
+            archivoSeleccionado = null;
+            Toasts.Error("Elige una imagen JPG, PNG o WebP.");
+        }
+    }
+
+    private async Task GuardarAsync()
+    {
+        if (archivoSeleccionado is null || subiendo)
+        {
+            return;
+        }
+
+        subiendo = true;
+        try
+        {
+            var tipo = TipoContenido(archivoSeleccionado);
+            await using var stream = archivoSeleccionado.OpenReadStream(TamanoMaximo);
+            using var memoria = new MemoryStream();
+            await stream.CopyToAsync(memoria);
+
+            var resultado = await ExpedienteApi.SubirIrisAsync(
+                CitaId,
+                memoria.ToArray(),
+                archivoSeleccionado.Name,
+                tipo,
+                lateralidad,
+                string.IsNullOrWhiteSpace(observacion) ? null : observacion.Trim());
+
+            if (!resultado.Exito)
+            {
+                Toasts.Error(MensajeUsuario.Limpiar(resultado.Error, "No fue posible guardar la captura."));
+                return;
+            }
+
+            Toasts.Exito("Captura de iris guardada.");
+            archivoSeleccionado = null;
+            observacion = string.Empty;
+            previews.Clear();
+            await CargarAsync();
+            await OnActualizado.InvokeAsync();
+        }
+        finally
+        {
+            subiendo = false;
+        }
+    }
+
+    private async Task AlternarVistaAsync(ImagenIrisClientDto item)
+    {
+        if (previews.ContainsKey(item.ImagenIrisId))
+        {
+            previews.Remove(item.ImagenIrisId);
+            return;
+        }
+
+        cargandoPreview = item.ImagenIrisId;
+        try
+        {
+            var resultado = await ExpedienteApi.DescargarIrisAsync(item.ImagenIrisId);
+            if (!resultado.Exito || resultado.Valor.Bytes.Length == 0)
+            {
+                Toasts.Error(MensajeUsuario.Limpiar(resultado.Error, "No fue posible abrir la captura."));
+                return;
+            }
+
+            previews[item.ImagenIrisId] = $"data:{resultado.Valor.Tipo};base64,{Convert.ToBase64String(resultado.Valor.Bytes)}";
+        }
+        finally
+        {
+            cargandoPreview = null;
+        }
+    }
+
+    private async Task QuitarAsync(ImagenIrisClientDto item)
+    {
+        var confirmar = await Confirm.ConfirmarAsync(
+            "La captura dejará de mostrarse en el expediente. Usa esta opción solo si la imagen fue registrada por error.",
+            "Quitar captura",
+            "Quitar",
+            esPeligroso: true);
+        if (!confirmar)
+        {
+            return;
+        }
+
+        var resultado = await ExpedienteApi.QuitarIrisAsync(item.ImagenIrisId);
+        if (!resultado.Exito)
+        {
+            Toasts.Error(MensajeUsuario.Limpiar(resultado.Error, "No fue posible quitar la captura."));
+            return;
+        }
+
+        previews.Remove(item.ImagenIrisId);
+        Toasts.Exito("Captura quitada del expediente.");
+        await CargarAsync();
+        await OnActualizado.InvokeAsync();
+    }
+
+    private string ClaseLateralidad(string valor)
+        => lateralidad == valor
+            ? "rounded-control border border-brand-500 bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white"
+            : "rounded-control border border-border bg-surface px-3 py-1.5 text-xs font-medium text-ink hover:border-brand-500";
+
+    private static string TipoContenido(IBrowserFile archivo)
+    {
+        var reportado = archivo.ContentType?.Trim().ToLowerInvariant();
+        if (reportado is "image/jpeg" or "image/png" or "image/webp")
+        {
+            return reportado;
+        }
+        if (reportado == "image/jpg")
+        {
+            return "image/jpeg";
+        }
+
+        if (archivo.Name.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) return "image/png";
+        if (archivo.Name.EndsWith(".webp", StringComparison.OrdinalIgnoreCase)) return "image/webp";
+        if (archivo.Name.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) || archivo.Name.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase)) return "image/jpeg";
+        return reportado ?? string.Empty;
+    }
+
+    private static string LateralidadTexto(string? valor) => valor switch
+    {
+        "OD" => "Ojo derecho",
+        "OI" => "Ojo izquierdo",
+        "Ambos" => "Ambos ojos",
+        _ => "Iris"
+    };
+
+    private static string TamanoLegible(long bytes)
+        => bytes >= 1024 * 1024
+            ? $"{bytes / (1024d * 1024d):0.#} MB"
+            : $"{Math.Max(1, bytes / 1024d):0} KB";
+
+    private static DateTime FechaLocal(DateTime utc)
+        => utc.Kind == DateTimeKind.Utc ? utc.ToLocalTime() : utc;
+}

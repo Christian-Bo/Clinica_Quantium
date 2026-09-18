@@ -15,6 +15,14 @@ public static class MensajeUsuario
 
         var texto = mensaje.Trim();
 
+        // Algunos clientes de prueba y formularios generados pueden enviar
+        // marcadores como "string" o "null". Nunca son mensajes útiles para
+        // una persona, así que se sustituyen por el contexto de la operación.
+        if (!TextoPresentacion.TieneContenido(texto))
+        {
+            return mensajePorDefecto;
+        }
+
         // Mensajes conocidos del dominio que pueden llegar con nombres internos.
         if (Contiene(texto, "POST /api/admin/medicos"))
             return "Para crear un médico, utiliza la sección Médicos y horarios.";
@@ -64,6 +72,24 @@ public static class MensajeUsuario
         if (Contiene(texto, "paciente autenticado"))
             return "No puedes realizar esta acción sobre esa cita.";
 
+        if (Contiene(texto, "Solo se pueden registrar signos vitales"))
+            return "Los signos vitales se registran después de la llegada y mientras la atención está activa.";
+
+        if (Contiene(texto, "Solo se pueden adjuntar imágenes de iris"))
+            return "Las capturas de iris se registran después de la llegada y mientras la atención está activa.";
+
+        if (Contiene(texto, "tipo de contenido del archivo") || Contiene(texto, "archivo debe ser image/"))
+            return "Elige una imagen JPG, PNG o WebP.";
+
+        if (Contiene(texto, "lateralidad debe ser"))
+            return "Selecciona qué ojo corresponde a la imagen.";
+
+        if (Contiene(texto, "archivo de imagen está vacío"))
+            return "La imagen seleccionada está vacía. Elige otra.";
+
+        if (Contiene(texto, "imagen ya está inactiva"))
+            return "La captura ya había sido retirada del expediente.";
+
         if (Contiene(texto, "rango del reporte") || Contiene(texto, "rango de agenda"))
             return "Revisa las fechas seleccionadas e intenta nuevamente.";
 
@@ -98,7 +124,9 @@ public static class MensajeUsuario
             "nullable", "debe ser int", "valor int", "debe asociarse a un usuario", "modelstate",
             "validationproblem", "dbupdate", "entity framework", "controller", "middleware", "stacktrace",
             "request body", "response body", "content-type", "usuarioid", "pacienteid", "medicoid",
-            "citaid", "autorizacionid", "la página debe ser"
+            "citaid", "autorizacionid", "la página debe ser", "traceid", "trace id",
+            "bytepositioninline", "json path", "could not be converted", "cannot be converted",
+            "invalidoperationexception", "argumentexception", "nullreferenceexception", " at clinicapro."
         ];
 
         return indicadores.Any(indicador => Contiene(texto, indicador));

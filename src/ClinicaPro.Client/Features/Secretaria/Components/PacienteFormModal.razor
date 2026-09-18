@@ -307,9 +307,9 @@
             FechaNacimiento = paciente.FechaNacimiento?.ToDateTime(TimeOnly.MinValue),
             Sexo = paciente.Sexo ?? string.Empty,
             Telefono = FormValidation.FromApiGuatemalaPhone(paciente.Telefono),
-            Direccion = paciente.Direccion ?? string.Empty,
-            Alergias = paciente.Alergias ?? string.Empty,
-            ContactoEmergenciaNombre = paciente.ContactoEmergenciaNombre ?? string.Empty,
+            Direccion = TextoPresentacion.Opcional(paciente.Direccion) ?? string.Empty,
+            Alergias = TextoPresentacion.Opcional(paciente.Alergias) ?? string.Empty,
+            ContactoEmergenciaNombre = TextoPresentacion.Opcional(paciente.ContactoEmergenciaNombre) ?? string.Empty,
             ContactoEmergenciaTelefono = FormValidation.FromApiGuatemalaPhone(paciente.ContactoEmergenciaTelefono)
         };
     }

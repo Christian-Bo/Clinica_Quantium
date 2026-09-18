@@ -69,7 +69,12 @@
                         <div class="flex items-center justify-between gap-3 py-2.5">
                             <div class="min-w-0">
                                 <p class="truncate text-sm font-medium text-ink">@cita.PacienteNombre</p>
-                                <p class="truncate text-xs text-ink-muted">@cita.FechaHoraInicio.ToString("HH:mm") · @cita.MedicoNombre · @cita.MotivoConsulta</p>
+                                <p class="truncate text-xs text-ink-muted">
+                                    <span>@cita.FechaHoraInicio.ToString("HH:mm") · @cita.MedicoNombre</span>@if (TextoPresentacion.TieneContenido(cita.MotivoConsulta))
+                                    {
+                                        <span> · @TextoPresentacion.MotivoConsulta(cita.MotivoConsulta)</span>
+                                    }
+                                </p>
                             </div>
                             <Button Variant="ButtonVariant.Primary" Size="sm" IconName="check" OnClick="() => AbrirDetalle(cita)">Atender</Button>
                         </div>

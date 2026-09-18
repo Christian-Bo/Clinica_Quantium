@@ -104,7 +104,7 @@
                     Email = Medico.Email,
                     Nombres = Medico.Nombres,
                     Apellidos = Medico.Apellidos,
-                    NumeroColegiado = Medico.NumeroColegiado ?? string.Empty,
+                    NumeroColegiado = TextoPresentacion.Opcional(Medico.NumeroColegiado) ?? string.Empty,
                     Telefono = FormValidation.FromApiGuatemalaPhone(Medico.Telefono),
                     IsActive = Medico.IsActive
                 };

@@ -80,8 +80,8 @@
                                         </div>
                                     </div>
                                 </td>
-                                <td class="px-5 py-3 text-ink-muted">@FormValidation.FormatGuatemalaPhone(medico.Telefono)</td>
-                                <td class="px-5 py-3 text-ink-muted">@(string.IsNullOrWhiteSpace(medico.NumeroColegiado) ? "—" : medico.NumeroColegiado)</td>
+                                <td class="px-5 py-3 text-ink-muted">@(TextoPresentacion.TieneContenido(medico.Telefono) ? FormValidation.FormatGuatemalaPhone(medico.Telefono) : "—")</td>
+                                <td class="px-5 py-3 text-ink-muted">@TextoPresentacion.Mostrar(medico.NumeroColegiado, "—")</td>
                                 <td class="px-5 py-3">
                                     <span class="inline-flex rounded-pill px-2.5 py-1 text-xs font-medium @(medico.IsActive ? "bg-brand-100 text-brand-700" : "bg-state-rechazada/10 text-state-rechazada")">@(medico.IsActive ? "Activo" : "Inactivo")</span>
                                 </td>

@@ -24,9 +24,9 @@
                         <p class="mt-1 text-xs text-ink-muted">
                             @cita.FechaHoraInicio.ToString("dd/MM/yyyy HH:mm")
                         </p>
-                        @if (!string.IsNullOrWhiteSpace(cita.MotivoConsulta))
+                        @if (TextoPresentacion.TieneContenido(cita.MotivoConsulta))
                         {
-                            <p class="mt-1 text-xs text-ink-muted">Motivo: @cita.MotivoConsulta</p>
+                            <p class="mt-1 text-xs text-ink-muted">Motivo: @TextoPresentacion.MotivoConsulta(cita.MotivoConsulta)</p>
                         }
                     </div>
                 }
