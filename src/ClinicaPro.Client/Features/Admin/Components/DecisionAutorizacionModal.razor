@@ -8,7 +8,7 @@
             <div class="space-y-4">
                 <div class="rounded-control bg-surface-muted p-3 text-sm">
                     <p class="text-xs uppercase tracking-wide text-ink-muted">Motivo de Secretaría</p>
-                    <p class="mt-1 text-ink">@Autorizacion.MotivoSolicitud</p>
+                    <p class="mt-1 text-ink">@TextoPresentacion.Mostrar(Autorizacion.MotivoSolicitud, "Sin motivo especificado.")</p>
                 </div>
                 <ValidatedTextArea Id="adm-aut-observacion"
                                    Label="@(Aprobar ? "Observación de aprobación" : "Motivo del rechazo")"
@@ -72,7 +72,7 @@
             var resultado = Aprobar
                 ? await AdminApi.AprobarAutorizacionAsync(Autorizacion.AutorizacionId, motivo.Trim())
                 : await AdminApi.RechazarAutorizacionAsync(Autorizacion.AutorizacionId, motivo.Trim());
-            if (!resultado.Exito) { error = resultado.Error; return; }
+            if (!resultado.Exito) { error = MensajeUsuario.Limpiar(resultado.Error, "No pudimos guardar la decisión."); return; }
             Toast.Exito(Aprobar ? "Autorización aprobada." : "Autorización rechazada.");
             await OnGuardado.InvokeAsync();
             await IsOpenChanged.InvokeAsync(false);

@@ -1,0 +1,9 @@
+<div class="rounded-control border border-border bg-surface p-3 text-center">
+    <p class="text-lg font-semibold text-ink">@Valor</p>
+    <p class="mt-0.5 text-[11px] text-ink-muted">@Etiqueta</p>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Valor { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Etiqueta { get; set; } = string.Empty;
+}

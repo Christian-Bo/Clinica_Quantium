@@ -8,11 +8,21 @@
             <div class="space-y-5">
                 <div class="flex items-center justify-between"><CitaStatusBadge Estado="@Cita.Estado" /><span class="text-xs text-ink-muted">@Cita.FechaHoraInicio.ToString("HH:mm") – @Cita.FechaHoraFin.ToString("HH:mm")</span></div>
                 <div class="space-y-1">
-                    <div class="flex items-center justify-between gap-2"><p class="text-lg font-semibold text-ink">@Cita.PacienteNombre</p><button type="button" class="flex shrink-0 items-center gap-1 text-xs font-medium text-brand-600 hover:underline" @onclick="AbrirHistorial"><Icon Name="history" Size="14" /> @(EsAdministrador ? "Historial del paciente" : "Contexto del paciente")</button></div>
-                    <p class="text-sm text-ink-muted">@(EsAdministrador ? "Vista administrativa de la atención" : "Cita asignada a tu agenda")</p>
+                    <div class="flex items-center justify-between gap-2">
+                        <p class="text-lg font-semibold text-ink">@Cita.PacienteNombre</p>
+                        <button type="button" class="flex shrink-0 items-center gap-1 text-xs font-medium text-brand-600 hover:underline" @onclick="AbrirExpediente"><Icon Name="file-text" Size="14" /> Expediente clínico</button>
+                    </div>
+                    <p class="text-sm text-ink-muted">@(EsAdministrador ? "Información de la atención" : "Cita asignada a tu agenda")</p>
                 </div>
-                <div class="rounded-control bg-surface-muted p-3"><p class="text-xs uppercase text-ink-muted">Motivo de consulta</p><p class="mt-1 text-sm text-ink">@Cita.MotivoConsulta</p></div>
-                <PreconsultaPanel CitaId="@Cita.CitaId" Editable="@EsAdministrador" />
+                @if (TextoPresentacion.TieneContenido(Cita.MotivoConsulta))
+                {
+                    <div class="rounded-control bg-surface-muted p-3"><p class="text-xs uppercase text-ink-muted">Motivo de consulta</p><p class="mt-1 text-sm text-ink">@TextoPresentacion.MotivoConsulta(Cita.MotivoConsulta)</p></div>
+                }
+                @if (MuestraInformacionClinica)
+                {
+                    <PreconsultaPanel CitaId="@Cita.CitaId" Estado="@Cita.Estado" Editable="@EsAdministrador" />
+                    <IrisCapturePanel CitaId="@Cita.CitaId" Estado="@Cita.Estado" Editable="@EsAdministrador" />
+                }
 
                 <div>
                     <p class="mb-2 text-xs uppercase text-ink-muted">Historial de esta cita</p>
@@ -27,7 +37,7 @@
                     else if (historial.Count == 0) { <p class="text-sm text-ink-muted">Sin movimientos registrados todavía.</p> }
                     else
                     {
-                        <ul class="space-y-2">@foreach (var item in historial.OrderByDescending(h => h.FechaCambioUtc)) { <li class="rounded-control border border-border bg-surface p-2.5 text-sm"><p class="text-ink">@item.Descripcion</p><p class="mt-0.5 text-xs text-ink-muted">@item.FechaCambioLocal.ToString("dd/MM/yyyy HH:mm")</p></li> }</ul>
+                        <ul class="space-y-2">@foreach (var item in historial.OrderByDescending(h => h.FechaCambioUtc)) { <li class="rounded-control border border-border bg-surface p-2.5 text-sm"><p class="text-ink">@TextoPresentacion.Mostrar(item.Descripcion, "Movimiento registrado.")</p><p class="mt-0.5 text-xs text-ink-muted">@item.FechaCambioLocal.ToString("dd/MM/yyyy HH:mm")</p></li> }</ul>
                     }
                 </div>
             </div>
@@ -45,14 +55,8 @@
     </Footer>
 </Drawer>
 
-@if (EsAdministrador)
-{
-    <HistorialAdminPacienteDrawer IsOpen="historialAbierto" IsOpenChanged="@((bool v) => historialAbierto = v)" PacienteId="Cita?.PacienteId" PacienteNombre="@NombrePacienteActual" />
-}
-else
-{
-    <HistorialMedicoPacienteDrawer IsOpen="historialAbierto" IsOpenChanged="@((bool v) => historialAbierto = v)" PacienteId="Cita?.PacienteId" />
-}
+<ExpedienteClinicoDrawer IsOpen="expedienteAbierto" IsOpenChanged="@((bool v) => expedienteAbierto = v)"
+                          PacienteId="Cita?.PacienteId" CitaInicialId="Cita?.CitaId" />
 
 @code {
     [Parameter] public bool IsOpen { get; set; }
@@ -66,14 +70,14 @@ else
     private string? errorHistorial;
     private bool enviando;
     private Guid? citaIdCargada;
-    private bool historialAbierto;
-    private string NombrePacienteActual => Cita?.PacienteNombre ?? "Paciente";
+    private bool expedienteAbierto;
+    private bool MuestraInformacionClinica => Cita?.Estado is CitaEstados.EnEspera or CitaEstados.EnAtencion or CitaEstados.Atendida;
 
-    private void AbrirHistorial() => historialAbierto = true;
+    private void AbrirExpediente() => expedienteAbierto = true;
 
     protected override async Task OnParametersSetAsync()
     {
-        if (Cita is not null && Cita.CitaId != citaIdCargada) { citaIdCargada = Cita.CitaId; historialAbierto = false; await CargarHistorialAsync(); }
+        if (Cita is not null && Cita.CitaId != citaIdCargada) { citaIdCargada = Cita.CitaId; expedienteAbierto = false; await CargarHistorialAsync(); }
         else if (Cita is null) { citaIdCargada = null; }
     }
 
@@ -110,7 +114,7 @@ else
             {
                 Toasts.Exito(mensajeExito); await OnActualizada.InvokeAsync(resultado.Valor); await IsOpenChanged.InvokeAsync(false);
             }
-            else Toasts.Error(resultado.Error ?? "No fue posible completar la acción.");
+            else Toasts.Error(MensajeUsuario.Limpiar(resultado.Error, "No fue posible completar la acción."));
         }
         finally { enviando = false; }
     }

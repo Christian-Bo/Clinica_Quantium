@@ -30,10 +30,10 @@
         </span>
     </div>
 
-    @if (!string.IsNullOrWhiteSpace(Cita.MotivoConsulta))
+    @if (TextoPresentacion.TieneContenido(Cita.MotivoConsulta))
     {
         <p class="mt-3 border-t border-border pt-3 text-sm text-ink-muted">
-            <span class="font-medium text-ink">Motivo:</span> @Cita.MotivoConsulta
+            <span class="font-medium text-ink">Motivo:</span> @TextoPresentacion.MotivoConsulta(Cita.MotivoConsulta)
         </p>
     }
 

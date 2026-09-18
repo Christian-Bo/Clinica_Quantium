@@ -8,11 +8,19 @@
             <div class="space-y-5">
                 <div class="flex items-center justify-between gap-3">
                     <CitaStatusBadge Estado="@citaActual.Estado" />
-                    <span class="text-xs text-ink-muted">@TextoReprogramaciones</span>
+                    @if (TextoReprogramaciones is not null)
+                    {
+                        <span class="text-xs text-ink-muted">@TextoReprogramaciones</span>
+                    }
                 </div>
 
                 <div class="rounded-card border border-border bg-surface-muted p-4">
-                    <p class="text-lg font-semibold text-ink">@citaActual.PacienteNombre</p>
+                    <div class="flex items-start justify-between gap-3">
+                        <p class="text-lg font-semibold text-ink">@citaActual.PacienteNombre</p>
+                        <button type="button" class="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-brand-600 hover:underline" @onclick="AbrirExpediente">
+                            <Icon Name="file-text" Size="14" /> Expediente clínico
+                        </button>
+                    </div>
                     <div class="mt-3 flex items-center gap-2">
                         <span class="flex h-8 w-8 items-center justify-center rounded-pill bg-brand-100 text-brand-700"><Icon Name="stethoscope" Size="16" /></span>
                         <div><p class="text-xs uppercase tracking-wide text-ink-muted">Médico asignado</p><p class="text-sm font-medium text-ink">@citaActual.MedicoNombre</p></div>
@@ -24,12 +32,26 @@
                     <div class="rounded-control border border-border p-3"><p class="text-xs uppercase text-ink-muted">Horario</p><p class="mt-1 font-medium text-ink">@citaActual.FechaHoraInicio.ToString("HH:mm") – @citaActual.FechaHoraFin.ToString("HH:mm")</p></div>
                 </div>
 
-                <div class="rounded-control border border-border p-3">
-                    <p class="text-xs uppercase text-ink-muted">Motivo de consulta</p>
-                    <p class="mt-1 text-sm text-ink">@citaActual.MotivoConsulta</p>
-                </div>
+                @if (TextoPresentacion.TieneContenido(citaActual.MotivoConsulta))
+                {
+                    <div class="rounded-control border border-border p-3">
+                        <p class="text-xs uppercase text-ink-muted">Motivo de consulta</p>
+                        <p class="mt-1 text-sm text-ink">@TextoPresentacion.MotivoConsulta(citaActual.MotivoConsulta)</p>
+                    </div>
+                }
 
-                <PreconsultaPanel CitaId="@citaActual.CitaId" Editable="true" />
+                @if (MuestraInformacionClinica)
+                {
+                    <PreconsultaPanel CitaId="@citaActual.CitaId" Estado="@citaActual.Estado" Editable="true" />
+                    <IrisCapturePanel CitaId="@citaActual.CitaId" Estado="@citaActual.Estado" Editable="true" />
+                }
+                else if (PuedeRegistrarLlegada)
+                {
+                    <div class="flex items-start gap-2 rounded-control bg-surface-muted px-3 py-2.5">
+                        <Icon Name="stethoscope" Size="16" CssClass="mt-0.5 text-ink-muted" />
+                        <p class="text-xs leading-5 text-ink-muted">Los signos vitales y las capturas clínicas se habilitarán al registrar la llegada del paciente.</p>
+                    </div>
+                }
 
                 @if (RequiereAutorizacion)
                 {
@@ -135,7 +157,7 @@
                         <ul class="space-y-2">
                             @foreach (var item in historial.OrderByDescending(h => h.FechaCambioUtc))
                             {
-                                <li class="rounded-control border border-border bg-surface p-2.5 text-sm"><p class="text-ink">@item.Descripcion</p><p class="mt-0.5 text-xs text-ink-muted">@item.FechaCambioLocal.ToString("dd/MM/yyyy HH:mm") · @item.ActorNombre</p></li>
+                                <li class="rounded-control border border-border bg-surface p-2.5 text-sm"><p class="text-ink">@TextoPresentacion.Mostrar(item.Descripcion, "Movimiento registrado.")</p><p class="mt-0.5 text-xs text-ink-muted">@item.FechaCambioLocal.ToString("dd/MM/yyyy HH:mm") · @TextoPresentacion.Mostrar(item.ActorNombre, "Usuario")</p></li>
                             }
                         </ul>
                     }
@@ -155,6 +177,9 @@
         }
     </Footer>
 </Drawer>
+
+<ExpedienteClinicoDrawer IsOpen="expedienteAbierto" IsOpenChanged="@((bool v) => expedienteAbierto = v)"
+                          PacienteId="citaActual?.PacienteId" CitaInicialId="citaActual?.CitaId" />
 
 <MotivoModal IsOpen="modalRechazoAbierto" IsOpenChanged="@((bool v) => modalRechazoAbierto = v)" Titulo="Rechazar solicitud" Etiqueta="Motivo del rechazo" Placeholder="Explica brevemente por qué se rechaza" TextoBoton="Confirmar rechazo" OnConfirmar="RechazarAsync" />
 <MotivoModal IsOpen="modalCancelacionAbierto" IsOpenChanged="@((bool v) => modalCancelacionAbierto = v)" Titulo="Cancelar cita" Etiqueta="Motivo de la cancelación" Placeholder="Explica brevemente por qué se cancela" TextoBoton="Confirmar cancelación" OnConfirmar="CancelarAsync" />
@@ -182,6 +207,7 @@
     private string? errorSlots;
     private bool solicitandoAutorizacion;
     private bool autorizacionSolicitada;
+    private bool expedienteAbierto;
     private bool mostrarValidacionReprogramacion;
     private int cicloReprogramacion;
 
@@ -193,11 +219,12 @@
     private bool PuedeReprogramar => citaActual?.Estado is CitaEstados.Solicitada or CitaEstados.Programada or CitaEstados.Confirmada;
     private bool PuedeCancelar => citaActual?.Estado is CitaEstados.Programada or CitaEstados.Confirmada;
     private bool PuedeMarcarNoPresentada => citaActual?.Estado is CitaEstados.Programada or CitaEstados.Confirmada or CitaEstados.EnEspera;
-    private string TextoReprogramaciones => citaActual?.NumeroReprogramaciones switch
+    private bool MuestraInformacionClinica => citaActual?.Estado is CitaEstados.EnEspera or CitaEstados.EnAtencion or CitaEstados.Atendida;
+    private string? TextoReprogramaciones => citaActual?.NumeroReprogramaciones switch
     {
         1 => "1 reprogramación",
         > 1 => $"{citaActual.NumeroReprogramaciones} reprogramaciones",
-        _ => "Sin reprogramaciones"
+        _ => null
     };
 
     protected override async Task OnParametersSetAsync()
@@ -208,6 +235,7 @@
             citaIdCargada = Cita.CitaId;
             reprogramando = false;
             autorizacionSolicitada = false;
+            expedienteAbierto = false;
             await CargarHistorialAsync();
         }
         else if (Cita is null)
@@ -216,6 +244,8 @@
             citaIdCargada = null;
         }
     }
+
+    private void AbrirExpediente() => expedienteAbierto = true;
 
     private async Task CargarHistorialAsync()
     {
@@ -250,7 +280,7 @@
                 await CargarHistorialAsync();
                 return true;
             }
-            Toasts.Error(resultado.Error ?? "No fue posible completar la acción.");
+            Toasts.Error(MensajeUsuario.Limpiar(resultado.Error, "No fue posible completar la acción."));
             return false;
         }
         finally { enviando = false; }
@@ -346,11 +376,11 @@
             var resultado = await CitasApi.SolicitarAutorizacionReprogramacionAsync(citaActual.CitaId, motivo);
             if (!resultado.Exito)
             {
-                Toasts.Error(resultado.Error ?? "No fue posible solicitar la autorización.");
+                Toasts.Error(MensajeUsuario.Limpiar(resultado.Error, "No fue posible solicitar la autorización."));
                 return;
             }
             autorizacionSolicitada = true;
-            Toasts.Exito("Solicitud enviada al Administrador.");
+            Toasts.Exito("Solicitud enviada a Administración.");
         }
         finally { solicitandoAutorizacion = false; }
     }
