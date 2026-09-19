@@ -1,6 +1,8 @@
 using ClinicaPro.Api.Security;
 using ClinicaPro.Application.Auth;
+using ClinicaPro.Application.Citas;
 using ClinicaPro.Application.Pacientes;
+using ClinicaPro.Contracts.Agenda;
 using ClinicaPro.Contracts.Auth;
 using ClinicaPro.Contracts.Pacientes;
 using ClinicaPro.Domain;
@@ -17,7 +19,8 @@ public sealed class PacientesController(
     IAuthService authService,
     BuscarPacientesService buscarPacientes,
     ActualizarPerfilPacienteService actualizarPerfil,
-    DarDeBajaPacientePorInasistenciaService darDeBaja) : ControllerBase
+    DarDeBajaPacientePorInasistenciaService darDeBaja,
+    ObtenerExpedientePacienteService obtenerExpediente) : ControllerBase
 {
     [HttpGet("me")]
     [ProducesResponseType(typeof(PacienteDto), StatusCodes.Status200OK)]
@@ -166,6 +169,55 @@ public sealed class PacientesController(
         }
 
         return Created("/api/pacientes/me", Map(paciente));
+    }
+
+    [Authorize(Roles = RolNombres.Secretaria + "," + RolNombres.Administrador + "," + RolNombres.Medico)]
+    [HttpGet("{pacienteId:guid}/expediente")]
+    [ProducesResponseType(typeof(ExpedientePacienteDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ExpedientePacienteDto>> Expediente(
+        Guid pacienteId,
+        CancellationToken cancellationToken)
+    {
+        var usuarioId = User.ObtenerUsuarioId();
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+
+        var resultado = await obtenerExpediente.ExecuteAsync(
+            pacienteId,
+            usuarioId.Value,
+            User.IsInRole(RolNombres.Secretaria) || User.IsInRole(RolNombres.Administrador),
+            cancellationToken);
+        if (resultado is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(new ExpedientePacienteDto(
+            new PacienteContextoMedicoDto(
+                resultado.Paciente.Id,
+                resultado.Paciente.NombreCompleto,
+                resultado.Paciente.Sexo,
+                resultado.Paciente.Alergias,
+                resultado.Paciente.FechaNacimiento,
+                resultado.Paciente.Telefono),
+            resultado.Visitas.Select(visita => new ExpedienteVisitaResumenDto(
+                visita.Cita.Id,
+                visita.Cita.FechaHoraInicio,
+                visita.Cita.FechaHoraFin,
+                visita.Cita.Estado,
+                visita.Cita.MedicoId,
+                visita.MedicoNombre,
+                visita.Cita.MotivoConsulta,
+                visita.Preconsulta is not null,
+                visita.CantidadIris,
+                visita.Preconsulta?.PresionSistolicaMmHg,
+                visita.Preconsulta?.PresionDiastolicaMmHg,
+                visita.Preconsulta?.TemperaturaCelsius,
+                visita.Preconsulta?.OxigenoSangrePorcentaje)).ToList()));
     }
 
     [Authorize(Roles = RolNombres.Administrador)]

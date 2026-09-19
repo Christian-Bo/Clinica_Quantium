@@ -18,13 +18,13 @@
                     <div class="mt-2 grid grid-cols-2 gap-2 text-xs text-ink-muted">
                         <span><strong class="text-ink">Edad:</strong> @EdadTexto(historial.Paciente.FechaNacimiento)</span>
                         <span><strong class="text-ink">Sexo:</strong> @SexoTexto(historial.Paciente.Sexo)</span>
-                        <span class="sm:col-span-2"><strong class="text-ink">Teléfono:</strong> @(historial.Paciente.Telefono ?? "No registrado")</span>
+                        <span class="sm:col-span-2"><strong class="text-ink">Teléfono:</strong> @TextoPresentacion.Mostrar(historial.Paciente.Telefono, "No registrado")</span>
                     </div>
                 </div>
 
                 <div class="rounded-control border border-border p-3">
                     <div class="flex items-center gap-2"><Icon Name="alert-triangle" Size="17" CssClass="text-state-solicitada" /><p class="text-sm font-medium text-ink">Alergias registradas</p></div>
-                    <p class="mt-2 text-sm @(string.IsNullOrWhiteSpace(historial.Paciente.Alergias) ? "text-ink-muted" : "text-ink")">@(string.IsNullOrWhiteSpace(historial.Paciente.Alergias) ? "Sin alergias registradas." : historial.Paciente.Alergias)</p>
+                    <p class="mt-2 text-sm @(TextoPresentacion.TieneContenido(historial.Paciente.Alergias) ? "text-ink" : "text-ink-muted")">@TextoPresentacion.Alergias(historial.Paciente.Alergias)</p>
                 </div>
 
                 <div>
@@ -38,7 +38,13 @@
                         var ultima = historial.UltimaAtencion;
                         <div class="rounded-control border border-border bg-surface p-3">
                             <div class="flex items-start justify-between gap-3">
-                                <div><p class="text-sm font-medium text-ink">@ultima.FechaHoraInicio.ToString("dd/MM/yyyy · HH:mm")</p><p class="mt-0.5 text-xs text-ink-muted">@ultima.MotivoConsulta</p></div>
+                                <div>
+                                    <p class="text-sm font-medium text-ink">@ultima.FechaHoraInicio.ToString("dd/MM/yyyy · HH:mm")</p>
+                                    @if (TextoPresentacion.TieneContenido(ultima.MotivoConsulta))
+                                    {
+                                        <p class="mt-0.5 text-xs text-ink-muted">@TextoPresentacion.MotivoConsulta(ultima.MotivoConsulta)</p>
+                                    }
+                                </div>
                                 <CitaStatusBadge Estado="@ultima.Estado" />
                             </div>
                         </div>
@@ -57,7 +63,16 @@
                             @foreach (var cita in historial.CitasProximas.OrderBy(x => x.FechaHoraInicio))
                             {
                                 <div class="rounded-control border border-border bg-surface p-3">
-                                    <div class="flex items-start justify-between gap-3"><div><p class="text-sm font-medium text-ink">@cita.FechaHoraInicio.ToString("dd/MM/yyyy · HH:mm")</p><p class="mt-0.5 text-xs text-ink-muted">@cita.MotivoConsulta</p></div><CitaStatusBadge Estado="@cita.Estado" /></div>
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p class="text-sm font-medium text-ink">@cita.FechaHoraInicio.ToString("dd/MM/yyyy · HH:mm")</p>
+                                            @if (TextoPresentacion.TieneContenido(cita.MotivoConsulta))
+                                            {
+                                                <p class="mt-0.5 text-xs text-ink-muted">@TextoPresentacion.MotivoConsulta(cita.MotivoConsulta)</p>
+                                            }
+                                        </div>
+                                        <CitaStatusBadge Estado="@cita.Estado" />
+                                    </div>
                                 </div>
                             }
                         </div>
@@ -76,7 +91,16 @@
                             @foreach (var cita in historial.CitasPasadas.OrderByDescending(x => x.FechaHoraInicio).Take(8))
                             {
                                 <div class="rounded-control border border-border bg-surface p-3">
-                                    <div class="flex items-start justify-between gap-3"><div><p class="text-sm font-medium text-ink">@cita.FechaHoraInicio.ToString("dd/MM/yyyy · HH:mm")</p><p class="mt-0.5 text-xs text-ink-muted">@cita.MotivoConsulta</p></div><CitaStatusBadge Estado="@cita.Estado" /></div>
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p class="text-sm font-medium text-ink">@cita.FechaHoraInicio.ToString("dd/MM/yyyy · HH:mm")</p>
+                                            @if (TextoPresentacion.TieneContenido(cita.MotivoConsulta))
+                                            {
+                                                <p class="mt-0.5 text-xs text-ink-muted">@TextoPresentacion.MotivoConsulta(cita.MotivoConsulta)</p>
+                                            }
+                                        </div>
+                                        <CitaStatusBadge Estado="@cita.Estado" />
+                                    </div>
                                 </div>
                             }
                         </div>
@@ -124,7 +148,7 @@
             else
             {
                 historial = null;
-                error = resultado.Error ?? "No fue posible cargar la información del paciente.";
+                error = MensajeUsuario.Limpiar(resultado.Error, "No fue posible cargar la información del paciente.");
             }
         }
         finally { cargando = false; }

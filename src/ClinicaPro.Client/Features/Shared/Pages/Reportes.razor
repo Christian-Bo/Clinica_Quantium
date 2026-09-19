@@ -136,7 +136,7 @@
                                             <td class="whitespace-nowrap px-4 py-3"><p class="font-medium text-ink">@cita.FechaHoraInicio.ToString("dd/MM/yyyy")</p><p class="text-xs text-ink-muted">@cita.FechaHoraInicio.ToString("HH:mm") – @cita.FechaHoraFin.ToString("HH:mm")</p></td>
                                             <td class="px-4 py-3 text-ink">@cita.PacienteNombre</td>
                                             <td class="px-4 py-3 text-ink-muted">@cita.MedicoNombre</td>
-                                            <td class="max-w-xs px-4 py-3 text-ink-muted"><span class="line-clamp-2">@cita.MotivoConsulta</span></td>
+                                            <td class="max-w-xs px-4 py-3 text-ink-muted"><span class="line-clamp-2">@TextoPresentacion.Mostrar(cita.MotivoConsulta, "—")</span></td>
                                             <td class="px-4 py-3"><CitaStatusBadge Estado="@cita.Estado" /></td>
                                         </tr>
                                     }
@@ -305,7 +305,7 @@
                 horaFin = c.FechaHoraFin.ToString("HH:mm"),
                 paciente = c.PacienteNombre,
                 medico = c.MedicoNombre,
-                motivo = c.MotivoConsulta,
+                motivo = TextoPresentacion.Opcional(c.MotivoConsulta) ?? string.Empty,
                 estado = c.Estado,
                 reprogramaciones = c.NumeroReprogramaciones
             }).ToList()

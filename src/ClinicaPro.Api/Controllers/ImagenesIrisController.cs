@@ -73,7 +73,17 @@ public sealed class ImagenesIrisController(
         Guid citaId,
         CancellationToken cancellationToken)
     {
-        var lista = await listarImagenes.ExecuteAsync(citaId, cancellationToken);
+        var usuarioId = User.ObtenerUsuarioId();
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+
+        var lista = await listarImagenes.ExecuteAsync(
+            citaId,
+            usuarioId.Value,
+            EsStaffMostrador,
+            cancellationToken);
         return Ok(lista.Select(item => new ImagenIrisDto(
             item.ImagenIrisId,
             item.CitaId,
@@ -94,7 +104,17 @@ public sealed class ImagenesIrisController(
         Guid imagenIrisId,
         CancellationToken cancellationToken)
     {
-        var archivo = await descargarImagen.ExecuteAsync(imagenIrisId, cancellationToken);
+        var usuarioId = User.ObtenerUsuarioId();
+        if (usuarioId is null)
+        {
+            return Unauthorized();
+        }
+
+        var archivo = await descargarImagen.ExecuteAsync(
+            imagenIrisId,
+            usuarioId.Value,
+            EsStaffMostrador,
+            cancellationToken);
         return archivo is null
             ? NotFound()
             : File(archivo.Imagen, archivo.TipoContenido, archivo.NombreArchivo);
@@ -110,4 +130,7 @@ public sealed class ImagenesIrisController(
         await desactivarImagen.ExecuteAsync(imagenIrisId, cancellationToken);
         return NoContent();
     }
+
+    private bool EsStaffMostrador =>
+        User.IsInRole(RolNombres.Secretaria) || User.IsInRole(RolNombres.Administrador);
 }

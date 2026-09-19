@@ -65,14 +65,14 @@
                                         <span class="font-medium text-ink">@paciente.NombreCompleto</span>
                                     </div>
                                 </td>
-                                <td class="px-4 py-3 text-ink-muted">@(paciente.Documento ?? "—")</td>
+                                <td class="px-4 py-3 text-ink-muted">@TextoPresentacion.Mostrar(paciente.Documento, "—")</td>
                                 <td class="px-4 py-3 text-ink-muted">@(paciente.FechaNacimiento?.ToString("dd/MM/yyyy") ?? "—")</td>
-                                <td class="px-4 py-3 text-ink-muted">@FormValidation.FormatGuatemalaPhone(paciente.Telefono)</td>
+                                <td class="px-4 py-3 text-ink-muted">@(TextoPresentacion.TieneContenido(paciente.Telefono) ? FormValidation.FormatGuatemalaPhone(paciente.Telefono) : "—")</td>
                                 <td class="px-4 py-3">
                                     <div class="flex justify-end gap-1">
                                         <button type="button" class="rounded-control p-1.5 text-ink-muted hover:bg-surface-muted hover:text-brand-600"
-                                                title="Ver historial de citas" @onclick="() => AbrirHistorial(paciente)">
-                                            <Icon Name="history" Size="16" />
+                                                title="Ver expediente clínico" @onclick="() => AbrirExpediente(paciente)">
+                                            <Icon Name="file-text" Size="16" />
                                         </button>
                                         <button type="button" class="rounded-control p-1.5 text-ink-muted hover:bg-surface-muted hover:text-brand-600"
                                                 title="Editar paciente" @onclick="() => AbrirEditar(paciente)">
@@ -107,8 +107,8 @@
 <PacienteFormModal IsOpen="modalAbierto" IsOpenChanged="@((bool v) => modalAbierto = v)"
                     Paciente="pacienteEnEdicion" OnGuardado="ManejarGuardado" />
 
-<HistorialPacienteDrawer IsOpen="historialAbierto" IsOpenChanged="@((bool v) => historialAbierto = v)"
-                          Paciente="pacienteHistorial" />
+<ExpedienteClinicoDrawer IsOpen="expedienteAbierto" IsOpenChanged="@((bool v) => expedienteAbierto = v)"
+                          PacienteId="pacienteExpediente?.PacienteId" />
 
 @code {
     private const int TamanoPagina = 15;
@@ -122,8 +122,8 @@
     private bool modalAbierto;
     private PacienteDto? pacienteEnEdicion;
 
-    private bool historialAbierto;
-    private PacienteDto? pacienteHistorial;
+    private bool expedienteAbierto;
+    private PacienteDto? pacienteExpediente;
 
     private CancellationTokenSource? debounceCts;
 
@@ -212,10 +212,10 @@
         modalAbierto = true;
     }
 
-    private void AbrirHistorial(PacienteDto paciente)
+    private void AbrirExpediente(PacienteDto paciente)
     {
-        pacienteHistorial = paciente;
-        historialAbierto = true;
+        pacienteExpediente = paciente;
+        expedienteAbierto = true;
     }
 
     private async Task ManejarGuardado(PacienteDto paciente)

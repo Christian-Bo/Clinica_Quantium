@@ -35,6 +35,9 @@ public static class DependencyInjection
         services.AddScoped<ResolverAutorizacionReprogramacionService>();
         services.AddScoped<RegistrarPreconsultaService>();
         services.AddScoped<ObtenerPreconsultaService>();
+        services.AddScoped<AccesoExpedienteService>();
+        services.AddScoped<ObtenerExpedienteCitaService>();
+        services.AddScoped<ObtenerExpedientePacienteService>();
         services.AddScoped<BuscarPacientesService>();
         services.AddScoped<ListarReporteCitasService>();
         services.AddScoped<EncolarNotificacionCitaService>();

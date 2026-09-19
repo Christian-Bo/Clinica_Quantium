@@ -104,15 +104,26 @@
         "Solicitar" => "Solicitar",
         "Aprobar" => "Aprobar",
         "Rechazar" => "Rechazar",
-        _ => "Cambio"
+        "Login" => "Inicio de sesión",
+        "RegistroPaciente" => "Registro de paciente",
+        "ResetPassword" => "Cambio de contraseña",
+        _ => "Actividad"
     };
 
     private static string DetalleVisible(AuditoriaDto item)
     {
-        if (string.IsNullOrWhiteSpace(item.Detalle)) return "—";
-        return item.Entidad.Equals("Parametro", StringComparison.OrdinalIgnoreCase)
-            ? $"Nuevo valor: {item.Detalle}"
-            : item.Detalle;
+        var detalle = TextoPresentacion.Opcional(item.Detalle);
+        if (detalle is null) return "—";
+
+        if (!item.Entidad.Equals("Parametro", StringComparison.OrdinalIgnoreCase))
+        {
+            return detalle;
+        }
+
+        var valor = detalle.Equals("true", StringComparison.OrdinalIgnoreCase)
+            ? "Sí"
+            : detalle.Equals("false", StringComparison.OrdinalIgnoreCase) ? "No" : detalle;
+        return $"Nuevo valor: {valor}";
     }
 
     protected override async Task OnInitializedAsync() => await CargarAsync();

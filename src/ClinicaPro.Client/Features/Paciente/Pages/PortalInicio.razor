@@ -82,15 +82,15 @@ else
                 <dl class="mt-3 space-y-2 text-sm">
                     <div class="flex justify-between gap-3">
                         <dt class="text-ink-muted">Documento</dt>
-                        <dd class="text-right text-ink">@Mostrar(ficha?.Documento)</dd>
+                        <dd class="text-right text-ink">@TextoPresentacion.Mostrar(ficha?.Documento, "—")</dd>
                     </div>
                     <div class="flex justify-between gap-3">
                         <dt class="text-ink-muted">Teléfono</dt>
-                        <dd class="text-right text-ink">@Mostrar(ficha?.Telefono)</dd>
+                        <dd class="text-right text-ink">@TextoPresentacion.Mostrar(ficha?.Telefono, "—")</dd>
                     </div>
                     <div class="flex justify-between gap-3">
                         <dt class="text-ink-muted">Alergias</dt>
-                        <dd class="text-right text-ink">@Mostrar(ficha?.Alergias)</dd>
+                        <dd class="text-right text-ink">@TextoPresentacion.Alergias(ficha?.Alergias)</dd>
                     </div>
                 </dl>
 
@@ -200,7 +200,7 @@ else
     ];
 
     private bool DatosIncompletos => ficha is not null
-        && (string.IsNullOrWhiteSpace(ficha.Telefono) || string.IsNullOrWhiteSpace(ficha.Alergias));
+        && (!TextoPresentacion.TieneContenido(ficha.Telefono) || !TextoPresentacion.TieneContenido(ficha.Alergias));
 
     private string Saludo
     {
@@ -219,5 +219,4 @@ else
         }
     }
 
-    private static string Mostrar(string? valor) => string.IsNullOrWhiteSpace(valor) ? "—" : valor;
 }

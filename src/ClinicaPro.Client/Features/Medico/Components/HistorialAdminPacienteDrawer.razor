@@ -18,7 +18,7 @@
             <div class="space-y-4">
                 <div class="rounded-control bg-brand-50 p-4">
                     <p class="text-base font-semibold text-ink">@PacienteNombre</p>
-                    <p class="mt-1 text-xs text-ink-muted">Vista administrativa del historial de citas. El acceso clínico detallado continúa restringido al médico correspondiente.</p>
+                    <p class="mt-1 text-xs text-ink-muted">Resumen de citas del paciente. La información clínica se consulta desde el expediente.</p>
                 </div>
 
                 @if (citas.Count == 0)
@@ -38,9 +38,9 @@
                                     </div>
                                     <CitaStatusBadge Estado="@cita.Estado" />
                                 </div>
-                                @if (!string.IsNullOrWhiteSpace(cita.MotivoConsulta))
+                                @if (TextoPresentacion.TieneContenido(cita.MotivoConsulta))
                                 {
-                                    <p class="mt-2 text-xs text-ink-muted">@cita.MotivoConsulta</p>
+                                    <p class="mt-2 text-xs text-ink-muted">@TextoPresentacion.MotivoConsulta(cita.MotivoConsulta)</p>
                                 }
                             </div>
                         }

@@ -27,10 +27,10 @@ public sealed class SubirImagenIrisService(
         var cita = await citas.ObtenerPorIdAsync(citaId, cancellationToken)
             ?? throw new DomainException("La cita no existe.");
 
-        if (cita.Estado is CitaEstados.Cancelada or CitaEstados.Rechazada or CitaEstados.NoPresentada)
+        if (!CitaEstados.PermiteCapturaClinica(cita.Estado))
         {
             throw new DomainException(
-                $"No se pueden adjuntar imágenes a una cita {cita.Estado}.");
+                "Solo se pueden adjuntar imágenes de iris cuando la cita está En Espera o En Atencion.");
         }
 
         var hash = Convert.ToHexString(SHA256.HashData(input.Contenido)).ToLowerInvariant();
@@ -51,20 +51,58 @@ public sealed class SubirImagenIrisService(
     }
 }
 
-public sealed class ListarImagenesIrisService(IImagenIrisRepository imagenes)
+public sealed class ListarImagenesIrisService(
+    ICitaRepository citas,
+    IImagenIrisRepository imagenes,
+    AccesoExpedienteService accesoExpediente)
 {
-    public Task<IReadOnlyList<ImagenIrisMetadato>> ExecuteAsync(
+    public async Task<IReadOnlyList<ImagenIrisMetadato>> ExecuteAsync(
         Guid citaId,
+        Guid usuarioId,
+        bool esStaffMostrador,
         CancellationToken cancellationToken = default)
-        => imagenes.ListarPorCitaAsync(citaId, cancellationToken);
+    {
+        var cita = await citas.ObtenerPorIdAsync(citaId, cancellationToken)
+            ?? throw new DomainException("La cita no existe.");
+
+        await accesoExpediente.ExigirLecturaAsync(
+            usuarioId,
+            esStaffMostrador,
+            cita.PacienteId,
+            cancellationToken);
+
+        return await imagenes.ListarPorCitaAsync(citaId, cancellationToken);
+    }
 }
 
-public sealed class DescargarImagenIrisService(IImagenIrisRepository imagenes)
+public sealed class DescargarImagenIrisService(
+    IImagenIrisRepository imagenes,
+    ICitaRepository citas,
+    AccesoExpedienteService accesoExpediente)
 {
-    public Task<ImagenIrisArchivo?> ExecuteAsync(
+    public async Task<ImagenIrisArchivo?> ExecuteAsync(
         Guid imagenIrisId,
+        Guid usuarioId,
+        bool esStaffMostrador,
         CancellationToken cancellationToken = default)
-        => imagenes.ObtenerArchivoAsync(imagenIrisId, cancellationToken);
+    {
+        var archivo = await imagenes.ObtenerArchivoAsync(imagenIrisId, cancellationToken);
+        if (archivo is null)
+        {
+            return null;
+        }
+
+        var cita = await citas.ObtenerPorIdAsync(archivo.CitaId, cancellationToken)
+            ?? throw new DomainException("La cita no existe.");
+
+        await accesoExpediente.ExigirLecturaAsync(
+            usuarioId,
+            esStaffMostrador,
+            cita.PacienteId,
+            cancellationToken);
+
+        return archivo;
+    }
 }
 
 public sealed class DesactivarImagenIrisService(

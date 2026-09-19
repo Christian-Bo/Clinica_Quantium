@@ -413,6 +413,20 @@ public sealed class PreconsultaRepository(ClinicaProDbContext dbContext) : IPrec
     {
         await dbContext.Preconsultas.AddAsync(preconsulta, cancellationToken);
     }
+
+    public async Task<IReadOnlyList<Preconsulta>> ListarActivasPorCitasAsync(
+        IReadOnlyCollection<Guid> citaIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (citaIds.Count == 0)
+        {
+            return [];
+        }
+
+        return await dbContext.Preconsultas.AsNoTracking()
+            .Where(preconsulta => citaIds.Contains(preconsulta.CitaId) && preconsulta.IsActive)
+            .ToListAsync(cancellationToken);
+    }
 }
 
 public sealed class ImagenIrisRepository(ClinicaProDbContext dbContext) : IImagenIrisRepository
@@ -444,6 +458,7 @@ public sealed class ImagenIrisRepository(ClinicaProDbContext dbContext) : IImage
         return await dbContext.ImagenesIris.AsNoTracking()
             .Where(imagen => imagen.Id == imagenIrisId && imagen.IsActive)
             .Select(imagen => new ImagenIrisArchivo(
+                imagen.CitaId,
                 imagen.NombreArchivo,
                 imagen.TipoContenido,
                 imagen.Imagen))
@@ -461,5 +476,21 @@ public sealed class ImagenIrisRepository(ClinicaProDbContext dbContext) : IImage
     public async Task AgregarAsync(ImagenIris imagen, CancellationToken cancellationToken = default)
     {
         await dbContext.ImagenesIris.AddAsync(imagen, cancellationToken);
+    }
+
+    public async Task<IReadOnlyDictionary<Guid, int>> ContarActivasPorCitasAsync(
+        IReadOnlyCollection<Guid> citaIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (citaIds.Count == 0)
+        {
+            return new Dictionary<Guid, int>();
+        }
+
+        return await dbContext.ImagenesIris.AsNoTracking()
+            .Where(imagen => citaIds.Contains(imagen.CitaId) && imagen.IsActive)
+            .GroupBy(imagen => imagen.CitaId)
+            .Select(grupo => new { grupo.Key, Count = grupo.Count() })
+            .ToDictionaryAsync(item => item.Key, item => item.Count, cancellationToken);
     }
 }

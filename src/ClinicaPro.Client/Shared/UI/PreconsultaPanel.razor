@@ -5,13 +5,13 @@
 <section class="rounded-card border border-border bg-surface p-4" aria-labelledby="preconsulta-titulo">
     <div class="flex items-center justify-between gap-3">
         <div>
-            <p id="preconsulta-titulo" class="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">Preconsulta</p>
+            <p id="preconsulta-titulo" class="text-sm font-semibold text-ink">Signos vitales</p>
             @if (preconsulta is not null && !editando)
             {
-                <p class="mt-0.5 text-xs text-ink-muted">Último registro: @preconsulta.FechaRegistroUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
+                <p class="mt-0.5 text-xs text-ink-muted">Registrados el @preconsulta.FechaRegistroUtc.ToLocalTime().ToString("dd/MM/yyyy · HH:mm")</p>
             }
         </div>
-        @if (Editable && !cargando && !editando)
+        @if (PuedeEditar && !cargando && !editando)
         {
             <Button Variant="ButtonVariant.Ghost" Size="sm" IconName="edit" OnClick="IniciarEdicion">
                 @(preconsulta is null ? "Registrar" : "Editar")
@@ -89,13 +89,17 @@
 
             <div class="flex justify-end gap-2">
                 <Button Variant="ButtonVariant.Ghost" Size="sm" Disabled="guardando" OnClick="CancelarEdicion">Cancelar</Button>
-                <Button Variant="ButtonVariant.Primary" Size="sm" IconName="check" Loading="guardando" Disabled="guardando" OnClick="GuardarAsync">Guardar preconsulta</Button>
+                <Button Variant="ButtonVariant.Primary" Size="sm" IconName="check" Loading="guardando" Disabled="guardando" OnClick="GuardarAsync">Guardar signos vitales</Button>
             </div>
         </div>
     }
     else if (preconsulta is null)
     {
         <p class="mt-3 text-sm text-ink-muted">Aún no hay signos vitales registrados para esta cita.</p>
+        @if (Editable && !PuedeEditar)
+        {
+            <p class="mt-2 text-xs leading-5 text-ink-muted">Podrás registrarlos después de marcar la llegada del paciente y mientras la atención esté activa.</p>
+        }
     }
     else
     {
@@ -104,9 +108,9 @@
             <Dato Etiqueta="Temperatura" Valor="@preconsulta.TemperaturaCelsius.ToString("0.0")" Unidad="°C" />
             <Dato Etiqueta="Oxígeno" Valor="@preconsulta.OxigenoSangrePorcentaje.ToString("0.#")" Unidad="%" />
         </div>
-        @if (!string.IsNullOrWhiteSpace(preconsulta.Observacion))
+        @if (TextoPresentacion.TieneContenido(preconsulta.Observacion))
         {
-            <p class="mt-3 rounded-control bg-surface-muted px-3 py-2 text-xs leading-5 text-ink-muted"><span class="font-semibold text-ink">Observación:</span> @preconsulta.Observacion</p>
+            <p class="mt-3 rounded-control bg-surface-muted px-3 py-2 text-xs leading-5 text-ink-muted"><span class="font-semibold text-ink">Observación:</span> @TextoPresentacion.Mostrar(preconsulta.Observacion)</p>
         }
     }
 </section>
@@ -114,6 +118,8 @@
 @code {
     [Parameter, EditorRequired] public Guid CitaId { get; set; }
     [Parameter] public bool Editable { get; set; }
+    [Parameter] public string? Estado { get; set; }
+    [Parameter] public EventCallback OnActualizado { get; set; }
 
     private PreconsultaClientDto? preconsulta;
     private Guid citaCargada;
@@ -128,9 +134,15 @@
     private decimal? temperatura;
     private decimal? oxigeno;
     private string observacion = string.Empty;
+    private bool PuedeEditar => Editable && CitaEstados.PermiteCapturaClinica(Estado);
 
     protected override async Task OnParametersSetAsync()
     {
+        if (!PuedeEditar && editando)
+        {
+            CancelarEdicion();
+        }
+
         if (CitaId != Guid.Empty && CitaId != citaCargada)
         {
             citaCargada = CitaId;
@@ -156,7 +168,7 @@
             }
             else
             {
-                errorCarga = resultado.Error ?? "No fue posible cargar la preconsulta.";
+                errorCarga = MensajeUsuario.Limpiar(resultado.Error, "No pudimos cargar los signos vitales.");
             }
         }
         finally
@@ -171,7 +183,7 @@
         diastolica = preconsulta?.PresionDiastolicaMmHg;
         temperatura = preconsulta?.TemperaturaCelsius;
         oxigeno = preconsulta?.OxigenoSangrePorcentaje;
-        observacion = preconsulta?.Observacion ?? string.Empty;
+        observacion = TextoPresentacion.Opcional(preconsulta?.Observacion) ?? string.Empty;
         mostrarErrores = false;
         errorGuardado = null;
         editando = true;
@@ -206,13 +218,14 @@
                 new RegistrarPreconsultaClientRequest(sistolica!.Value, diastolica!.Value, temperatura!.Value, oxigeno!.Value, string.IsNullOrWhiteSpace(observacion) ? null : observacion.Trim()));
             if (!resultado.Exito || resultado.Valor is null)
             {
-                errorGuardado = resultado.Error ?? "No fue posible guardar la preconsulta.";
+                errorGuardado = MensajeUsuario.Limpiar(resultado.Error, "No pudimos guardar los signos vitales.");
                 return;
             }
 
             preconsulta = resultado.Valor;
             editando = false;
-            Toasts.Exito("Preconsulta guardada.");
+            Toasts.Exito("Signos vitales guardados.");
+            await OnActualizado.InvokeAsync();
         }
         finally
         {

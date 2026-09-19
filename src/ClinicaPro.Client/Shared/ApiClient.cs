@@ -239,6 +239,66 @@ public sealed class ApiClient(HttpClient http)
             : FrontendErrorCatalog.WithCode(
                 $"{contexto} No pudimos conectarnos. Revisa tu conexión e intenta nuevamente.",
                 FrontendErrorCatalog.Connection);
+
+    public async Task<ResultadoOperacion<T>> EnviarMultipartAsync<T>(
+        string url,
+        MultipartFormDataContent content,
+        string mensajeError,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            using var respuesta = await http.PostAsync(url, content, ct);
+            if (!respuesta.IsSuccessStatusCode)
+            {
+                return ResultadoOperacion<T>.Fallo(
+                    await ApiErrorReader.LeerAsync(respuesta, mensajeError, ct),
+                    respuesta.StatusCode);
+            }
+
+            var valor = await respuesta.Content.ReadFromJsonAsync<T>(cancellationToken: ct);
+            return valor is null
+                ? ResultadoOperacion<T>.Fallo(FrontendErrorCatalog.WithCode(
+                    "La operación terminó, pero no pudimos actualizar la información en pantalla. Intenta nuevamente.",
+                    FrontendErrorCatalog.InvalidResponse))
+                : ResultadoOperacion<T>.Ok(valor);
+        }
+        catch (JsonException)
+        {
+            return ResultadoOperacion<T>.Fallo(FrontendErrorCatalog.WithCode(
+                "No pudimos procesar la información recibida. Intenta nuevamente.",
+                FrontendErrorCatalog.InvalidResponse));
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            return ResultadoOperacion<T>.Fallo(MensajeConexion(ex, mensajeError));
+        }
+    }
+
+    public async Task<ResultadoOperacion<(byte[] Bytes, string Tipo)>> ObtenerArchivoAsync(
+        string url,
+        string mensajeError,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            using var respuesta = await EnviarGetConReintentosAsync(url, ct);
+            if (!respuesta.IsSuccessStatusCode)
+            {
+                return ResultadoOperacion<(byte[] Bytes, string Tipo)>.Fallo(
+                    await ApiErrorReader.LeerAsync(respuesta, mensajeError, ct),
+                    respuesta.StatusCode);
+            }
+
+            var bytes = await respuesta.Content.ReadAsByteArrayAsync(ct);
+            var tipo = respuesta.Content.Headers.ContentType?.MediaType ?? "application/octet-stream";
+            return ResultadoOperacion<(byte[] Bytes, string Tipo)>.Ok((bytes, tipo));
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            return ResultadoOperacion<(byte[] Bytes, string Tipo)>.Fallo(MensajeConexion(ex, mensajeError));
+        }
+    }
 }
 
 public sealed class ApiClientException(HttpStatusCode statusCode, string message) : HttpRequestException(message)

@@ -240,21 +240,38 @@
         "Paciente" => "Pacientes",
         "Medico" => "Médicos",
         "Usuario" => "Usuarios",
-        _ => entidad
+        _ => "Otros"
     };
 
     private static string EtiquetaAccion(string accion) => accion switch
     {
         "DarDeBaja" => "Dar de baja",
-        _ => accion
+        "Actualizar" => "Actualizar",
+        "Crear" => "Crear",
+        "Desactivar" => "Desactivar",
+        "Solicitar" => "Solicitar",
+        "Aprobar" => "Aprobar",
+        "Rechazar" => "Rechazar",
+        "Login" => "Inicio de sesión",
+        "RegistroPaciente" => "Registro de paciente",
+        "ResetPassword" => "Cambio de contraseña",
+        _ => "Actividad"
     };
 
     private static string DetalleActividad(AuditoriaDto item)
     {
-        if (string.IsNullOrWhiteSpace(item.Detalle)) return "Sin detalle adicional";
-        return item.Entidad.Equals("Parametro", StringComparison.OrdinalIgnoreCase)
-            ? $"Nuevo valor: {item.Detalle}"
-            : item.Detalle;
+        var detalle = TextoPresentacion.Opcional(item.Detalle);
+        if (detalle is null) return "Sin detalle adicional";
+
+        if (!item.Entidad.Equals("Parametro", StringComparison.OrdinalIgnoreCase))
+        {
+            return detalle;
+        }
+
+        var valor = detalle.Equals("true", StringComparison.OrdinalIgnoreCase)
+            ? "Sí"
+            : detalle.Equals("false", StringComparison.OrdinalIgnoreCase) ? "No" : detalle;
+        return $"Nuevo valor: {valor}";
     }
 
     private static string ValorOIndicador(bool cargado, int valor) => cargado ? valor.ToString() : "—";
